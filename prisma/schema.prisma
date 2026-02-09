@@ -1,0 +1,56 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  telegramId BigInt  @unique
+  createdAt DateTime @default(now())
+
+  series    Series[]
+}
+
+model Series {
+  id        String   @id @default(cuid())
+  title     String
+  createdAt DateTime @default(now())
+
+  userId    String     // временно nullable
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  seasons   Season[]
+}
+
+
+model Season {
+  id            String   @id @default(cuid())
+  createdAt     DateTime @default(now())
+
+  seriesId      String
+  series        Series   @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+
+  number        Int
+  episodesCount Int
+
+  episodes      Episode[]
+
+  @@unique([seriesId, number])
+}
+
+model Episode {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  seasonId  String
+  season    Season   @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+
+  number    Int
+  watched   Boolean  @default(false)
+
+  @@unique([seasonId, number])
+}
