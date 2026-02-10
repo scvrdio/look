@@ -13,6 +13,8 @@ import { Button } from "../components/ui/button";
 
 import { AnimatedCounter } from "@/components/ui/AnimatedCounter";
 
+import { hapticImpact } from "@/lib/haptics";
+
 type Me = { name: string | null };
 type InProgress = { inProgressCount: number };
 
@@ -119,7 +121,7 @@ export default function HomePage() {
             {titleReady && (
               <>
                 <TitleSeg delay={0}>Привет,</TitleSeg>{" "}
-                <TitleSeg delay={150}strong>{firstName}!</TitleSeg>{" "}
+                <TitleSeg delay={150} strong>{firstName}!</TitleSeg>{" "}
                 <TitleSeg delay={300}>Что</TitleSeg>{" "}
                 <TitleSeg delay={450}>будем</TitleSeg>
                 <br />
@@ -130,10 +132,11 @@ export default function HomePage() {
                 <TitleSeg delay={1050}>на</TitleSeg>{" "}
                 <TitleSeg delay={1200}>очереди</TitleSeg>{" "}
                 <TitleSeg delay={1350} strong>
-                <AnimatedCounter value={inProgressCount} />{" "}
-сериал{pluralRu(inProgressCount, "", "а", "ов")}
+                  <AnimatedCounter value={inProgressCount} />
+                </TitleSeg>{" "}
+                <TitleSeg delay={1500}>сериал{pluralRu(inProgressCount, "", "а", "ов")}</TitleSeg>
 
-                </TitleSeg>
+
               </>
             )}
 
@@ -190,6 +193,7 @@ export default function HomePage() {
                   rightTop={rightTop}
                   rightBottom={rightBottom}
                   onClick={() => {
+                    hapticImpact("light");
                     setActiveSeriesId(s.id);
                     setActiveTitle(s.title);
                     setSheetOpen(true);
