@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 
 import { hapticImpact, hapticNotify } from "@/lib/haptics";
 
+import { X } from "lucide-react";
+
 type SeasonDraft = {
     number: number;
     episodesCount: string; // строка, чтобы нормально жить с пустым вводом
@@ -184,11 +186,12 @@ export default function AddSeriesPage() {
                             hapticImpact("light");
                             router.push("/");
                         }}
-                        className="h-10 w-10 rounded-full text-black/60 text-[32px] inline-flex items-center justify-center"
+                        className="h-10 w-10 rounded-full text-black text-[32px] inline-flex items-center justify-center"
                         aria-label="Close"
                     >
-                        ×
+                        <X size={28} strokeWidth={1.5} />
                     </button>
+                    
                 </div>
 
                 {/* Form */}
