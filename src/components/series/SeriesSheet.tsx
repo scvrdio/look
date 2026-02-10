@@ -10,6 +10,9 @@ import { SeasonTabs } from "@/components/series/SeasonTabs";
 import { EpisodeGrid } from "@/components/series/EpisodeGrid";
 import { fetcher } from "@/lib/fetcher";
 
+import { X, CircleEllipsis } from "lucide-react";
+import { hapticImpact } from "@/lib/haptics";
+
 type SeasonRow = {
   id: string;
   number: number;
@@ -134,7 +137,7 @@ export function SeriesSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="p-0 rounded-t-[24px] border-0 shadow-none h-[65dvh] overflow-hidden"
+        className="p-0 rounded-t-[32px] border-0 shadow-none h-[65dvh] overflow-hidden"
       >
         <VisuallyHidden>
           <Dialog.Title>{title || "Сериал"}</Dialog.Title>
@@ -142,21 +145,32 @@ export function SeriesSheet({
 
         <div className="flex h-full flex-col">
           {/* Header */}
-          <div className="px-5 pt-5 pb-4">
-            <div className="flex items-start justify-between gap-4">
-              <div className="text-[32px] font-bold tracking-tight leading-[1]">
-                {title || ""}
-              </div>
+          <div className="relative px-5 pt-7 pb-4">
+            {/* left: close */}
+            <SheetClose asChild>
+              <button
+                type="button"
+                onClick={() => hapticImpact("light")}
+                className="absolute left-4 top-5 h-10 w-10 rounded-full inline-flex items-center justify-center text-black"
+                aria-label="Close"
+              >
+                <X size={28} strokeWidth={1.5} />
+              </button>
+            </SheetClose>
 
-              <SheetClose asChild>
-                <button
-                  type="button"
-                  className="h-10 w-10 rounded-full text-black/60 text-[32px] inline-flex items-center justify-center"
-                  aria-label="Close"
-                >
-                  ×
-                </button>
-              </SheetClose>
+            {/* right: menu */}
+            <button
+              type="button"
+              onClick={() => hapticImpact("light")}
+              className="absolute right-4 top-5 h-10 w-10 rounded-full inline-flex items-center justify-center text-black"
+              aria-label="Menu"
+            >
+              <CircleEllipsis size={28} strokeWidth={1.5} />
+            </button>
+
+            {/* title */}
+            <div className="text-center ty-h1 text-[24px] font-semibold leading-[1.1] px-12">
+              {title}
             </div>
           </div>
 
