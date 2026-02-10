@@ -23,6 +23,7 @@ export function TgBoot() {
     if (!tg) return;
 
     try {
+      tg.ready?.();
       tg.expand?.();
     } catch {}
 
