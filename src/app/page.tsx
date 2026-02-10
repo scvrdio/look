@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
 
@@ -29,12 +29,23 @@ export default function HomePage() {
 
   const { data: items, mutate: mutateSeries } = useSWR<SeriesRow[]>("/api/series", fetcher);
 
+  const [listReady, setListReady] = useState(false);
+
+  useEffect(() => {
+    if (!listReady && items) setListReady(true);
+  }, [items, listReady]);
+
   return (
     <main className="min-h-dvh bg-white">
       <div className="mx-auto max-w-[420px] px-4 pt-[calc(var(--tg-content-safe-top,0px)+56px)] pb-28">
         <h1 className="text-[32px] ty-h1">Коллекция</h1>
 
-        <div className="mt-6 space-y-2">
+        <div
+          className={[
+            "mt-6 space-y-2 transition-all duration-300 ease-out",
+            listReady ? "opacity-100 translate-y-0 blur-0" : "opacity-0 translate-y-2 blur-[2px]",
+          ].join(" ")}
+        >
           {(items ?? []).map((s) => {
             const rightTop = s.progress?.last
               ? `S${s.progress.last.season} E${s.progress.last.episode}`
