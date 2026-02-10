@@ -167,6 +167,13 @@ function BootGate({ children }: { children: React.ReactNode }) {
   if (!ready) {
     return (
       <main className="min-h-dvh bg-white">
+        <div className="mx-auto max-w-[420px] px-4 pt-[calc(var(--tg-content-safe-top,0px)+56px)] pb-10">
+          <div className="text-[32px] font-bold tracking-tight">Коллекция</div>
+          <div className="mt-6 text-black/50">Загрузка…</div>
+          <div className="mt-2 text-black/30 text-sm">
+            Подгружаем первые 3 сериала целиком.
+          </div>
+        </div>
       </main>
     );
   }
