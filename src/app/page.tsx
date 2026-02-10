@@ -77,15 +77,13 @@ export default function HomePage() {
         </div>
       </div>
 
-      {sheetOpen && (
-        <SeriesSheet
-          open
-          onOpenChange={setSheetOpen}
-          seriesId={activeSeriesId}
-          title={activeTitle}
-          onChanged={() => void mutateSeries()}
-        />
-      )}
+      <SeriesSheet
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        seriesId={activeSeriesId}
+        title={activeTitle}
+        onChanged={() => void mutateSeries()}
+      />
     </main>
   );
 }

@@ -27,7 +27,7 @@ type SeriesSheetProps = {
   onOpenChange: (v: boolean) => void;
   seriesId: string | null;
   title: string;
-  onChanged?: () => void;
+  onChanged?: () => void; // дергаем, чтобы главная обновила прогресс
 };
 
 export function SeriesSheet({
@@ -40,29 +40,29 @@ export function SeriesSheet({
   const [activeSeasonId, setActiveSeasonId] = React.useState<string | null>(null);
   const [uiEpisodes, setUiEpisodes] = React.useState<EpisodeRow[] | null>(null);
 
+  // держим предыдущий сериал, чтобы не сбрасывать состояние в фоне
   const prevSeriesIdRef = React.useRef<string | null>(null);
 
-  // 1) seasons
+  // Сезоны
   const seasonsKey = open && seriesId ? `/api/series/${seriesId}/seasons` : null;
-  const { data: seasons } = useSWR<SeasonRow[]>(seasonsKey, fetcher, {
-    revalidateOnMount: false,
-    revalidateOnFocus: false,
-    revalidateIfStale: false,
-  });
+  const {
+    data: seasons,
+    isLoading: loadingSeasons,
+    isValidating: validatingSeasons,
+  } = useSWR<SeasonRow[]>(seasonsKey, fetcher);
 
-  // сброс только когда открыли и сериал реально поменялся
+  // При открытии sheet на новый сериал — сбросить выбранный сезон и снапшот эпизодов
   React.useEffect(() => {
     if (!open) return;
-    if (prevSeriesIdRef.current === seriesId) return;
 
-    prevSeriesIdRef.current = seriesId;
-    setActiveSeasonId(null);
-    // UI эпизоды не чистим агрессивно — оставим до прихода новых,
-    // но если это новый сериал, лучше сбросить, чтобы не показывать чужие эпизоды
-    setUiEpisodes(null);
+    if (prevSeriesIdRef.current !== seriesId) {
+      prevSeriesIdRef.current = seriesId;
+      setActiveSeasonId(null);
+      setUiEpisodes(null);
+    }
   }, [open, seriesId]);
 
-  // выбрать первый сезон по умолчанию
+  // Выбрать первый сезон по умолчанию (только когда sheet открыт и сезоны приехали)
   React.useEffect(() => {
     if (!open) return;
     if (activeSeasonId) return;
@@ -71,17 +71,18 @@ export function SeriesSheet({
     setActiveSeasonId(seasons[0].id);
   }, [open, activeSeasonId, seasons]);
 
-  // 2) episodes
+  // Эпизоды активного сезона
   const episodesKey =
     open && activeSeasonId ? `/api/seasons/${activeSeasonId}/episodes` : null;
 
-  const { data: episodes, mutate: mutateEpisodes } = useSWR<EpisodeRow[]>(episodesKey, fetcher, {
-    revalidateOnMount: false,
-    revalidateOnFocus: false,
-    revalidateIfStale: false,
-  });
+  const {
+    data: episodes,
+    isLoading: loadingEpisodes,
+    isValidating: validatingEpisodes,
+    mutate: mutateEpisodes,
+  } = useSWR<EpisodeRow[]>(episodesKey, fetcher);
 
-  // снапшот для UI (не прыгает при смене сезона)
+  // UI-снапшот: обновляем только когда реально пришли данные для текущего ключа
   React.useEffect(() => {
     if (!open) return;
     if (!episodesKey) return;
@@ -98,24 +99,36 @@ export function SeriesSheet({
     const prev = uiEpisodes;
     const next = prev.map((e) => (e.id === id ? { ...e, watched: !e.watched } : e));
 
-    // optimistic
+    // 1) мгновенно обновляем UI + SWR cache без revalidate
     setUiEpisodes(next);
     await mutateEpisodes(next, false);
 
+    // 2) пишем на сервер
     const res = await fetch(`/api/episodes/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
     });
 
+    // 3) откат при ошибке — без лишнего refetch
     if (!res.ok) {
       setUiEpisodes(prev);
       await mutateEpisodes(prev, false);
       return;
     }
 
+    // 4) обновить прогресс на главной (серии/процент)
     onChanged?.();
   }
+
+  // "Первичная" загрузка — когда данных реально нет
+  const initialLoading =
+    (seasonsKey !== null && !seasons) || (episodesKey !== null && !uiEpisodes);
+
+  // Фоновая валидация — когда данные есть, но идёт обновление
+  const backgroundUpdating = Boolean(
+    (seasons && validatingSeasons) || (uiEpisodes && validatingEpisodes)
+  );
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -147,25 +160,36 @@ export function SeriesSheet({
             </div>
           </div>
 
-          {/* Body */}
+          {/* Body (scroll) */}
           <div className="flex-1 overflow-y-auto px-5 pb-6">
             <div className="flex h-full flex-col">
-              {/* Seasons */}
+              {/* Seasons (full-bleed, сверху) */}
               <div className="-mx-5">
                 <div className="px-5 overflow-x-auto no-scrollbar">
                   <div className="py-2">
                     <SeasonTabs
                       items={(seasons ?? []).map((s) => ({ id: s.id, number: s.number }))}
                       activeId={activeSeasonId}
-                      onChange={setActiveSeasonId}
+                      onChange={(id) => {
+                        setActiveSeasonId(id);
+                        // при смене сезона не очищаем грид визуально — uiEpisodes останется старым,
+                        // а обновится, когда придут новые episodes
+                      }}
                     />
                   </div>
                 </div>
               </div>
 
-              {/* Episodes */}
+              {/* Episodes (прилипают к низу) */}
               <div className="mt-auto pt-6">
-                <EpisodeGrid items={uiEpisodes ?? []} onToggle={toggleEpisode} />
+                {initialLoading ? (
+                  <div className="text-black/40">Загрузка…</div>
+                ) : (
+                  <>
+                    {backgroundUpdating}
+                    <EpisodeGrid items={uiEpisodes ?? []} onToggle={toggleEpisode} />
+                  </>
+                )}
               </div>
             </div>
           </div>
