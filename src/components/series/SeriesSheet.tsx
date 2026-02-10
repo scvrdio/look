@@ -182,13 +182,8 @@ export function SeriesSheet({
 
               {/* Episodes (прилипают к низу) */}
               <div className="mt-auto pt-6">
-                {initialLoading ? : (
-                  <>
-                    {backgroundUpdating}
-                    <EpisodeGrid items={uiEpisodes ?? []} onToggle={toggleEpisode} />
-                  </>
-                )}
-              </div>
+  <EpisodeGrid items={uiEpisodes ?? []} onToggle={toggleEpisode} />
+</div>
             </div>
           </div>
         </div>
