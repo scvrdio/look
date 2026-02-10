@@ -10,7 +10,7 @@ import { SeasonTabs } from "@/components/series/SeasonTabs";
 import { EpisodeGrid } from "@/components/series/EpisodeGrid";
 import { fetcher } from "@/lib/fetcher";
 
-import { X, CircleEllipsis } from "lucide-react";
+import { X, Trash2 } from "lucide-react";
 import { hapticImpact } from "@/lib/haptics";
 import { useRouter } from "next/navigation";
 
@@ -179,7 +179,7 @@ export function SeriesSheet({
               <button
                 type="button"
                 onClick={() => hapticImpact("light")}
-                className="absolute left-4 top-5 h-10 w-10 rounded-full inline-flex items-center justify-center text-black"
+                className="absolute right-4 top-5 h-10 w-10 rounded-full inline-flex items-center justify-center text-black"
                 aria-label="Close"
               >
                 <X size={28} strokeWidth={1.5} />
@@ -195,10 +195,10 @@ export function SeriesSheet({
                 setConfirmDeleteOpen(true);
               }}
 
-              className="absolute right-4 top-5 h-10 w-10 rounded-full inline-flex items-center justify-center text-black"
+              className="absolute left-4 top-5 h-10 w-10 rounded-full inline-flex items-center justify-center text-[#FF0000]"
               aria-label="Delete"
             >
-              <CircleEllipsis size={28} strokeWidth={1.5} />
+              <Trash2 size={24} strokeWidth={1.5} />
             </button>
 
             {/* title */}
