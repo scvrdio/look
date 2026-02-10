@@ -11,6 +11,16 @@ import { SeriesCard } from "../components/series/SeriesCard";
 import { SeriesSheet } from "../components/series/SeriesSheet";
 import { Button } from "../components/ui/button";
 
+type Me = { name: string | null };
+
+type InProgress = { inProgressCount: number };
+
+function getTgFirstName(): string | null {
+  const tg = (window as any)?.Telegram?.WebApp;
+  const n = tg?.initDataUnsafe?.user?.first_name;
+  return typeof n === "string" && n.trim() ? n.trim() : null;
+}
+
 type SeriesRow = {
   id: string;
   title: string;
@@ -31,6 +41,13 @@ export default function HomePage() {
 
   const [listReady, setListReady] = useState(false);
 
+  const { data: me } = useSWR<Me>("/api/me", fetcher);
+  const { data: prog } = useSWR<InProgress>("/api/series/in-progress-count", fetcher);
+
+  const firstName = (me?.name ?? null) || getTgFirstName() || "друг";
+  const inProgressCount = prog?.inProgressCount ?? 0;
+
+
   useEffect(() => {
     if (!listReady && items) setListReady(true);
   }, [items, listReady]);
@@ -38,7 +55,19 @@ export default function HomePage() {
   return (
     <main className="min-h-dvh bg-white">
       <div className="mx-auto max-w-[420px] px-4 pt-[calc(var(--tg-content-safe-top,0px)+56px)] pb-28">
-        <h1 className="text-[32px] ty-h1">Коллекция</h1>
+        <div className="mt-2">
+          <div className="ty-h1 text-[24px] leading-[1.05] font-semibold">
+            <span className="text-black/20">Привет, </span>
+            <span className="text-black">{firstName}!</span>
+            <span className="text-black/20"> Что будем</span>
+            <br />
+            <span className="text-black/20">смотреть сегодня? У тебя</span>
+            <br />
+            <span className="text-black/20">на очереди </span>
+            <span className="text-black">{inProgressCount} сериал{pluralRu(inProgressCount, "ов", "а", "ов")}</span>
+          </div>
+        </div>
+
 
         <div
           className={[

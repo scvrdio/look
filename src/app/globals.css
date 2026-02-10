@@ -146,7 +146,7 @@
 /* Typography presets (TikTok Sans variable) */
 
 .ty-h1 {
-  font-variation-settings: "wdth" 75, "wght" 850, "opsz" 32;
+  font-variation-settings: "wdth" 75, "wght" 800, "opsz" 32;
   letter-spacing: -0.01em;
 }
 
