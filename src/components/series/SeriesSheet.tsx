@@ -182,9 +182,7 @@ export function SeriesSheet({
 
               {/* Episodes (прилипают к низу) */}
               <div className="mt-auto pt-6">
-                {initialLoading ? (
-                  <div className="text-black/40">Загрузка…</div>
-                ) : (
+                {initialLoading ? : (
                   <>
                     {backgroundUpdating}
                     <EpisodeGrid items={uiEpisodes ?? []} onToggle={toggleEpisode} />
