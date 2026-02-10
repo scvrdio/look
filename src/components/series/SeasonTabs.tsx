@@ -23,7 +23,7 @@ export function SeasonTabs({ items, activeId, onChange, className }: Props) {
             onClick={() => onChange(s.id)}
             className={cn(
               "shrink-0 h-12 px-5 rounded-full text-[16px] font-medium",
-              active ? "bg-black text-white" : "bg-black/2 text-black"
+              active ? "bg-black text-white" : "bg-black/4 text-black"
             )}
           >
             {s.number} сезон

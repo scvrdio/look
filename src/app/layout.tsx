@@ -1,5 +1,7 @@
 import "./globals.css";
 import Script from "next/script";
+import { TgBoot } from "@/components/TgBoot";
+
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -9,6 +11,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           src="https://telegram.org/js/telegram-web-app.js"
           strategy="beforeInteractive"
         />
+        <TgBoot />
         {children}
       </body>
     </html>

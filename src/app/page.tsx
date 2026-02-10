@@ -73,13 +73,13 @@ export default function HomePage() {
 
   return (
     <main className="min-h-dvh bg-white">
-      <div className="mx-auto max-w-[420px] px-4 pt-16 pb-28">
+      <div className="mx-auto max-w-[420px] px-4 pt-[calc(var(--tg-content-safe-top,0px)+24px)] pb-28">
         <h1 className="text-[32px] ty-h1">Коллекция</h1>
 
         <div className="mt-6 space-y-2">
           {items.map((s) => {
             const rightTop = s.progress?.last
-              ? `S${s.progress.last.season} E${s.progress.last.episode + 1}`
+              ? `S${s.progress.last.season} E${s.progress.last.episode}`
               : "";
 
             const rightBottom = `${s.progress?.percent ?? 0}%`;
@@ -112,8 +112,8 @@ export default function HomePage() {
         </div>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 bg-white">
-        <div className="mx-auto max-w-[420px] px-5 pb-5 pt-3">
+      <div className="fixed inset-x-0 bottom-0">
+        <div className="mx-auto max-w-[420px] px-5 pb-[calc(var(--tg-content-safe-bottom,0px)+20px)] pt-3">
           <Link href="/add" className="block">
             <Button>Добавить сериал</Button>
           </Link>

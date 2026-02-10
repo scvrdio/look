@@ -205,7 +205,7 @@ export default function AddSeriesPage() {
                                 value={s.episodesCount}
                                 onChange={(v) => setSeasonEpisodesCount(idx, v)}
                                 inputMode="numeric"
-                                placeholder="Количество"
+                                placeholder="Количество серий"
                                 error={wasSubmitted ? seasonErrors[idx] : null}
                                 disabled={submitting}
                                 labelRight={

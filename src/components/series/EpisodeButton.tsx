@@ -20,7 +20,7 @@ export function EpisodeButton({ number, watched, onClick }: EpisodeButtonProps) 
         "transition active:scale-[0.95]",
         watched
           ? "bg-black text-white"
-          : "bg-black/2 text-black"
+          : "bg-black/4 text-black"
       )}
     >
       {number}
