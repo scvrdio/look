@@ -105,27 +105,24 @@ function BootGate({ children }: { children: React.ReactNode }) {
         await mutateGlobal("/api/series", series, { revalidate: false });
 
         // 3) top-3 blocking + rest background
-const rest = series.slice(3);
+        const top = series.slice(0, 3);
+        const rest = series.slice(3);
 
-// TOP-3 blocking одним запросом
-{
-  const preload = await fetcher<PreloadResponse>("/api/preload?limit=3");
-  if (cancelled) return;
+        // TOP-3 blocking
+        {
+          const CONCURRENCY = 2;
+          let i = 0;
 
-  // seasons -> cache
-  await Promise.allSettled(
-    Object.entries(preload.seasonsBySeries).map(([seriesId, seasons]) =>
-      mutateGlobal(`/api/series/${seriesId}/seasons`, seasons, { revalidate: false })
-    )
-  );
+          async function workerTop() {
+            while (i < top.length) {
+              const s = top[i++];
+              await preloadWholeSeries(s.id);
+              if (cancelled) return;
+            }
+          }
 
-  // episodes -> cache
-  await Promise.allSettled(
-    Object.entries(preload.episodesBySeason).map(([seasonId, episodes]) =>
-      mutateGlobal(`/api/seasons/${seasonId}/episodes`, episodes, { revalidate: false })
-    )
-  );
-}
+          await Promise.all(Array.from({ length: CONCURRENCY }, workerTop));
+        }
 
         // rest in background
         {
@@ -164,20 +161,28 @@ const rest = series.slice(3);
     };
   }, [mutateGlobal]);
 
+  if (!ready) {
+    return (
+      <main className="min-h-dvh bg-white">
+        <div className="mx-auto max-w-[420px] px-4 pt-[calc(var(--tg-content-safe-top,0px)+56px)] pb-10">
+          <div className="text-[32px] font-bold tracking-tight">Коллекция</div>
+          <div className="mt-6 text-black/50">Загрузка…</div>
+          <div className="mt-2 text-black/30 text-sm">
+            Подгружаем первые 3 сериала целиком.
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <>
-      {children}
-  
-      {/* Ошибка — можно показать поверх, но не блокировать */}
       {error ? (
-        <div className="fixed top-2 left-1/2 -translate-x-1/2 z-[60] rounded-xl border border-black/10 bg-white px-3 py-2 text-xs text-black/60 shadow-sm">
+        <div className="fixed top-2 left-1/2 -translate-x-1/2 z-50 rounded-xl border border-black/10 bg-white px-3 py-2 text-xs text-black/60 shadow-sm">
           Boot: {error}
         </div>
       ) : null}
-  
-      {/* Глобальный прелоад поверх UI */}
-      {!ready ? <div className="fixed inset-0 z-[55] bg-white" /> : null}
-
+      {children}
     </>
   );
 }
