@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import useSWR, { useSWRConfig } from "swr";
 
@@ -28,24 +28,35 @@ type SeasonRow = {
   episodesCount: number;
 };
 
-async function telegramAuthIfNeeded() {
-  const tg = (window as any)?.Telegram?.WebApp;
-  const initData = tg?.initData;
-  if (!initData) return false;
+type EpisodeRow = {
+  id: string;
+  number: number;
+  watched: boolean;
+};
 
-  const r = await fetch("/api/auth/telegram", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
+type BootstrapResponse = {
+  series: SeriesRow[];
+  seasonsBySeries: Record<string, SeasonRow[]>;
+  episodesBySeason: Record<string, EpisodeRow[]>;
+};
+
+async function fetchBootstrap(): Promise<BootstrapResponse> {
+  const tg = (window as any)?.Telegram?.WebApp;
+  const initData: string | undefined = tg?.initData;
+
+  const res = await fetch("/api/bootstrap", {
+    method: initData ? "POST" : "GET",
+    headers: initData ? { "Content-Type": "application/json" } : undefined,
     credentials: "include",
-    body: JSON.stringify({ initData }),
+    body: initData ? JSON.stringify({ initData }) : undefined,
   });
 
-  if (!r.ok) {
-    const t = await r.text().catch(() => "");
-    throw new Error(`Telegram auth failed: ${r.status} ${t}`);
+  if (!res.ok) {
+    const t = await res.text().catch(() => "");
+    throw new Error(`Bootstrap failed: ${res.status} ${t}`);
   }
 
-  return true;
+  return (await res.json()) as BootstrapResponse;
 }
 
 export default function HomePage() {
@@ -55,29 +66,49 @@ export default function HomePage() {
 
   const { mutate: mutateGlobal, cache } = useSWRConfig();
 
-  // Важно: не делаем data = [] по умолчанию, чтобы отличать "нет данных" от "пусто"
-  const seriesKey = "/api/series";
-  const { data: items, mutate: mutateSeries } = useSWR<SeriesRow[]>(seriesKey, fetcher);
+  const didBootstrapRef = useRef(false);
 
-  // 1) Telegram auth: делаем один раз, потом один рефетч списка
+  // Список сериалов теперь приходит из bootstrap и кладется в SWR cache.
+  const { data: items, mutate: mutateSeries } = useSWR<SeriesRow[]>(
+    "/api/series",
+    fetcher
+  );
+
+  // 1) Bootstrap один раз: auth + данные + прогрев кеша по ключам SWR
   useEffect(() => {
+    if (didBootstrapRef.current) return;
+    didBootstrapRef.current = true;
+
     (async () => {
       try {
-        const didAuth = await telegramAuthIfNeeded();
-        // Если cookie могла измениться — дёргаем список один раз.
-        if (didAuth) await mutateSeries();
+        const boot = await fetchBootstrap();
+
+        // series
+        await mutateGlobal("/api/series", boot.series, { revalidate: false });
+
+        // seasons
+        for (const [seriesId, seasons] of Object.entries(boot.seasonsBySeries)) {
+          await mutateGlobal(`/api/series/${seriesId}/seasons`, seasons, {
+            revalidate: false,
+          });
+        }
+
+        // episodes (только первые сезоны, как отдаёт bootstrap)
+        for (const [seasonId, episodes] of Object.entries(boot.episodesBySeason)) {
+          await mutateGlobal(`/api/seasons/${seasonId}/episodes`, episodes, {
+            revalidate: false,
+          });
+        }
       } catch (e) {
         console.error(e);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [mutateGlobal]);
 
-  // helper: прогреть сезоны и эпизоды первого сезона ДО открытия sheet
+  // helper: прогреть сезоны и эпизоды первого сезона (если вдруг не пришли в bootstrap)
   async function prefetchSheetData(seriesId: string) {
     const seasonsKey = `/api/series/${seriesId}/seasons`;
 
-    // 1) seasons: если уже в кеше — не дергаем сеть
     let seasons = cache.get(seasonsKey) as SeasonRow[] | undefined;
     if (!seasons) {
       seasons = await mutateGlobal(
@@ -87,16 +118,14 @@ export default function HomePage() {
       );
     }
 
-    // 2) episodes of first season: прогреваем только первый сезон (дальше догрузится по кликам)
     const firstSeasonId = seasons?.[0]?.id;
     if (firstSeasonId) {
       const episodesKey = `/api/seasons/${firstSeasonId}/episodes`;
       if (!cache.get(episodesKey)) {
-        await mutateGlobal(
-          episodesKey,
-          fetcher(episodesKey),
-          { populateCache: true, revalidate: false }
-        );
+        await mutateGlobal(episodesKey, fetcher(episodesKey), {
+          populateCache: true,
+          revalidate: false,
+        });
       }
     }
   }
@@ -130,22 +159,15 @@ export default function HomePage() {
                 )}`}
                 rightTop={rightTop}
                 rightBottom={rightBottom}
-                onClick={async () => {
-                  // 0) выставляем активный сериал
+                onClick={() => {
                   setActiveSeriesId(s.id);
                   setActiveTitle(s.title);
 
-                  // 1) прогреваем кеш (сезоны + эпизоды первого сезона)
-                  // делаем ДО открытия шторки, чтобы при первом открытии не было "холода"
-                  try {
-                    await prefetchSheetData(s.id);
-                  } catch (e) {
-                    console.error(e);
-                    // даже если префетч упал — всё равно откроем
-                  }
-
-                  // 2) открываем
+                  // Шторку открываем сразу (без блокировки UI).
                   setSheetOpen(true);
+
+                  // Прогрев в фоне (на случай если конкретно этот сериал не прогрелся bootstrap'ом).
+                  prefetchSheetData(s.id).catch(console.error);
                 }}
               />
             );
@@ -166,7 +188,7 @@ export default function HomePage() {
         onOpenChange={setSheetOpen}
         seriesId={activeSeriesId}
         title={activeTitle}
-        onChanged={() => mutateSeries()}
+        onChanged={() => void mutateSeries()}
       />
     </main>
   );
