@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import useSWR, { useSWRConfig } from "swr";
 
@@ -22,10 +22,16 @@ type SeriesRow = {
   };
 };
 
+type SeasonRow = {
+  id: string;
+  number: number;
+  episodesCount: number;
+};
+
 async function telegramAuthIfNeeded() {
   const tg = (window as any)?.Telegram?.WebApp;
   const initData = tg?.initData;
-  if (!initData) return;
+  if (!initData) return false;
 
   const r = await fetch("/api/auth/telegram", {
     method: "POST",
@@ -38,6 +44,8 @@ async function telegramAuthIfNeeded() {
     const t = await r.text().catch(() => "");
     throw new Error(`Telegram auth failed: ${r.status} ${t}`);
   }
+
+  return true;
 }
 
 export default function HomePage() {
@@ -45,22 +53,53 @@ export default function HomePage() {
   const [activeSeriesId, setActiveSeriesId] = useState<string | null>(null);
   const [activeTitle, setActiveTitle] = useState("");
 
-  const { mutate: mutateGlobal } = useSWRConfig();
+  const { mutate: mutateGlobal, cache } = useSWRConfig();
 
-  const { data: items = [], mutate } = useSWR<SeriesRow[]>("/api/series", fetcher);
+  // Важно: не делаем data = [] по умолчанию, чтобы отличать "нет данных" от "пусто"
+  const seriesKey = "/api/series";
+  const { data: items, mutate: mutateSeries } = useSWR<SeriesRow[]>(seriesKey, fetcher);
 
+  // 1) Telegram auth: делаем один раз, потом один рефетч списка
   useEffect(() => {
     (async () => {
       try {
-        await telegramAuthIfNeeded();
+        const didAuth = await telegramAuthIfNeeded();
+        // Если cookie могла измениться — дёргаем список один раз.
+        if (didAuth) await mutateSeries();
       } catch (e) {
         console.error(e);
       }
-      // после установки cookie — обновим список
-      mutate();
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // helper: прогреть сезоны и эпизоды первого сезона ДО открытия sheet
+  async function prefetchSheetData(seriesId: string) {
+    const seasonsKey = `/api/series/${seriesId}/seasons`;
+
+    // 1) seasons: если уже в кеше — не дергаем сеть
+    let seasons = cache.get(seasonsKey) as SeasonRow[] | undefined;
+    if (!seasons) {
+      seasons = await mutateGlobal(
+        seasonsKey,
+        fetcher<SeasonRow[]>(seasonsKey),
+        { populateCache: true, revalidate: false }
+      );
+    }
+
+    // 2) episodes of first season: прогреваем только первый сезон (дальше догрузится по кликам)
+    const firstSeasonId = seasons?.[0]?.id;
+    if (firstSeasonId) {
+      const episodesKey = `/api/seasons/${firstSeasonId}/episodes`;
+      if (!cache.get(episodesKey)) {
+        await mutateGlobal(
+          episodesKey,
+          fetcher(episodesKey),
+          { populateCache: true, revalidate: false }
+        );
+      }
+    }
+  }
 
   return (
     <main className="min-h-dvh bg-white">
@@ -68,7 +107,7 @@ export default function HomePage() {
         <h1 className="text-[32px] ty-h1">Коллекция</h1>
 
         <div className="mt-6 space-y-2">
-          {items.map((s) => {
+          {(items ?? []).map((s) => {
             const rightTop = s.progress?.last
               ? `S${s.progress.last.season} E${s.progress.last.episode}`
               : "";
@@ -91,13 +130,21 @@ export default function HomePage() {
                 )}`}
                 rightTop={rightTop}
                 rightBottom={rightBottom}
-                onClick={() => {
+                onClick={async () => {
+                  // 0) выставляем активный сериал
                   setActiveSeriesId(s.id);
                   setActiveTitle(s.title);
 
-                  // prefetch сезонов (ускоряет первое открытие шторки)
-                  mutateGlobal(`/api/series/${s.id}/seasons`);
+                  // 1) прогреваем кеш (сезоны + эпизоды первого сезона)
+                  // делаем ДО открытия шторки, чтобы при первом открытии не было "холода"
+                  try {
+                    await prefetchSheetData(s.id);
+                  } catch (e) {
+                    console.error(e);
+                    // даже если префетч упал — всё равно откроем
+                  }
 
+                  // 2) открываем
                   setSheetOpen(true);
                 }}
               />
@@ -119,7 +166,7 @@ export default function HomePage() {
         onOpenChange={setSheetOpen}
         seriesId={activeSeriesId}
         title={activeTitle}
-        onChanged={() => mutate()}
+        onChanged={() => mutateSeries()}
       />
     </main>
   );
