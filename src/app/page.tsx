@@ -16,6 +16,8 @@ type Me = { name: string | null };
 type InProgress = { inProgressCount: number };
 
 function getTgFirstName(): string | null {
+  if (typeof window === "undefined") return null;
+
   const tg = (window as any)?.Telegram?.WebApp;
   const n = tg?.initDataUnsafe?.user?.first_name;
   return typeof n === "string" && n.trim() ? n.trim() : null;
