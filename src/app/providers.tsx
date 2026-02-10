@@ -4,14 +4,15 @@ import React, { useEffect, useRef, useState } from "react";
 import { SWRConfig, useSWRConfig } from "swr";
 import { fetcher } from "@/lib/fetcher";
 
-type Insets = { top: number; bottom: number; left: number; right: number };
-
 type SeriesRow = {
   id: string;
   title: string;
   seasonsCount: number;
   episodesCount: number;
-  progress: { percent: number; last: { season: number; episode: number } | null };
+  progress: {
+    percent: number;
+    last: { season: number; episode: number } | null;
+  };
 };
 
 type SeasonRow = { id: string; number: number; episodesCount: number };
@@ -21,7 +22,7 @@ function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-async function waitForTelegramInitData(timeoutMs = 2000): Promise<string | null> {
+async function waitForTelegramInitData(timeoutMs = 1500): Promise<string | null> {
   const started = Date.now();
   while (Date.now() - started < timeoutMs) {
     const tg = (window as any)?.Telegram?.WebApp;
@@ -76,20 +77,6 @@ function BootGate({ children }: { children: React.ReactNode }) {
           }
         } catch {}
 
-        // 1) auth cookie
-        await telegramAuthIfNeeded();
-        if (cancelled) return;
-
-        // 2) series list
-        const series = await fetcher<SeriesRow[]>("/api/series");
-        if (cancelled) return;
-
-        await mutateGlobal("/api/series", series, { revalidate: false });
-
-        // 3) preload top-3 (block), rest (bg)
-        const top = series.slice(0, 3);
-        const rest = series.slice(3);
-
         async function preloadWholeSeries(seriesId: string) {
           const seasonsKey = `/api/series/${seriesId}/seasons`;
           const seasons = await fetcher<SeasonRow[]>(seasonsKey);
@@ -102,16 +89,33 @@ function BootGate({ children }: { children: React.ReactNode }) {
           }
         }
 
+        // 1) auth (cookie)
+        await telegramAuthIfNeeded();
+        if (cancelled) return;
+
+        // 2) series list
+        const series = await fetcher<SeriesRow[]>("/api/series");
+        if (cancelled) return;
+
+        await mutateGlobal("/api/series", series, { revalidate: false });
+
+        // 3) top-3 blocking + rest background
+        const top = series.slice(0, 3);
+        const rest = series.slice(3);
+
         // TOP-3 blocking
         {
           const CONCURRENCY = 2;
           let i = 0;
+
           async function workerTop() {
             while (i < top.length) {
               const s = top[i++];
               await preloadWholeSeries(s.id);
+              if (cancelled) return;
             }
           }
+
           await Promise.all(Array.from({ length: CONCURRENCY }, workerTop));
         }
 
@@ -119,14 +123,17 @@ function BootGate({ children }: { children: React.ReactNode }) {
         {
           const CONCURRENCY_BG = 2;
           let j = 0;
+
           async function workerBg() {
             while (j < rest.length) {
+              if (cancelled) return;
               const s = rest[j++];
               try {
                 await preloadWholeSeries(s.id);
               } catch {}
             }
           }
+
           void Promise.all(Array.from({ length: CONCURRENCY_BG }, workerBg));
         }
 
@@ -140,7 +147,7 @@ function BootGate({ children }: { children: React.ReactNode }) {
       } catch (e: any) {
         if (cancelled) return;
         setError(e?.message ?? "Boot failed");
-        setReady(true); // пускаем в UI даже при ошибке
+        setReady(true);
       }
     })();
 
@@ -163,7 +170,6 @@ function BootGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Ошибку можно показать глобально или игнорировать
   return (
     <>
       {error ? (
