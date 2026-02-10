@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { pluralRu } from "@/lib/plural"
+import { pluralRu } from "@/lib/plural";
 
 import { SeriesCard } from "../components/series/SeriesCard";
 import { SeriesSheet } from "../components/series/SeriesSheet";
@@ -19,6 +19,29 @@ type SeriesRow = {
   };
 };
 
+async function telegramAuthIfNeeded() {
+
+  const tg = (window as any)?.Telegram?.WebApp;
+  if (tg) {
+    tg.ready();
+    tg.expand();
+  }
+  const initData = tg?.initData;
+
+  if (!initData) return;
+
+  const r = await fetch("/api/auth/telegram", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ initData }),
+  });
+
+  if (!r.ok) {
+    const t = await r.text().catch(() => "");
+    throw new Error(`Telegram auth failed: ${r.status} ${t}`);
+  }
+}
+
 export default function HomePage() {
   const [items, setItems] = useState<SeriesRow[]>([]);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -33,18 +56,26 @@ export default function HomePage() {
   }
 
   useEffect(() => {
-    load();
+    (async () => {
+      try {
+        await telegramAuthIfNeeded();
+      } catch (e) {
+        console.error(e);
+      }
+      await load();
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
     <main className="min-h-dvh bg-white">
       <div className="mx-auto max-w-[420px] px-4 pt-6 pb-28">
-      <h1 className="text-[32px] ty-h1">Коллекция</h1>
+        <h1 className="text-[32px] ty-h1">Коллекция</h1>
 
         <div className="mt-6 space-y-2">
           {items.map((s) => {
             const rightTop = s.progress?.last
-              ? `S${s.progress.last.season} E${s.progress.last.episode+1}`
+              ? `S${s.progress.last.season} E${s.progress.last.episode + 1}`
               : "";
 
             const rightBottom = `${s.progress?.percent ?? 0}%`;
@@ -53,7 +84,17 @@ export default function HomePage() {
               <SeriesCard
                 key={s.id}
                 title={s.title}
-                subtitle={`${s.seasonsCount} ${pluralRu(s.seasonsCount,"сезон","сезона","сезонов")}, ${s.episodesCount} ${pluralRu(s.episodesCount,"серия","серии","серий")}`}
+                subtitle={`${s.seasonsCount} ${pluralRu(
+                  s.seasonsCount,
+                  "сезон",
+                  "сезона",
+                  "сезонов"
+                )}, ${s.episodesCount} ${pluralRu(
+                  s.episodesCount,
+                  "серия",
+                  "серии",
+                  "серий"
+                )}`}
                 rightTop={rightTop}
                 rightBottom={rightBottom}
                 onClick={() => {
@@ -64,7 +105,6 @@ export default function HomePage() {
               />
             );
           })}
-
         </div>
       </div>
 

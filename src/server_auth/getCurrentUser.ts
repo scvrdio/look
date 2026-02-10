@@ -1,20 +1,23 @@
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 
 export async function getCurrentUser() {
-  // Пока нет Telegram auth — используем dev-user.
-  // В проде лучше включать это через флаг, но для твоего текущего этапа так быстрее.
-  const telegramId = BigInt(1);
+  const uid = (await cookies()).get("uid")?.value;
 
-  const existing = await prisma.user.findUnique({
-    where: { telegramId },
-  });
+  if (uid) {
+    const user = await prisma.user.findUnique({ where: { id: uid } });
+    if (user) return user;
+  }
 
-  if (existing) return existing;
+  // fallback только для локальной разработки
+  if (process.env.NODE_ENV !== "production") {
+    const telegramId = BigInt(1);
+    return prisma.user.upsert({
+      where: { telegramId },
+      update: {},
+      create: { telegramId },
+    });
+  }
 
-  // Создаём dev-пользователя автоматически, если база пустая
-  const created = await prisma.user.create({
-    data: { telegramId },
-  });
-
-  return created;
+  throw new Error("Unauthorized");
 }
