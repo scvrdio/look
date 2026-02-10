@@ -55,6 +55,7 @@ export async function GET() {
       title: s.title,
       createdAt: s.createdAt,
       seasonsCount: s.seasons.length,
+      episodesCount: total, // ← добавь это
       progress: {
         percent,
         last:

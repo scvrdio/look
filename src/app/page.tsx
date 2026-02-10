@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { pluralRu } from "@/lib/plural"
 
 import { SeriesCard } from "../components/series/SeriesCard";
 import { SeriesSheet } from "../components/series/SeriesSheet";
@@ -11,6 +12,7 @@ type SeriesRow = {
   id: string;
   title: string;
   seasonsCount: number;
+  episodesCount: number;
   progress: {
     percent: number;
     last: { season: number; episode: number } | null;
@@ -42,7 +44,7 @@ export default function HomePage() {
         <div className="mt-6 space-y-2">
           {items.map((s) => {
             const rightTop = s.progress?.last
-              ? `S${s.progress.last.season} E${s.progress.last.episode}`
+              ? `S${s.progress.last.season} E${s.progress.last.episode+1}`
               : "";
 
             const rightBottom = `${s.progress?.percent ?? 0}%`;
@@ -51,7 +53,7 @@ export default function HomePage() {
               <SeriesCard
                 key={s.id}
                 title={s.title}
-                subtitle={`${s.seasonsCount} сезона`}
+                subtitle={`${s.seasonsCount} ${pluralRu(s.seasonsCount,"сезон","сезона","сезонов")}, ${s.episodesCount} ${pluralRu(s.episodesCount,"серия","серии","серий")}`}
                 rightTop={rightTop}
                 rightBottom={rightBottom}
                 onClick={() => {

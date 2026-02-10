@@ -134,11 +134,7 @@ export function SeriesSheet({ open, onOpenChange, seriesId, title, onChanged }: 
 
                             {/* эпизоды (прилипают к низу) */}
                             <div className="mt-auto pt-6">
-                                {loadingEpisodes ? (
-                                    <div className="text-black/50">Загрузка эпизодов…</div>
-                                ) : (
                                     <EpisodeGrid items={episodes} onToggle={toggleEpisode} />
-                                )}
                             </div>
                         </div>
                     </div>
