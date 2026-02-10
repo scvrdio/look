@@ -68,13 +68,78 @@ export default function HomePage() {
 
   const didBootstrapRef = useRef(false);
 
-  // Список сериалов теперь приходит из bootstrap и кладется в SWR cache.
   const { data: items, mutate: mutateSeries } = useSWR<SeriesRow[]>(
     "/api/series",
     fetcher
   );
 
-  // 1) Bootstrap один раз: auth + данные + прогрев кеша по ключам SWR
+  // --- prefetch helpers ------------------------------------------------------
+
+  function pickPreferredSeasonId(seriesId: string, seasons: SeasonRow[] | undefined) {
+    if (!seasons || seasons.length === 0) return null;
+
+    const row = (items ?? []).find((x) => x.id === seriesId);
+    const preferredSeasonNumber = row?.progress?.last?.season ?? null;
+
+    if (preferredSeasonNumber != null) {
+      const match = seasons.find((s) => s.number === preferredSeasonNumber);
+      if (match) return match.id;
+    }
+
+    return seasons[0].id;
+  }
+
+  async function prefetchSheetData(seriesId: string) {
+    const seasonsKey = `/api/series/${seriesId}/seasons`;
+
+    let seasons = cache.get(seasonsKey) as SeasonRow[] | undefined;
+    if (!seasons) {
+      seasons = await mutateGlobal(seasonsKey, fetcher<SeasonRow[]>(seasonsKey), {
+        populateCache: true,
+        revalidate: false,
+      });
+    }
+
+    const preferredSeasonId = pickPreferredSeasonId(seriesId, seasons);
+    if (!preferredSeasonId) return;
+
+    const episodesKey = `/api/seasons/${preferredSeasonId}/episodes`;
+    if (!cache.get(episodesKey)) {
+      await mutateGlobal(episodesKey, fetcher<EpisodeRow[]>(episodesKey), {
+        populateCache: true,
+        revalidate: false,
+      });
+    }
+  }
+
+  async function warmTopSeries(seriesIds: string[], topN: number) {
+    const top = seriesIds.slice(0, topN);
+
+    // топ-5 — быстрее, но без блокировки UI (await внутри effect — ок, он не блокирует рендер)
+    await Promise.allSettled(top.map((id) => prefetchSheetData(id)));
+
+    // остальные — фоном с ограничением параллелизма
+    void warmRestSeries(seriesIds.slice(topN));
+  }
+
+  async function warmRestSeries(rest: string[]) {
+    const CONCURRENCY = 2;
+    let i = 0;
+
+    async function worker() {
+      while (i < rest.length) {
+        const id = rest[i++];
+        try {
+          await prefetchSheetData(id);
+        } catch {}
+      }
+    }
+
+    await Promise.allSettled(Array.from({ length: CONCURRENCY }, worker));
+  }
+
+  // --- bootstrap -------------------------------------------------------------
+
   useEffect(() => {
     if (didBootstrapRef.current) return;
     didBootstrapRef.current = true;
@@ -83,52 +148,31 @@ export default function HomePage() {
       try {
         const boot = await fetchBootstrap();
 
-        // series
+        // 1) series list
         await mutateGlobal("/api/series", boot.series, { revalidate: false });
 
-        // seasons
+        // 2) seasons
         for (const [seriesId, seasons] of Object.entries(boot.seasonsBySeries)) {
           await mutateGlobal(`/api/series/${seriesId}/seasons`, seasons, {
             revalidate: false,
           });
         }
 
-        // episodes (только первые сезоны, как отдаёт bootstrap)
+        // 3) episodes (как отдал bootstrap)
         for (const [seasonId, episodes] of Object.entries(boot.episodesBySeason)) {
           await mutateGlobal(`/api/seasons/${seasonId}/episodes`, episodes, {
             revalidate: false,
           });
         }
+
+        // 4) прогрев топ-5 сериалов (сезоны + эпизоды нужного сезона)
+        const ids = boot.series.map((x) => x.id);
+        void warmTopSeries(ids, 5);
       } catch (e) {
         console.error(e);
       }
     })();
   }, [mutateGlobal]);
-
-  // helper: прогреть сезоны и эпизоды первого сезона (если вдруг не пришли в bootstrap)
-  async function prefetchSheetData(seriesId: string) {
-    const seasonsKey = `/api/series/${seriesId}/seasons`;
-
-    let seasons = cache.get(seasonsKey) as SeasonRow[] | undefined;
-    if (!seasons) {
-      seasons = await mutateGlobal(
-        seasonsKey,
-        fetcher<SeasonRow[]>(seasonsKey),
-        { populateCache: true, revalidate: false }
-      );
-    }
-
-    const firstSeasonId = seasons?.[0]?.id;
-    if (firstSeasonId) {
-      const episodesKey = `/api/seasons/${firstSeasonId}/episodes`;
-      if (!cache.get(episodesKey)) {
-        await mutateGlobal(episodesKey, fetcher(episodesKey), {
-          populateCache: true,
-          revalidate: false,
-        });
-      }
-    }
-  }
 
   return (
     <main className="min-h-dvh bg-white">
@@ -163,10 +207,10 @@ export default function HomePage() {
                   setActiveSeriesId(s.id);
                   setActiveTitle(s.title);
 
-                  // Шторку открываем сразу (без блокировки UI).
+                  // открываем сразу
                   setSheetOpen(true);
 
-                  // Прогрев в фоне (на случай если конкретно этот сериал не прогрелся bootstrap'ом).
+                  // прогреваем в фоне (если вдруг кликнул не из топ-5 или не успели прогреть)
                   prefetchSheetData(s.id).catch(console.error);
                 }}
               />
