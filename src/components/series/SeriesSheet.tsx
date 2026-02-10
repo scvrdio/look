@@ -104,7 +104,6 @@ export function SeriesSheet({
   }, [open, episodesKey, episodes]);
 
   async function toggleEpisode(id: string) {
-    console.log("toggleEpisode", id);
     if (!open) return;
     if (!episodesKey) return;
     if (!uiEpisodes) return;
@@ -117,15 +116,19 @@ export function SeriesSheet({
     await mutateEpisodes(next, false);
 
     // 2) пишем на сервер
-    const res = await fetch(`/api/series/${seriesId}`, { method: "DELETE", credentials: "include" });
+    const res = await fetch(`/api/episodes/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+    });
 
     if (!res.ok) {
-      const msg = await res.json().catch(() => null);
-      alert(msg?.message ?? `Не удалось удалить (${res.status})`);
+      setUiEpisodes(prev);
+      await mutateEpisodes(prev, false);
       return;
     }
 
-    // 4) обновить прогресс на главной (серии/процент)
+    // 4) обновить прогресс на главной
     onChanged?.();
   }
 
@@ -139,29 +142,28 @@ export function SeriesSheet({
   );
 
   async function deleteSeries() {
-    console.log("deleteSeries", seriesId);
     if (!seriesId) return;
     if (deletingRef.current) return;
     deletingRef.current = true;
-  
+
     try {
       const res = await fetch(`/api/series/${seriesId}`, {
         method: "DELETE",
         credentials: "include",
       });
-  
+
       if (!res.ok) {
         // не алерт на каждое нажатие, иначе будет ад
         // лучше разово показать внутри модалки/шторки
         return;
       }
-  
+
       onOpenChange(false);
       onChanged?.();
     } finally {
       deletingRef.current = false;
     }
-  }  
+  }
 
 
   return (
