@@ -59,6 +59,60 @@ async function fetchBootstrap(): Promise<BootstrapResponse> {
   return (await res.json()) as BootstrapResponse;
 }
 
+function sleep(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+async function waitForTelegramInitData(timeoutMs = 1200): Promise<string | null> {
+  const started = Date.now();
+
+  while (Date.now() - started < timeoutMs) {
+    const tg = (window as any)?.Telegram?.WebApp;
+    const initData: string | undefined = tg?.initData;
+
+    if (initData && initData.length > 0) return initData;
+    await sleep(50);
+  }
+
+  return null;
+}
+
+async function fetchBootstrapWithRetry(): Promise<BootstrapResponse> {
+  const initData = await waitForTelegramInitData(1500);
+
+  const res = await fetch("/api/bootstrap", {
+    method: initData ? "POST" : "GET",
+    headers: initData ? { "Content-Type": "application/json" } : undefined,
+    credentials: "include",
+    body: initData ? JSON.stringify({ initData }) : undefined,
+  });
+
+  if (res.status === 401) {
+    const retryInitData = await waitForTelegramInitData(1500);
+    if (retryInitData) {
+      const retry = await fetch("/api/bootstrap", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ initData: retryInitData }),
+      });
+
+      if (!retry.ok) {
+        throw new Error(`Bootstrap retry failed: ${retry.status}`);
+      }
+
+      return retry.json();
+    }
+  }
+
+  if (!res.ok) {
+    throw new Error(`Bootstrap failed: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+
 export default function HomePage() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [activeSeriesId, setActiveSeriesId] = useState<string | null>(null);
@@ -141,38 +195,48 @@ export default function HomePage() {
   // --- bootstrap -------------------------------------------------------------
 
   useEffect(() => {
-    if (didBootstrapRef.current) return;
-    didBootstrapRef.current = true;
-
+    let cancelled = false;
+  
     (async () => {
       try {
-        const boot = await fetchBootstrap();
-
-        // 1) series list
+        // ⏳ ждём Telegram
+        const initData = await waitForTelegramInitData(1500);
+        if (cancelled) return;
+  
+        const boot = await fetchBootstrapWithRetry();
+        if (cancelled) return;
+  
+        // 1) series
         await mutateGlobal("/api/series", boot.series, { revalidate: false });
-
+  
         // 2) seasons
         for (const [seriesId, seasons] of Object.entries(boot.seasonsBySeries)) {
           await mutateGlobal(`/api/series/${seriesId}/seasons`, seasons, {
             revalidate: false,
           });
         }
-
-        // 3) episodes (как отдал bootstrap)
+  
+        // 3) episodes
         for (const [seasonId, episodes] of Object.entries(boot.episodesBySeason)) {
           await mutateGlobal(`/api/seasons/${seasonId}/episodes`, episodes, {
             revalidate: false,
           });
         }
-
-        // 4) прогрев топ-5 сериалов (сезоны + эпизоды нужного сезона)
+  
+        // 4) 🔥 ВАЖНО: прогрев топ-5 ПОСЛЕ всего
         const ids = boot.series.map((x) => x.id);
         void warmTopSeries(ids, 5);
+  
       } catch (e) {
         console.error(e);
       }
     })();
+  
+    return () => {
+      cancelled = true;
+    };
   }, [mutateGlobal]);
+  
 
   return (
     <main className="min-h-dvh bg-white">
