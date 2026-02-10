@@ -20,14 +20,16 @@ type SeriesRow = {
 };
 
 async function telegramAuthIfNeeded() {
-
   const tg = (window as any)?.Telegram?.WebApp;
-  if (tg) {
-    tg.ready();
-    tg.expand();
-  }
-  const initData = tg?.initData;
 
+  console.log("tg exists:", !!tg);
+  console.log("initData len:", tg?.initData?.length ?? 0);
+  console.log(
+    "initData head:",
+    String(tg?.initData ?? "").slice(0, 60)
+  );
+
+  const initData = tg?.initData;
   if (!initData) return;
 
   const r = await fetch("/api/auth/telegram", {
@@ -42,6 +44,7 @@ async function telegramAuthIfNeeded() {
   }
 }
 
+
 export default function HomePage() {
   const [items, setItems] = useState<SeriesRow[]>([]);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -51,6 +54,7 @@ export default function HomePage() {
 
   async function load() {
     const res = await fetch("/api/series", { cache: "no-store" });
+    if (!res.ok) throw new Error(`load failed: ${res.status}`);
     const data = (await res.json()) as SeriesRow[];
     setItems(data);
   }
