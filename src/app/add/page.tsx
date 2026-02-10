@@ -14,6 +14,16 @@ type SeasonDraft = {
     episodesCount: string; // строка, чтобы нормально жить с пустым вводом
 };
 
+async function readErrorMessage(res: Response) {
+    const text = await res.text().catch(() => "");
+    try {
+      const json = JSON.parse(text);
+      return String(json?.message || json?.error || text || `Request failed: ${res.status}`);
+    } catch {
+      return text || `Request failed: ${res.status}`;
+    }
+  }
+
 export default function AddSeriesPage() {
 
     const router = useRouter();
@@ -128,16 +138,11 @@ export default function AddSeriesPage() {
             });
 
             if (!res.ok) {
-                // если сервер возвращает { message }, покажем её; иначе — дефолт
                 hapticNotify("error");
-                let msg = "Не удалось сохранить";
-                try {
-                    const data = await res.json();
-                    if (data?.message) msg = String(data.message);
-                } catch { }
+                const msg = await readErrorMessage(res);
                 setFormError(msg);
                 return;
-            }
+              }
             hapticNotify("success");
             router.push("/");
         } catch {

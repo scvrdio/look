@@ -12,6 +12,7 @@ import { fetcher } from "@/lib/fetcher";
 
 import { X, CircleEllipsis } from "lucide-react";
 import { hapticImpact } from "@/lib/haptics";
+import { useRouter } from "next/navigation";
 
 type SeasonRow = {
   id: string;
@@ -45,6 +46,12 @@ export function SeriesSheet({
 
   // держим предыдущий сериал, чтобы не сбрасывать состояние в фоне
   const prevSeriesIdRef = React.useRef<string | null>(null);
+
+  const router = useRouter();
+
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = React.useState(false);
+  const [deleting, setDeleting] = React.useState(false);
+
 
   // Сезоны
   const seasonsKey = open && seriesId ? `/api/series/${seriesId}/seasons` : null;
@@ -107,16 +114,11 @@ export function SeriesSheet({
     await mutateEpisodes(next, false);
 
     // 2) пишем на сервер
-    const res = await fetch(`/api/episodes/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-    });
+    const res = await fetch(`/api/series/${seriesId}`, { method: "DELETE", credentials: "include" });
 
-    // 3) откат при ошибке — без лишнего refetch
     if (!res.ok) {
-      setUiEpisodes(prev);
-      await mutateEpisodes(prev, false);
+      const msg = await res.json().catch(() => null);
+      alert(msg?.message ?? `Не удалось удалить (${res.status})`);
       return;
     }
 
@@ -132,6 +134,32 @@ export function SeriesSheet({
   const backgroundUpdating = Boolean(
     (seasons && validatingSeasons) || (uiEpisodes && validatingEpisodes)
   );
+
+  async function deleteSeries() {
+    if (!seriesId) return;
+
+    try {
+      setDeleting(true);
+
+      const res = await fetch(`/api/series/${seriesId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        const msg = await res.text().catch(() => "");
+        alert(msg || "Не удалось удалить");
+        return;
+      }
+
+      onOpenChange(false);
+      onChanged?.();
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -161,15 +189,19 @@ export function SeriesSheet({
             {/* right: menu */}
             <button
               type="button"
-              onClick={() => hapticImpact("light")}
+              onClick={() => {
+                console.log("DELETE click", { seriesId });
+                deleteSeries();
+              }}
+
               className="absolute right-4 top-5 h-10 w-10 rounded-full inline-flex items-center justify-center text-black"
-              aria-label="Menu"
+              aria-label="Delete"
             >
               <CircleEllipsis size={28} strokeWidth={1.5} />
             </button>
 
             {/* title */}
-            <div className="text-center ty-h1 text-[24px] font-semibold leading-[1.1] px-12">
+            <div className="text-center ty-h1 text-[24px] leading-[1.1] px-12">
               {title}
             </div>
           </div>
@@ -208,6 +240,40 @@ export function SeriesSheet({
             </div>
           </div>
         </div>
+        {confirmDeleteOpen && (
+          <div className="absolute inset-0 z-50 flex items-end bg-black/40">
+            <div className="w-full rounded-t-[24px] bg-white px-5 pb-[calc(var(--tg-content-safe-bottom,0px)+20px)] pt-5">
+              <div className="text-[18px] font-semibold">Удалить сериал?</div>
+              <div className="mt-1 text-[14px] text-black/60">
+                Это действие нельзя отменить.
+              </div>
+
+              <div className="mt-5 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setConfirmDeleteOpen(false)}
+                  className="flex-1 h-12 rounded-full bg-black/5 font-medium"
+                >
+                  Отмена
+                </button>
+
+                <button
+                  type="button"
+                  disabled={deleting}
+                  onClick={async () => {
+                    hapticImpact("heavy");
+                    await deleteSeries();
+                    setConfirmDeleteOpen(false);
+                  }}
+                  className="flex-1 h-12 rounded-full bg-red-500 text-white font-medium disabled:opacity-50"
+                >
+                  Удалить
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
       </SheetContent>
     </Sheet>
   );
