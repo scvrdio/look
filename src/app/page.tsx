@@ -73,10 +73,26 @@ export default function HomePage() {
   useEffect(() => {
     let cancelled = false;
 
+    // если уже прогрели данные в этой сессии — не повторяем прелоад
+    try {
+      if (sessionStorage.getItem("boot_done") === "1") {
+        try {
+          sessionStorage.setItem("boot_done", "1");
+        } catch { }
+        setBootReady(true);
+        setBootReady(true);
+        return () => {
+          cancelled = true;
+        };
+      }
+    } catch { }
+
     (async () => {
       try {
+
         setBootError(null);
         setBootReady(false);
+
 
         // 1) auth (cookie)
         await telegramAuthIfNeeded();
@@ -88,30 +104,52 @@ export default function HomePage() {
         await mutateGlobal("/api/series", series, { revalidate: false });
 
         // 3) top-5
-        const top = series.slice(0, 5);
+        const top = series.slice(0, 3);
+        const rest = series.slice(3);
 
-        // 4) preload: seasons + ALL episodes (all seasons) for each top series
-        // ограничим параллельность, чтобы не убить бэкенд
-        const CONCURRENCY = 2;
-        let idx = 0;
+        // грузим сериал полностью: сезоны + все эпизоды всех сезонов
+        async function preloadWholeSeries(seriesId: string) {
+          const seasonsKey = `/api/series/${seriesId}/seasons`;
+          const seasons = await fetcher<SeasonRow[]>(seasonsKey);
+          await mutateGlobal(seasonsKey, seasons, { revalidate: false });
 
-        async function worker() {
-          while (idx < top.length) {
-            const s = top[idx++];
-            const seasonsKey = `/api/series/${s.id}/seasons`;
-            const seasons = await fetcher<SeasonRow[]>(seasonsKey);
-            await mutateGlobal(seasonsKey, seasons, { revalidate: false });
-
-            // все эпизоды всех сезонов
-            for (const season of seasons) {
-              const episodesKey = `/api/seasons/${season.id}/episodes`;
-              const episodes = await fetcher<EpisodeRow[]>(episodesKey);
-              await mutateGlobal(episodesKey, episodes, { revalidate: false });
-            }
+          for (const season of seasons) {
+            const episodesKey = `/api/seasons/${season.id}/episodes`;
+            const episodes = await fetcher<EpisodeRow[]>(episodesKey);
+            await mutateGlobal(episodesKey, episodes, { revalidate: false });
           }
         }
 
-        await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+        // 1) TOP-3 — блокирующе (пользователя пускаем только после этого)
+        {
+          const CONCURRENCY = 2;
+          let i = 0;
+          async function workerTop() {
+            while (i < top.length) {
+              const s = top[i++];
+              await preloadWholeSeries(s.id);
+            }
+          }
+          await Promise.all(Array.from({ length: CONCURRENCY }, workerTop));
+        }
+
+        // 2) Остальные — в фоне (не ждём)
+        {
+          const CONCURRENCY_BG = 2;
+          let j = 0;
+
+          async function workerBg() {
+            while (j < rest.length) {
+              const s = rest[j++];
+              try {
+                await preloadWholeSeries(s.id);
+              } catch { }
+            }
+          }
+
+          void Promise.all(Array.from({ length: CONCURRENCY_BG }, workerBg));
+        }
+
         if (cancelled) return;
 
         setBootReady(true);
