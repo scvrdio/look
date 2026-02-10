@@ -190,8 +190,9 @@ export function SeriesSheet({
             <button
               type="button"
               onClick={() => {
-                console.log("DELETE click", { seriesId });
-                deleteSeries();
+                if (deleting) return;
+                hapticImpact("light");
+                setConfirmDeleteOpen(true);
               }}
 
               className="absolute right-4 top-5 h-10 w-10 rounded-full inline-flex items-center justify-center text-black"
