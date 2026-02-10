@@ -8,6 +8,20 @@ import { SeriesCard } from "../components/series/SeriesCard";
 import { SeriesSheet } from "../components/series/SeriesSheet";
 import { Button } from "../components/ui/button";
 
+import useSWR from "swr";
+
+const fetcher = async (url: string) => {
+  const res = await fetch(url, {
+    credentials: "include",
+  });
+
+  if (!res.ok) {
+    throw new Error(`Request failed: ${res.status}`);
+  }
+
+  return res.json();
+};
+
 type SeriesRow = {
   id: string;
   title: string;
@@ -46,30 +60,16 @@ async function telegramAuthIfNeeded() {
 
 
 export default function HomePage() {
-  const [items, setItems] = useState<SeriesRow[]>([]);
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const [activeSeriesId, setActiveSeriesId] = useState<string | null>(null);
   const [activeTitle, setActiveTitle] = useState("");
 
-  async function load() {
-    const res = await fetch("/api/series", { cache: "no-store" });
-    if (!res.ok) throw new Error(`load failed: ${res.status}`);
-    const data = (await res.json()) as SeriesRow[];
-    setItems(data);
-  }
-
-  useEffect(() => {
-    (async () => {
-      try {
-        await telegramAuthIfNeeded();
-      } catch (e) {
-        console.error(e);
-      }
-      await load();
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  
+  const { data: items = [], mutate, isLoading } = useSWR<SeriesRow[]>(
+    "/api/series",
+    fetcher
+  );
 
   return (
     <main className="min-h-dvh bg-white">
@@ -125,7 +125,7 @@ export default function HomePage() {
         onOpenChange={setSheetOpen}
         seriesId={activeSeriesId}
         title={activeTitle}
-        onChanged={load}
+        onChanged={() => mutate()}
       />
     </main>
   );
