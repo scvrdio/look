@@ -165,6 +165,7 @@ export default function HomePage() {
               : "";
 
             const rightBottom = `${s.progress?.percent ?? 0}%`;
+            const completed = (s.progress?.percent ?? 0) === 100;
 
             return (
               <div
@@ -198,6 +199,7 @@ export default function HomePage() {
                     setActiveTitle(s.title);
                     setSheetOpen(true);
                   }}
+                  completed={completed}
                 />
               </div>
             );

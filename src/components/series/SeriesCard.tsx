@@ -1,12 +1,15 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { CircleCheck } from "lucide-react";
+
 
 type SeriesCardProps = {
   title: string;
   subtitle: string;
   rightTop: string;
   rightBottom: string;
+  completed?: boolean;
   onClick: () => void;
   className?: string;
 };
@@ -16,6 +19,7 @@ export function SeriesCard({
   subtitle,
   rightTop,
   rightBottom,
+  completed = false,
   onClick,
   className,
 }: SeriesCardProps) {
@@ -32,14 +36,22 @@ export function SeriesCard({
     >
       <div className="grid grid-cols-[1fr_auto] grid-rows-2 items-start gap-x-4 gap-y-1">
         <div className="text-[16px] font-semibold leading-[1.15]">{title}</div>
-        <div className="text-[16px] font-semibold leading-[1.15] text-right">
-          {rightTop}
+
+        <div className="text-right">
+          {!completed && (
+            <div className="text-[16px] font-semibold leading-[1.15] text-right">
+              {rightTop}
+            </div>
+          )}
         </div>
 
         <div className="text-[14px] leading-[1.15] text-black/40">{subtitle}</div>
-        <div className="text-[14px] leading-[1.15] text-black/40 text-right">
-          {rightBottom}
-        </div>
+
+        {completed && (
+          <div className="absolute right-4 top-1/2 -translate-y-1/2">
+            <CircleCheck size={22} strokeWidth={3} className="text-black" />
+          </div>
+        )}
       </div>
 
     </button>
