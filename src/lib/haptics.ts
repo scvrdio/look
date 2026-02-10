@@ -18,3 +18,8 @@ export function hapticImpact(
     tg?.HapticFeedback?.notificationOccurred("success");
   }
   
+  export function hapticNotify(type: "success" | "warning" | "error" = "success") {
+    if (typeof window === "undefined") return;
+    const tg = (window as any)?.Telegram?.WebApp;
+    tg?.HapticFeedback?.notificationOccurred?.(type);
+  }

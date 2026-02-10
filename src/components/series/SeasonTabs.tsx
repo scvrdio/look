@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { hapticSelection } from "@/lib/haptics";
 
 export type SeasonTab = { id: string; number: number };
 
@@ -20,7 +21,10 @@ export function SeasonTabs({ items, activeId, onChange, className }: Props) {
           <button
             key={s.id}
             type="button"
-            onClick={() => onChange(s.id)}
+            onClick={() => {
+              hapticSelection();
+              onChange(s.id);
+            }}
             className={cn(
               "shrink-0 h-12 px-5 rounded-full text-[16px] font-medium",
               active ? "bg-black text-white" : "bg-black/4 text-black"

@@ -207,7 +207,7 @@ export default function HomePage() {
 
       <div className="fixed inset-x-0 bottom-0">
         <div className="mx-auto max-w-[420px] px-5 pt-3 pb-[calc(var(--tg-content-safe-bottom,0px)+20px)]">
-          <Link href="/add" className="block">
+          <Link href="/add" className="block" onClick={() => hapticImpact("light")}>
             <Button>Добавить сериал</Button>
           </Link>
         </div>

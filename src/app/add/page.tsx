@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 
+import { hapticImpact, hapticNotify } from "@/lib/haptics";
+
 type SeasonDraft = {
     number: number;
     episodesCount: string; // строка, чтобы нормально жить с пустым вводом
@@ -30,17 +32,15 @@ export default function AddSeriesPage() {
 
     function addSeason() {
         if (!canAddSeason) return;
-        setSeasons((prev) => [
-            ...prev,
-            { number: prev.length + 1, episodesCount: "" },
-        ]);
+        hapticImpact("light");
+        setSeasons((prev) => [...prev, { number: prev.length + 1, episodesCount: "" }]);
     }
 
     function removeSeason(index: number) {
+        hapticImpact("light");
         setSeasons((prev) => {
-            if (prev.length <= 1) return prev; // минимум 1 сезон
+            if (prev.length <= 1) return prev;
             const next = prev.filter((_, i) => i !== index);
-            // перенумеровываем 1..N
             return next.map((s, i) => ({ ...s, number: i + 1 }));
         });
     }
@@ -110,6 +110,7 @@ export default function AddSeriesPage() {
         if (titleError) return;
         if (seasonErrors.some(Boolean)) return;
 
+        hapticImpact("medium");
         setSubmitting(true);
         try {
             const payload = {
@@ -128,6 +129,7 @@ export default function AddSeriesPage() {
 
             if (!res.ok) {
                 // если сервер возвращает { message }, покажем её; иначе — дефолт
+                hapticNotify("error");
                 let msg = "Не удалось сохранить";
                 try {
                     const data = await res.json();
@@ -136,9 +138,10 @@ export default function AddSeriesPage() {
                 setFormError(msg);
                 return;
             }
-
+            hapticNotify("success");
             router.push("/");
         } catch {
+            hapticNotify("error");
             setFormError("Ошибка сети. Попробуйте еще раз.");
         } finally {
             setSubmitting(false);
@@ -173,6 +176,7 @@ export default function AddSeriesPage() {
                         type="button"
                         onClick={() => {
                             if (!confirmLeave()) return;
+                            hapticImpact("light");
                             router.push("/");
                         }}
                         className="h-10 w-10 rounded-full text-black/60 text-[32px] inline-flex items-center justify-center"
