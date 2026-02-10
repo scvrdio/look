@@ -186,9 +186,7 @@ export function SeriesSheet({
                   <div className="text-black/40">Загрузка…</div>
                 ) : (
                   <>
-                    {backgroundUpdating && (
-                      <div className="text-black/30 text-sm mb-2">Обновление…</div>
-                    )}
+                    {backgroundUpdating}
                     <EpisodeGrid items={uiEpisodes ?? []} onToggle={toggleEpisode} />
                   </>
                 )}
