@@ -80,7 +80,7 @@ function BootGate({ children }: { children: React.ReactNode }) {
             setReady(true);
             return;
           }
-        } catch { }
+        } catch {}
 
         async function preloadWholeSeries(seriesId: string) {
           const seasonsKey = `/api/series/${seriesId}/seasons`;
@@ -105,27 +105,27 @@ function BootGate({ children }: { children: React.ReactNode }) {
         await mutateGlobal("/api/series", series, { revalidate: false });
 
         // 3) top-3 blocking + rest background
-        const rest = series.slice(3);
+const rest = series.slice(3);
 
-        // TOP-3 blocking одним запросом
-        {
-          const preload = await fetcher<PreloadResponse>("/api/preload?limit=3");
-          if (cancelled) return;
+// TOP-3 blocking одним запросом
+{
+  const preload = await fetcher<PreloadResponse>("/api/preload?limit=3");
+  if (cancelled) return;
 
-          // seasons -> cache
-          await Promise.allSettled(
-            Object.entries(preload.seasonsBySeries).map(([seriesId, seasons]) =>
-              mutateGlobal(`/api/series/${seriesId}/seasons`, seasons, { revalidate: false })
-            )
-          );
+  // seasons -> cache
+  await Promise.allSettled(
+    Object.entries(preload.seasonsBySeries).map(([seriesId, seasons]) =>
+      mutateGlobal(`/api/series/${seriesId}/seasons`, seasons, { revalidate: false })
+    )
+  );
 
-          // episodes -> cache
-          await Promise.allSettled(
-            Object.entries(preload.episodesBySeason).map(([seasonId, episodes]) =>
-              mutateGlobal(`/api/seasons/${seasonId}/episodes`, episodes, { revalidate: false })
-            )
-          );
-        }
+  // episodes -> cache
+  await Promise.allSettled(
+    Object.entries(preload.episodesBySeason).map(([seasonId, episodes]) =>
+      mutateGlobal(`/api/seasons/${seasonId}/episodes`, episodes, { revalidate: false })
+    )
+  );
+}
 
         // rest in background
         {
@@ -138,7 +138,7 @@ function BootGate({ children }: { children: React.ReactNode }) {
               const s = rest[j++];
               try {
                 await preloadWholeSeries(s.id);
-              } catch { }
+              } catch {}
             }
           }
 
@@ -149,7 +149,7 @@ function BootGate({ children }: { children: React.ReactNode }) {
 
         try {
           sessionStorage.setItem("boot_done", "1");
-        } catch { }
+        } catch {}
 
         setReady(true);
       } catch (e: any) {
@@ -164,15 +164,20 @@ function BootGate({ children }: { children: React.ReactNode }) {
     };
   }, [mutateGlobal]);
 
-
   return (
     <>
+      {children}
+  
+      {/* Ошибка — можно показать поверх, но не блокировать */}
       {error ? (
-        <div className="fixed top-2 left-1/2 -translate-x-1/2 z-50 rounded-xl border border-black/10 bg-white px-3 py-2 text-xs text-black/60 shadow-sm">
+        <div className="fixed top-2 left-1/2 -translate-x-1/2 z-[60] rounded-xl border border-black/10 bg-white px-3 py-2 text-xs text-black/60 shadow-sm">
           Boot: {error}
         </div>
       ) : null}
-      {children}
+  
+      {/* Глобальный прелоад поверх UI */}
+      {!ready ? <div className="fixed inset-0 z-[55] bg-white" /> : null}
+
     </>
   );
 }
