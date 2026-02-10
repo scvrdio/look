@@ -18,32 +18,37 @@ function setCssInsets(name: string, insets?: Partial<Insets> | null) {
 }
 
 export function TgBoot() {
-    useEffect(() => {
-      const tg = (window as any)?.Telegram?.WebApp;
-      if (!tg) return;
-  
-      // оставляем expand, safe-area, viewport vars
-      tg.expand();
-  
-      const applyInsets = () => {
-        // твой код установки CSS vars на body
-      };
-  
-      applyInsets();
-  
-      tg.onEvent?.("safeAreaChanged", applyInsets);
-      tg.onEvent?.("contentSafeAreaChanged", applyInsets);
-      tg.onEvent?.("viewportChanged", () => {
-        // твой код --tg-viewport-height/--tg-viewport-stable-height + повтор expand
-        tg.expand();
-      });
-  
-      return () => {
-        tg.offEvent?.("safeAreaChanged", applyInsets);
-        tg.offEvent?.("contentSafeAreaChanged", applyInsets);
-        tg.offEvent?.("viewportChanged", applyInsets as any);
-      };
-    }, []);
-  
-    return null;
-  }
+  useEffect(() => {
+    const tg = (window as any)?.Telegram?.WebApp;
+    if (!tg) return;
+
+    try {
+      tg.expand?.();
+    } catch {}
+
+    const apply = () => {
+      // Если Telegram не отдаёт — будет 0, это ок.
+      setCssInsets("tg-safe", tg.safeAreaInset);
+      setCssInsets("tg-content-safe", tg.contentSafeAreaInset);
+    };
+
+    apply();
+
+    // События могут быть или не быть — оборачиваем безопасно
+    try {
+      tg.onEvent?.("safeAreaChanged", apply);
+      tg.onEvent?.("contentSafeAreaChanged", apply);
+      tg.onEvent?.("viewportChanged", apply);
+    } catch {}
+
+    return () => {
+      try {
+        tg.offEvent?.("safeAreaChanged", apply);
+        tg.offEvent?.("contentSafeAreaChanged", apply);
+        tg.offEvent?.("viewportChanged", apply);
+      } catch {}
+    };
+  }, []);
+
+  return null;
+}
