@@ -25,6 +25,11 @@ function verifyTelegramInitData(initData: string, botToken: string) {
         .update(dataCheckString)
         .digest("hex");
 
+    console.log("[tg-auth] token head:", botToken.slice(0, 12));
+    console.log("[tg-auth] data_check_string:\n" + dataCheckString);
+    console.log("[tg-auth] received hash:", hash);
+    console.log("[tg-auth] computed hash:", computedHash);
+
     if (computedHash !== hash) {
         return { ok: false as const, reason: "hash mismatch" };
     }
