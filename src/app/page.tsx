@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import useSWR, { useSWRConfig } from "swr";
 
@@ -22,226 +22,135 @@ type SeriesRow = {
   };
 };
 
-type SeasonRow = {
-  id: string;
-  number: number;
-  episodesCount: number;
-};
-
-type EpisodeRow = {
-  id: string;
-  number: number;
-  watched: boolean;
-};
-
-type BootstrapResponse = {
-  series: SeriesRow[];
-  seasonsBySeries: Record<string, SeasonRow[]>;
-  episodesBySeason: Record<string, EpisodeRow[]>;
-};
-
-async function fetchBootstrap(): Promise<BootstrapResponse> {
-  const tg = (window as any)?.Telegram?.WebApp;
-  const initData: string | undefined = tg?.initData;
-
-  const res = await fetch("/api/bootstrap", {
-    method: initData ? "POST" : "GET",
-    headers: initData ? { "Content-Type": "application/json" } : undefined,
-    credentials: "include",
-    body: initData ? JSON.stringify({ initData }) : undefined,
-  });
-
-  if (!res.ok) {
-    const t = await res.text().catch(() => "");
-    throw new Error(`Bootstrap failed: ${res.status} ${t}`);
-  }
-
-  return (await res.json()) as BootstrapResponse;
-}
+type SeasonRow = { id: string; number: number; episodesCount: number };
+type EpisodeRow = { id: string; number: number; watched: boolean };
 
 function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-async function waitForTelegramInitData(timeoutMs = 1200): Promise<string | null> {
+async function waitForTelegramInitData(timeoutMs = 1500): Promise<string | null> {
   const started = Date.now();
-
   while (Date.now() - started < timeoutMs) {
     const tg = (window as any)?.Telegram?.WebApp;
     const initData: string | undefined = tg?.initData;
-
     if (initData && initData.length > 0) return initData;
     await sleep(50);
   }
-
   return null;
 }
 
-async function fetchBootstrapWithRetry(): Promise<BootstrapResponse> {
-  const initData = await waitForTelegramInitData(1500);
+async function telegramAuthIfNeeded() {
+  const initData = await waitForTelegramInitData(2000);
+  if (!initData) return; // не телега (локалка/браузер)
 
-  const res = await fetch("/api/bootstrap", {
-    method: initData ? "POST" : "GET",
-    headers: initData ? { "Content-Type": "application/json" } : undefined,
+  const r = await fetch("/api/auth/telegram", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     credentials: "include",
-    body: initData ? JSON.stringify({ initData }) : undefined,
+    body: JSON.stringify({ initData }),
   });
 
-  if (res.status === 401) {
-    const retryInitData = await waitForTelegramInitData(1500);
-    if (retryInitData) {
-      const retry = await fetch("/api/bootstrap", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ initData: retryInitData }),
-      });
-
-      if (!retry.ok) {
-        throw new Error(`Bootstrap retry failed: ${retry.status}`);
-      }
-
-      return retry.json();
-    }
+  if (!r.ok) {
+    const t = await r.text().catch(() => "");
+    throw new Error(`Telegram auth failed: ${r.status} ${t}`);
   }
-
-  if (!res.ok) {
-    throw new Error(`Bootstrap failed: ${res.status}`);
-  }
-
-  return res.json();
 }
-
 
 export default function HomePage() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [activeSeriesId, setActiveSeriesId] = useState<string | null>(null);
   const [activeTitle, setActiveTitle] = useState("");
 
-  const { mutate: mutateGlobal, cache } = useSWRConfig();
+  const [bootReady, setBootReady] = useState(false);
+  const [bootError, setBootError] = useState<string | null>(null);
 
-  const didBootstrapRef = useRef(false);
+  const { mutate: mutateGlobal } = useSWRConfig();
 
-  const { data: items, mutate: mutateSeries } = useSWR<SeriesRow[]>(
-    "/api/series",
-    fetcher
-  );
-
-  // --- prefetch helpers ------------------------------------------------------
-
-  function pickPreferredSeasonId(seriesId: string, seasons: SeasonRow[] | undefined) {
-    if (!seasons || seasons.length === 0) return null;
-
-    const row = (items ?? []).find((x) => x.id === seriesId);
-    const preferredSeasonNumber = row?.progress?.last?.season ?? null;
-
-    if (preferredSeasonNumber != null) {
-      const match = seasons.find((s) => s.number === preferredSeasonNumber);
-      if (match) return match.id;
-    }
-
-    return seasons[0].id;
-  }
-
-  async function prefetchSheetData(seriesId: string) {
-    const seasonsKey = `/api/series/${seriesId}/seasons`;
-
-    let seasons = cache.get(seasonsKey) as SeasonRow[] | undefined;
-    if (!seasons) {
-      seasons = await mutateGlobal(seasonsKey, fetcher<SeasonRow[]>(seasonsKey), {
-        populateCache: true,
-        revalidate: false,
-      });
-    }
-
-    const preferredSeasonId = pickPreferredSeasonId(seriesId, seasons);
-    if (!preferredSeasonId) return;
-
-    const episodesKey = `/api/seasons/${preferredSeasonId}/episodes`;
-    if (!cache.get(episodesKey)) {
-      await mutateGlobal(episodesKey, fetcher<EpisodeRow[]>(episodesKey), {
-        populateCache: true,
-        revalidate: false,
-      });
-    }
-  }
-
-  async function warmTopSeries(seriesIds: string[], topN: number) {
-    const top = seriesIds.slice(0, topN);
-
-    // топ-5 — быстрее, но без блокировки UI (await внутри effect — ок, он не блокирует рендер)
-    await Promise.allSettled(top.map((id) => prefetchSheetData(id)));
-
-    // остальные — фоном с ограничением параллелизма
-    void warmRestSeries(seriesIds.slice(topN));
-  }
-
-  async function warmRestSeries(rest: string[]) {
-    const CONCURRENCY = 2;
-    let i = 0;
-
-    async function worker() {
-      while (i < rest.length) {
-        const id = rest[i++];
-        try {
-          await prefetchSheetData(id);
-        } catch {}
-      }
-    }
-
-    await Promise.allSettled(Array.from({ length: CONCURRENCY }, worker));
-  }
-
-  // --- bootstrap -------------------------------------------------------------
+  // После прелоада /api/series будет уже в кеше => SWR отдаст мгновенно
+  const { data: items, mutate: mutateSeries } = useSWR<SeriesRow[]>("/api/series", fetcher);
 
   useEffect(() => {
     let cancelled = false;
-  
+
     (async () => {
       try {
-        // ⏳ ждём Telegram
-        const initData = await waitForTelegramInitData(1500);
+        setBootError(null);
+        setBootReady(false);
+
+        // 1) auth (cookie)
+        await telegramAuthIfNeeded();
         if (cancelled) return;
-  
-        const boot = await fetchBootstrapWithRetry();
+
+        // 2) series list
+        const series = await fetcher<SeriesRow[]>("/api/series");
         if (cancelled) return;
-  
-        // 1) series
-        await mutateGlobal("/api/series", boot.series, { revalidate: false });
-  
-        // 2) seasons
-        for (const [seriesId, seasons] of Object.entries(boot.seasonsBySeries)) {
-          await mutateGlobal(`/api/series/${seriesId}/seasons`, seasons, {
-            revalidate: false,
-          });
+        await mutateGlobal("/api/series", series, { revalidate: false });
+
+        // 3) top-5
+        const top = series.slice(0, 5);
+
+        // 4) preload: seasons + ALL episodes (all seasons) for each top series
+        // ограничим параллельность, чтобы не убить бэкенд
+        const CONCURRENCY = 2;
+        let idx = 0;
+
+        async function worker() {
+          while (idx < top.length) {
+            const s = top[idx++];
+            const seasonsKey = `/api/series/${s.id}/seasons`;
+            const seasons = await fetcher<SeasonRow[]>(seasonsKey);
+            await mutateGlobal(seasonsKey, seasons, { revalidate: false });
+
+            // все эпизоды всех сезонов
+            for (const season of seasons) {
+              const episodesKey = `/api/seasons/${season.id}/episodes`;
+              const episodes = await fetcher<EpisodeRow[]>(episodesKey);
+              await mutateGlobal(episodesKey, episodes, { revalidate: false });
+            }
+          }
         }
-  
-        // 3) episodes
-        for (const [seasonId, episodes] of Object.entries(boot.episodesBySeason)) {
-          await mutateGlobal(`/api/seasons/${seasonId}/episodes`, episodes, {
-            revalidate: false,
-          });
-        }
-  
-        // 4) 🔥 ВАЖНО: прогрев топ-5 ПОСЛЕ всего
-        const ids = boot.series.map((x) => x.id);
-        void warmTopSeries(ids, 5);
-  
-      } catch (e) {
-        console.error(e);
+
+        await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+        if (cancelled) return;
+
+        setBootReady(true);
+      } catch (e: any) {
+        if (cancelled) return;
+        setBootError(e?.message ?? "Boot failed");
+        setBootReady(true); // всё равно пустим в UI, но с ошибкой
       }
     })();
-  
+
     return () => {
       cancelled = true;
     };
   }, [mutateGlobal]);
-  
+
+  if (!bootReady) {
+    return (
+      <main className="min-h-dvh bg-white">
+        <div className="mx-auto max-w-[420px] px-4 pt-[calc(var(--tg-content-safe-top,0px)+56px)] pb-10">
+          <div className="text-[32px] font-bold tracking-tight">Коллекция</div>
+          <div className="mt-6 text-black/50">Загрузка…</div>
+          <div className="mt-2 text-black/30 text-sm">
+            Готовим первые 5 сериалов для оффлайнового клика.
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-dvh bg-white">
       <div className="mx-auto max-w-[420px] px-4 pt-[calc(var(--tg-content-safe-top,0px)+56px)] pb-28">
         <h1 className="text-[32px] ty-h1">Коллекция</h1>
+
+        {bootError && (
+          <div className="mt-4 rounded-xl border border-black/10 p-3 text-sm text-black/60">
+            Прелоад не завершился: {bootError}
+          </div>
+        )}
 
         <div className="mt-6 space-y-2">
           {(items ?? []).map((s) => {
@@ -270,12 +179,7 @@ export default function HomePage() {
                 onClick={() => {
                   setActiveSeriesId(s.id);
                   setActiveTitle(s.title);
-
-                  // открываем сразу
                   setSheetOpen(true);
-
-                  // прогреваем в фоне (если вдруг кликнул не из топ-5 или не успели прогреть)
-                  prefetchSheetData(s.id).catch(console.error);
                 }}
               />
             );
