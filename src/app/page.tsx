@@ -117,13 +117,17 @@ export default function HomePage() {
             {titleReady && (
               <>
                 <TitleSeg delay={0}>Привет,</TitleSeg>{" "}
-                <TitleSeg delay={180} strong>{firstName}!</TitleSeg>{" "}
-                <TitleSeg delay={360}>Что будем</TitleSeg>
+                <TitleSeg delay={150}strong>{firstName}!</TitleSeg>{" "}
+                <TitleSeg delay={300}>Что</TitleSeg>{" "}
+                <TitleSeg delay={450}>будем</TitleSeg>
                 <br />
-                <TitleSeg delay={540}>смотреть сегодня? У тебя</TitleSeg>
+                <TitleSeg delay={600}>смотреть</TitleSeg>{" "}
+                <TitleSeg delay={750}>сегодня?</TitleSeg>{" "}
+                <TitleSeg delay={900}>У тебя</TitleSeg>{" "}
                 <br />
-                <TitleSeg delay={720}>на очереди</TitleSeg>{" "}
-                <TitleSeg delay={900} strong>
+                <TitleSeg delay={1050}>на</TitleSeg>{" "}
+                <TitleSeg delay={1200}>очереди</TitleSeg>{" "}
+                <TitleSeg delay={1350} strong>
                   {inProgressCount} сериал{pluralRu(inProgressCount, "", "а", "ов")}
                 </TitleSeg>
               </>
