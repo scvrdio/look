@@ -18,6 +18,11 @@ type SeriesRow = {
 type SeasonRow = { id: string; number: number; episodesCount: number };
 type EpisodeRow = { id: string; number: number; watched: boolean };
 
+type PreloadResponse = {
+  seasonsBySeries: Record<string, SeasonRow[]>;
+  episodesBySeason: Record<string, EpisodeRow[]>;
+};
+
 function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
@@ -75,7 +80,7 @@ function BootGate({ children }: { children: React.ReactNode }) {
             setReady(true);
             return;
           }
-        } catch {}
+        } catch { }
 
         async function preloadWholeSeries(seriesId: string) {
           const seasonsKey = `/api/series/${seriesId}/seasons`;
@@ -100,23 +105,26 @@ function BootGate({ children }: { children: React.ReactNode }) {
         await mutateGlobal("/api/series", series, { revalidate: false });
 
         // 3) top-3 blocking + rest background
-        const top = series.slice(0, 3);
         const rest = series.slice(3);
 
-        // TOP-3 blocking
+        // TOP-3 blocking одним запросом
         {
-          const CONCURRENCY = 2;
-          let i = 0;
+          const preload = await fetcher<PreloadResponse>("/api/preload?limit=3");
+          if (cancelled) return;
 
-          async function workerTop() {
-            while (i < top.length) {
-              const s = top[i++];
-              await preloadWholeSeries(s.id);
-              if (cancelled) return;
-            }
-          }
+          // seasons -> cache
+          await Promise.allSettled(
+            Object.entries(preload.seasonsBySeries).map(([seriesId, seasons]) =>
+              mutateGlobal(`/api/series/${seriesId}/seasons`, seasons, { revalidate: false })
+            )
+          );
 
-          await Promise.all(Array.from({ length: CONCURRENCY }, workerTop));
+          // episodes -> cache
+          await Promise.allSettled(
+            Object.entries(preload.episodesBySeason).map(([seasonId, episodes]) =>
+              mutateGlobal(`/api/seasons/${seasonId}/episodes`, episodes, { revalidate: false })
+            )
+          );
         }
 
         // rest in background
@@ -130,7 +138,7 @@ function BootGate({ children }: { children: React.ReactNode }) {
               const s = rest[j++];
               try {
                 await preloadWholeSeries(s.id);
-              } catch {}
+              } catch { }
             }
           }
 
@@ -141,7 +149,7 @@ function BootGate({ children }: { children: React.ReactNode }) {
 
         try {
           sessionStorage.setItem("boot_done", "1");
-        } catch {}
+        } catch { }
 
         setReady(true);
       } catch (e: any) {
