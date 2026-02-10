@@ -164,7 +164,12 @@ function BootGate({ children }: { children: React.ReactNode }) {
     };
   }, [mutateGlobal]);
 
-  
+  if (!ready) {
+    return (
+      <main className="min-h-dvh bg-white">
+      </main>
+    );
+  }
 
   return (
     <>
