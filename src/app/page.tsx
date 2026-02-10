@@ -2,25 +2,14 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import useSWR, { useSWRConfig } from "swr";
+
 import { pluralRu } from "@/lib/plural";
+import { fetcher } from "@/lib/fetcher";
 
 import { SeriesCard } from "../components/series/SeriesCard";
 import { SeriesSheet } from "../components/series/SeriesSheet";
 import { Button } from "../components/ui/button";
-
-import useSWR from "swr";
-
-const fetcher = async (url: string) => {
-  const res = await fetch(url, {
-    credentials: "include",
-  });
-
-  if (!res.ok) {
-    throw new Error(`Request failed: ${res.status}`);
-  }
-
-  return res.json();
-};
 
 type SeriesRow = {
   id: string;
@@ -35,20 +24,13 @@ type SeriesRow = {
 
 async function telegramAuthIfNeeded() {
   const tg = (window as any)?.Telegram?.WebApp;
-
-  console.log("tg exists:", !!tg);
-  console.log("initData len:", tg?.initData?.length ?? 0);
-  console.log(
-    "initData head:",
-    String(tg?.initData ?? "").slice(0, 60)
-  );
-
   const initData = tg?.initData;
   if (!initData) return;
 
   const r = await fetch("/api/auth/telegram", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    credentials: "include",
     body: JSON.stringify({ initData }),
   });
 
@@ -58,18 +40,27 @@ async function telegramAuthIfNeeded() {
   }
 }
 
-
 export default function HomePage() {
   const [sheetOpen, setSheetOpen] = useState(false);
-
   const [activeSeriesId, setActiveSeriesId] = useState<string | null>(null);
   const [activeTitle, setActiveTitle] = useState("");
 
-  
-  const { data: items = [], mutate, isLoading } = useSWR<SeriesRow[]>(
-    "/api/series",
-    fetcher
-  );
+  const { mutate: mutateGlobal } = useSWRConfig();
+
+  const { data: items = [], mutate } = useSWR<SeriesRow[]>("/api/series", fetcher);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        await telegramAuthIfNeeded();
+      } catch (e) {
+        console.error(e);
+      }
+      // после установки cookie — обновим список
+      mutate();
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <main className="min-h-dvh bg-white">
@@ -81,7 +72,6 @@ export default function HomePage() {
             const rightTop = s.progress?.last
               ? `S${s.progress.last.season} E${s.progress.last.episode}`
               : "";
-
             const rightBottom = `${s.progress?.percent ?? 0}%`;
 
             return (
@@ -104,6 +94,10 @@ export default function HomePage() {
                 onClick={() => {
                   setActiveSeriesId(s.id);
                   setActiveTitle(s.title);
+
+                  // prefetch сезонов (ускоряет первое открытие шторки)
+                  mutateGlobal(`/api/series/${s.id}/seasons`);
+
                   setSheetOpen(true);
                 }}
               />
@@ -113,7 +107,7 @@ export default function HomePage() {
       </div>
 
       <div className="fixed inset-x-0 bottom-0">
-        <div className="mx-auto max-w-[420px] px-5 pb-[calc(var(--tg-content-safe-bottom,0px)+20px)] pt-3">
+        <div className="mx-auto max-w-[420px] px-5 pt-3 pb-[calc(var(--tg-content-safe-bottom,0px)+20px)]">
           <Link href="/add" className="block">
             <Button>Добавить сериал</Button>
           </Link>
