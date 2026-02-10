@@ -42,8 +42,8 @@ export default function HomePage() {
 
         <div
           className={[
-            "mt-6 space-y-2 transition-all duration-300 ease-out",
-            listReady ? "opacity-100 translate-y-0 blur-0" : "opacity-0 translate-y-2 blur-[2px]",
+            "mt-6 space-y-2 transition-all duration-500 ease-out",
+            listReady ? "opacity-100 translate-y-0 blur-0" : "opacity-0 translate-y-12 blur-[8px]",
           ].join(" ")}
         >
           {(items ?? []).map((s) => {
