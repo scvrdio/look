@@ -5,7 +5,7 @@ import { Providers } from "./providers";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ru" suppressHydrationWarning>
+    <html lang="ru">
       <body>
         <Script
           src="https://telegram.org/js/telegram-web-app.js"

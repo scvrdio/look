@@ -42,7 +42,7 @@ async function waitForTelegramInitData(timeoutMs = 1500): Promise<string | null>
 
 async function telegramAuthIfNeeded() {
   const initData = await waitForTelegramInitData(2000);
-  if (!initData) return; // не телега (локалка/браузер)
+  if (!initData) return;
 
   const r = await fetch("/api/auth/telegram", {
     method: "POST",
@@ -67,32 +67,37 @@ export default function HomePage() {
 
   const { mutate: mutateGlobal } = useSWRConfig();
 
-  // После прелоада /api/series будет уже в кеше => SWR отдаст мгновенно
   const { data: items, mutate: mutateSeries } = useSWR<SeriesRow[]>("/api/series", fetcher);
 
   useEffect(() => {
     let cancelled = false;
 
-    // если уже прогрели данные в этой сессии — не повторяем прелоад
+    // 0) если уже делали boot в этой сессии — сразу пускаем
     try {
       if (sessionStorage.getItem("boot_done") === "1") {
-        try {
-          sessionStorage.setItem("boot_done", "1");
-        } catch { }
-        setBootReady(true);
         setBootReady(true);
         return () => {
           cancelled = true;
         };
       }
-    } catch { }
+    } catch {}
+
+    async function preloadWholeSeries(seriesId: string) {
+      const seasonsKey = `/api/series/${seriesId}/seasons`;
+      const seasons = await fetcher<SeasonRow[]>(seasonsKey);
+      await mutateGlobal(seasonsKey, seasons, { revalidate: false });
+
+      for (const season of seasons) {
+        const episodesKey = `/api/seasons/${season.id}/episodes`;
+        const episodes = await fetcher<EpisodeRow[]>(episodesKey);
+        await mutateGlobal(episodesKey, episodes, { revalidate: false });
+      }
+    }
 
     (async () => {
       try {
-
         setBootError(null);
         setBootReady(false);
-
 
         // 1) auth (cookie)
         await telegramAuthIfNeeded();
@@ -103,47 +108,38 @@ export default function HomePage() {
         if (cancelled) return;
         await mutateGlobal("/api/series", series, { revalidate: false });
 
-        // 3) top-5
+        // 3) топ-3 блокирующе, остальные — фоном
         const top = series.slice(0, 3);
         const rest = series.slice(3);
 
-        // грузим сериал полностью: сезоны + все эпизоды всех сезонов
-        async function preloadWholeSeries(seriesId: string) {
-          const seasonsKey = `/api/series/${seriesId}/seasons`;
-          const seasons = await fetcher<SeasonRow[]>(seasonsKey);
-          await mutateGlobal(seasonsKey, seasons, { revalidate: false });
-
-          for (const season of seasons) {
-            const episodesKey = `/api/seasons/${season.id}/episodes`;
-            const episodes = await fetcher<EpisodeRow[]>(episodesKey);
-            await mutateGlobal(episodesKey, episodes, { revalidate: false });
-          }
-        }
-
-        // 1) TOP-3 — блокирующе (пользователя пускаем только после этого)
+        // TOP-3 blocking
         {
           const CONCURRENCY = 2;
           let i = 0;
+
           async function workerTop() {
             while (i < top.length) {
               const s = top[i++];
               await preloadWholeSeries(s.id);
+              if (cancelled) return;
             }
           }
+
           await Promise.all(Array.from({ length: CONCURRENCY }, workerTop));
         }
 
-        // 2) Остальные — в фоне (не ждём)
+        // background for the rest
         {
           const CONCURRENCY_BG = 2;
           let j = 0;
 
           async function workerBg() {
             while (j < rest.length) {
+              if (cancelled) return;
               const s = rest[j++];
               try {
                 await preloadWholeSeries(s.id);
-              } catch { }
+              } catch {}
             }
           }
 
@@ -152,11 +148,16 @@ export default function HomePage() {
 
         if (cancelled) return;
 
+        // 4) помечаем, что в этой сессии boot выполнен
+        try {
+          sessionStorage.setItem("boot_done", "1");
+        } catch {}
+
         setBootReady(true);
       } catch (e: any) {
         if (cancelled) return;
         setBootError(e?.message ?? "Boot failed");
-        setBootReady(true); // всё равно пустим в UI, но с ошибкой
+        setBootReady(true);
       }
     })();
 
@@ -171,9 +172,7 @@ export default function HomePage() {
         <div className="mx-auto max-w-[420px] px-4 pt-[calc(var(--tg-content-safe-top,0px)+56px)] pb-10">
           <div className="text-[32px] font-bold tracking-tight">Коллекция</div>
           <div className="mt-6 text-black/50">Загрузка…</div>
-          <div className="mt-2 text-black/30 text-sm">
-            Готовим первые 5 сериалов для оффлайнового клика.
-          </div>
+          <div className="mt-2 text-black/30 text-sm">Подгружаем первые 3 сериала целиком.</div>
         </div>
       </main>
     );
