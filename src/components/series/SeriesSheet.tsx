@@ -38,65 +38,97 @@ export function SeriesSheet({
   onChanged,
 }: SeriesSheetProps) {
   const [activeSeasonId, setActiveSeasonId] = React.useState<string | null>(null);
+  const [uiEpisodes, setUiEpisodes] = React.useState<EpisodeRow[] | null>(null);
 
-  // 1) Сезоны (кэшируются SWR)
-  const seasonsKey = seriesId ? `/api/series/${seriesId}/seasons` : null;
+  // держим предыдущий сериал, чтобы не сбрасывать состояние в фоне
+  const prevSeriesIdRef = React.useRef<string | null>(null);
 
+  // Сезоны
+  const seasonsKey = open && seriesId ? `/api/series/${seriesId}/seasons` : null;
   const {
-    data: seasons = [],
+    data: seasons,
     isLoading: loadingSeasons,
-  } = useSWR<SeasonRow[]>(seasonsKey, fetcher, {
-    revalidateOnFocus: false,
-    keepPreviousData: true,
-  });
+    isValidating: validatingSeasons,
+  } = useSWR<SeasonRow[]>(seasonsKey, fetcher);
 
-  // Когда меняется сериал — сбрасываем activeSeasonId, чтобы выбрать первый сезон нового сериала
+  // При открытии sheet на новый сериал — сбросить выбранный сезон и снапшот эпизодов
   React.useEffect(() => {
-    setActiveSeasonId(null);
-  }, [seriesId]);
+    if (!open) return;
 
-  // Выбрать первый сезон по умолчанию, когда сезоны приехали
-  React.useEffect(() => {
-    if (!activeSeasonId && seasons.length > 0) {
-      setActiveSeasonId(seasons[0].id);
+    if (prevSeriesIdRef.current !== seriesId) {
+      prevSeriesIdRef.current = seriesId;
+      setActiveSeasonId(null);
+      setUiEpisodes(null);
     }
-  }, [activeSeasonId, seasons]);
+  }, [open, seriesId]);
 
-  // 2) Эпизоды активного сезона (кэшируются SWR)
-  const episodesKey = activeSeasonId ? `/api/seasons/${activeSeasonId}/episodes` : null;
+  // Выбрать первый сезон по умолчанию (только когда sheet открыт и сезоны приехали)
+  React.useEffect(() => {
+    if (!open) return;
+    if (activeSeasonId) return;
+    if (!seasons || seasons.length === 0) return;
+
+    setActiveSeasonId(seasons[0].id);
+  }, [open, activeSeasonId, seasons]);
+
+  // Эпизоды активного сезона
+  const episodesKey =
+    open && activeSeasonId ? `/api/seasons/${activeSeasonId}/episodes` : null;
 
   const {
-    data: episodes = [],
+    data: episodes,
     isLoading: loadingEpisodes,
+    isValidating: validatingEpisodes,
     mutate: mutateEpisodes,
-  } = useSWR<EpisodeRow[]>(episodesKey, fetcher, {
-    revalidateOnFocus: false,
-    keepPreviousData: true,
-  });
+  } = useSWR<EpisodeRow[]>(episodesKey, fetcher);
 
-  // 3) Оптимистичный toggle через mutateEpisodes (без локального setEpisodes)
-  async function toggleEpisode(id: string) {
+  // UI-снапшот: обновляем только когда реально пришли данные для текущего ключа
+  React.useEffect(() => {
+    if (!open) return;
     if (!episodesKey) return;
+    if (!episodes) return;
 
-    // optimistic next state
-    const next = episodes.map((e) => (e.id === id ? { ...e, watched: !e.watched } : e));
+    setUiEpisodes(episodes);
+  }, [open, episodesKey, episodes]);
+
+  async function toggleEpisode(id: string) {
+    if (!open) return;
+    if (!episodesKey) return;
+    if (!uiEpisodes) return;
+
+    const prev = uiEpisodes;
+    const next = prev.map((e) => (e.id === id ? { ...e, watched: !e.watched } : e));
+
+    // 1) мгновенно обновляем UI + SWR cache без revalidate
+    setUiEpisodes(next);
     await mutateEpisodes(next, false);
 
+    // 2) пишем на сервер
     const res = await fetch(`/api/episodes/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
     });
 
+    // 3) откат при ошибке — без лишнего refetch
     if (!res.ok) {
-      // откат к серверному состоянию
-      await mutateEpisodes();
+      setUiEpisodes(prev);
+      await mutateEpisodes(prev, false);
       return;
     }
 
-    // обновить прогресс на главной
+    // 4) обновить прогресс на главной (серии/процент)
     onChanged?.();
   }
+
+  // "Первичная" загрузка — когда данных реально нет
+  const initialLoading =
+    (seasonsKey !== null && !seasons) || (episodesKey !== null && !uiEpisodes);
+
+  // Фоновая валидация — когда данные есть, но идёт обновление
+  const backgroundUpdating = Boolean(
+    (seasons && validatingSeasons) || (uiEpisodes && validatingEpisodes)
+  );
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -136,9 +168,13 @@ export function SeriesSheet({
                 <div className="px-5 overflow-x-auto no-scrollbar">
                   <div className="py-2">
                     <SeasonTabs
-                      items={seasons.map((s) => ({ id: s.id, number: s.number }))}
+                      items={(seasons ?? []).map((s) => ({ id: s.id, number: s.number }))}
                       activeId={activeSeasonId}
-                      onChange={setActiveSeasonId}
+                      onChange={(id) => {
+                        setActiveSeasonId(id);
+                        // при смене сезона не очищаем грид визуально — uiEpisodes останется старым,
+                        // а обновится, когда придут новые episodes
+                      }}
                     />
                   </div>
                 </div>
@@ -146,10 +182,15 @@ export function SeriesSheet({
 
               {/* Episodes (прилипают к низу) */}
               <div className="mt-auto pt-6">
-                {loadingSeasons || loadingEpisodes ? (
+                {initialLoading ? (
                   <div className="text-black/40">Загрузка…</div>
                 ) : (
-                  <EpisodeGrid items={episodes} onToggle={toggleEpisode} />
+                  <>
+                    {backgroundUpdating && (
+                      <div className="text-black/30 text-sm mb-2">Обновление…</div>
+                    )}
+                    <EpisodeGrid items={uiEpisodes ?? []} onToggle={toggleEpisode} />
+                  </>
                 )}
               </div>
             </div>

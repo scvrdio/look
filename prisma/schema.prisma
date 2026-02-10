@@ -8,49 +8,40 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  telegramId BigInt  @unique
-  createdAt DateTime @default(now())
-
-  series    Series[]
+  id         String   @id @default(cuid())
+  telegramId BigInt   @unique
+  createdAt  DateTime @default(now())
+  series     Series[]
 }
 
 model Series {
   id        String   @id @default(cuid())
   title     String
   createdAt DateTime @default(now())
-
-  userId    String     // временно nullable
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-
+  userId    String
   seasons   Season[]
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-
 model Season {
-  id            String   @id @default(cuid())
-  createdAt     DateTime @default(now())
-
+  id            String    @id @default(cuid())
   seriesId      String
-  series        Series   @relation(fields: [seriesId], references: [id], onDelete: Cascade)
-
   number        Int
   episodesCount Int
-
+  createdAt     DateTime  @default(now())
   episodes      Episode[]
+  series        Series    @relation(fields: [seriesId], references: [id], onDelete: Cascade)
 
   @@unique([seriesId, number])
 }
 
 model Episode {
   id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-
   seasonId  String
-  season    Season   @relation(fields: [seasonId], references: [id], onDelete: Cascade)
-
   number    Int
   watched   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  season    Season   @relation(fields: [seasonId], references: [id], onDelete: Cascade)
 
   @@unique([seasonId, number])
 }
