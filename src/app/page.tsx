@@ -11,6 +11,8 @@ import { SeriesCard } from "../components/series/SeriesCard";
 import { SeriesSheet } from "../components/series/SeriesSheet";
 import { Button } from "../components/ui/button";
 
+import { AnimatedCounter } from "@/components/ui/AnimatedCounter";
+
 type Me = { name: string | null };
 type InProgress = { inProgressCount: number };
 
@@ -128,7 +130,9 @@ export default function HomePage() {
                 <TitleSeg delay={1050}>на</TitleSeg>{" "}
                 <TitleSeg delay={1200}>очереди</TitleSeg>{" "}
                 <TitleSeg delay={1350} strong>
-                  {inProgressCount} сериал{pluralRu(inProgressCount, "", "а", "ов")}
+                <AnimatedCounter value={inProgressCount} />{" "}
+сериал{pluralRu(inProgressCount, "", "а", "ов")}
+
                 </TitleSeg>
               </>
             )}
