@@ -3,7 +3,6 @@
 import { cn } from "@/lib/utils";
 import { CircleCheck } from "lucide-react";
 
-
 type SeriesCardProps = {
   title: string;
   subtitle: string;
@@ -34,26 +33,36 @@ export function SeriesCard({
         className
       )}
     >
-      <div className="grid grid-cols-[1fr_auto] grid-rows-2 items-start gap-x-4 gap-y-1">
-        <div className="text-[16px] font-semibold leading-[1.15]">{title}</div>
-
-        <div className="text-right">
-          {!completed && (
-            <div className="text-[16px] font-semibold leading-[1.15] text-right">
-              {rightTop}
-            </div>
-          )}
+      <div className="grid grid-cols-[1fr_auto] grid-rows-2 gap-x-4 gap-y-1">
+        {/* row 1 col 1 */}
+        <div className="row-start-1 col-start-1 text-[16px] font-semibold leading-[1.15]">
+          {title}
         </div>
 
-        <div className="text-[14px] leading-[1.15] text-black/40">{subtitle}</div>
+        {/* row 2 col 1 */}
+        <div className="row-start-2 col-start-1 text-[14px] leading-[1.15] text-black/40">
+          {subtitle}
+        </div>
 
-        {completed && (
-          <div className="absolute right-4 top-1/2 -translate-y-1/2">
-            <CircleCheck size={22} strokeWidth={3} className="text-black" />
+        {/* right side */}
+        {completed ? (
+          <div className="row-start-1 row-span-2 col-start-2 flex items-center justify-end">
+            <CircleCheck size={22} strokeWidth={2} className="text-black" />
           </div>
+        ) : (
+          <>
+            {/* row 1 col 2 */}
+            <div className="row-start-1 col-start-2 text-[16px] font-semibold leading-[1.15] text-right">
+              {rightTop}
+            </div>
+
+            {/* row 2 col 2 */}
+            <div className="row-start-2 col-start-2 text-[14px] leading-[1.15] text-black/40 text-right">
+              {rightBottom}
+            </div>
+          </>
         )}
       </div>
-
     </button>
   );
 }

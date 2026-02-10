@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 export function AnimatedCounter({
   value,
   duration = 800,
-  delay = 0,
+  delay = 1400,
 }: {
   value: number;
   duration?: number;
