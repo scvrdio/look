@@ -164,7 +164,7 @@ export default function AddSeriesPage() {
 
     return (
         <main className="min-h-dvh bg-white">
-            <div className="mx-auto max-w-[420px] px-5 pt-16 pb-28">
+            <div className="mx-auto max-w-[420px] px-5 pt-[calc(var(--tg-content-safe-top,0px)+56px)] pb-28">
                 {/* Header */}
                 <div className="flex items-start justify-between gap-3">
                     <h1 className="text-[32px] ty-h1">Добавить сериал</h1>
@@ -256,7 +256,7 @@ export default function AddSeriesPage() {
 
             {/* Bottom fixed save */}
             <div className="fixed inset-x-0 bottom-0 bg-white">
-                <div className="mx-auto max-w-[420px] px-5 pb-5 pt-3">
+                <div className="mx-auto max-w-[420px] px-5 pb-[calc(var(--tg-content-safe-bottom,0px)+20px)] pt-3">
                     <Button type="button" onClick={handleSubmit} disabled={!canSubmit} data-name="save-button">
                         {submitting ? "Сохранение..." : "Сохранить"}
                     </Button>
