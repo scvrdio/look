@@ -44,7 +44,11 @@ export function SeriesSheet({
 
   // 1) seasons
   const seasonsKey = open && seriesId ? `/api/series/${seriesId}/seasons` : null;
-  const { data: seasons } = useSWR<SeasonRow[]>(seasonsKey, fetcher);
+  const { data: seasons } = useSWR<SeasonRow[]>(seasonsKey, fetcher, {
+    revalidateOnMount: false,
+    revalidateOnFocus: false,
+    revalidateIfStale: false,
+  });
 
   // сброс только когда открыли и сериал реально поменялся
   React.useEffect(() => {
@@ -71,10 +75,11 @@ export function SeriesSheet({
   const episodesKey =
     open && activeSeasonId ? `/api/seasons/${activeSeasonId}/episodes` : null;
 
-  const { data: episodes, mutate: mutateEpisodes } = useSWR<EpisodeRow[]>(
-    episodesKey,
-    fetcher
-  );
+  const { data: episodes, mutate: mutateEpisodes } = useSWR<EpisodeRow[]>(episodesKey, fetcher, {
+    revalidateOnMount: false,
+    revalidateOnFocus: false,
+    revalidateIfStale: false,
+  });
 
   // снапшот для UI (не прыгает при смене сезона)
   React.useEffect(() => {
