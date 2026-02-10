@@ -14,6 +14,20 @@ function verifyTelegramInitData(initData: string, botToken: string) {
         if (key !== "hash") data[key] = value;
     });
 
+    const authDateStr = data["auth_date"]; // или params.get("auth_date") — смотря как у тебя собрано
+    if (!authDateStr) return { ok: false as const, reason: "missing auth_date" };
+
+    const authDate = Number(authDateStr);
+    if (!Number.isFinite(authDate)) return { ok: false as const, reason: "bad auth_date" };
+
+    const now = Math.floor(Date.now() / 1000);
+    const MAX_AGE_SECONDS = 60 * 60 * 24; // 24 часа
+
+    if (now - authDate > MAX_AGE_SECONDS) {
+        return { ok: false as const, reason: "initData expired" };
+    }
+
+
     const dataCheckString = Object.keys(data)
         .sort()
         .map((k) => `${k}=${data[k]}`)
@@ -28,11 +42,6 @@ function verifyTelegramInitData(initData: string, botToken: string) {
         .createHmac("sha256", secretKey)
         .update(dataCheckString)
         .digest("hex");
-
-    // console.log("[tg-auth] token head:", botToken.slice(0, 12));
-    // console.log("[tg-auth] data_check_string:\n" + dataCheckString);
-    // console.log("[tg-auth] received hash:", hash);
-    // console.log("[tg-auth] computed hash:", computedHash);
 
     if (computedHash !== hash) {
         return { ok: false as const, reason: "hash mismatch" };

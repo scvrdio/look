@@ -73,7 +73,7 @@ export default function HomePage() {
 
   return (
     <main className="min-h-dvh bg-white">
-      <div className="mx-auto max-w-[420px] px-4 pt-6 pb-28">
+      <div className="mx-auto max-w-[420px] px-4 pt-16 pb-28">
         <h1 className="text-[32px] ty-h1">Коллекция</h1>
 
         <div className="mt-6 space-y-2">

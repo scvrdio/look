@@ -1,14 +1,16 @@
 services:
   db:
-    image: postgres:16
+    image: postgres:17
+    container_name: tg-miniapp-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: tgminiapp
     ports:
       - "5432:5432"
-    environment:
-      POSTGRES_USER: app
-      POSTGRES_PASSWORD: app
-      POSTGRES_DB: app
     volumes:
-      - dbdata:/var/lib/postgresql/data
+      - tgminiapp_pg:/var/lib/postgresql/data
 
 volumes:
-  dbdata:
+  tgminiapp_pg:
