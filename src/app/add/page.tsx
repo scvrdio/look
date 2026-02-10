@@ -177,7 +177,7 @@ export default function AddSeriesPage() {
             <div className="mx-auto max-w-[420px] px-4 pt-[calc(var(--tg-content-safe-top,0px)+56px)] pb-28">
                 {/* Header */}
                 <div className="flex items-start justify-between gap-3">
-                    <h1 className="text-[24px] ty-h1">Добавить сериал</h1>
+                    <h1 className="text-[24px] ty-h1 pl-1">Добавить сериал</h1>
 
                     <button
                         type="button"

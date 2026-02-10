@@ -52,6 +52,8 @@ export function SeriesSheet({
   const [confirmDeleteOpen, setConfirmDeleteOpen] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
 
+  const deletingRef = React.useRef(false);
+
 
   // Сезоны
   const seasonsKey = open && seriesId ? `/api/series/${seriesId}/seasons` : null;
@@ -102,6 +104,7 @@ export function SeriesSheet({
   }, [open, episodesKey, episodes]);
 
   async function toggleEpisode(id: string) {
+    console.log("toggleEpisode", id);
     if (!open) return;
     if (!episodesKey) return;
     if (!uiEpisodes) return;
@@ -136,29 +139,29 @@ export function SeriesSheet({
   );
 
   async function deleteSeries() {
+    console.log("deleteSeries", seriesId);
     if (!seriesId) return;
-
+    if (deletingRef.current) return;
+    deletingRef.current = true;
+  
     try {
-      setDeleting(true);
-
       const res = await fetch(`/api/series/${seriesId}`, {
         method: "DELETE",
         credentials: "include",
       });
-
+  
       if (!res.ok) {
-        const msg = await res.text().catch(() => "");
-        alert(msg || "Не удалось удалить");
+        // не алерт на каждое нажатие, иначе будет ад
+        // лучше разово показать внутри модалки/шторки
         return;
       }
-
+  
       onOpenChange(false);
       onChanged?.();
     } finally {
-      setDeleting(false);
+      deletingRef.current = false;
     }
-  }
-
+  }  
 
 
   return (

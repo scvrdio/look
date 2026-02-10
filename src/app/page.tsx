@@ -115,9 +115,9 @@ export default function HomePage() {
         }
       `}</style>
 
-      <div className="mx-auto max-w-[420px] px-4 pt-[calc(var(--tg-content-safe-top,0px)+56px)] pb-28">
-        <div className="mt-2">
-          <div className="ty-h1 text-[24px] leading-[1.2] pl-2">
+      <div className="mx-auto max-w-[420px] px-4 pt-[calc(var(--tg-content-safe-top,0px)+56px)]">
+        <div>
+          <div className="ty-h1 text-[24px] leading-[1.2] pl-1">
             {titleReady && (
               <>
                 <TitleSeg delay={0}>Привет,</TitleSeg>{" "}
