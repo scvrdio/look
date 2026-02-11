@@ -92,12 +92,13 @@ export default function AddPage() {
 
   // autofocus (safe)
   const inputRef = useRef<HTMLInputElement | null>(null);
-  useEffect(() => {
-    const t = setTimeout(() => {
-      inputRef.current?.focus();
-    }, 80);
-    return () => clearTimeout(t);
-  }, []);
+
+useEffect(() => {
+  const t = setTimeout(() => {
+    inputRef.current?.focus();
+  }, 120);
+  return () => clearTimeout(t);
+}, []);
 
   // already added
   const { data: mySeries } = useSWR<SeriesRow[]>("/api/series", fetcher, {
@@ -296,6 +297,14 @@ export default function AddPage() {
               ref={inputRef}
               value={query}
               onChange={(e) => onChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  runSearch();
+                }
+              }}
+              inputMode="search"
+              enterKeyHint="search"
               placeholder={placeholder}
               className="w-full h-11 rounded-full bg-black/2 px-4 pr-10 text-[16px] font-medium outline-[1px] outline-black/5 placeholder:text-black/30"
             />
