@@ -7,7 +7,8 @@
     "prisma:migrate:local": "dotenv -e .env.local -- prisma migrate dev",
     "prisma:generate:local": "dotenv -e .env.local -- prisma generate",
     "prisma:studio:local": "dotenv -e .env.local -- prisma studio",
-    "build": "next build",
+    "postinstall": "prisma generate",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint"
   },
