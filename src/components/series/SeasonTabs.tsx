@@ -12,6 +12,7 @@ type Props = {
   className?: string;
 };
 
+
 export function SeasonTabs({ items, activeId, onChange, className }: Props) {
   return (
     <div className={cn("flex gap-2", className)}>

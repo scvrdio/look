@@ -53,7 +53,18 @@ export async function POST(req: Request) {
         const type = (d.type ?? "").toString();
         const seasonsInfo = Array.isArray(d.seasonsInfo) ? d.seasonsInfo : [];
 
-        const isSeries = type === "tv-series" || seasonsInfo.length > 0;
+        const normalizedSeasonsInfo = Array.from(
+            new Map(
+                seasonsInfo
+                    .filter((s) => Number.isInteger(s.number) && s.number >= 1)
+                    .filter((s) => Number.isInteger(s.episodesCount) && s.episodesCount > 0)
+                    // если вдруг дубль сезона — берём максимальное кол-во серий
+                    .map((s) => [s.number, { number: s.number, episodesCount: s.episodesCount }])
+            ).values()
+        ).sort((a, b) => a.number - b.number);
+
+
+        const isSeries = type === "tv-series" || normalizedSeasonsInfo.length > 0;
         const kind = isSeries ? "series" : "movie";
 
         // 3) создаём series (гонку ловим через unique и fallback-read)
@@ -87,7 +98,7 @@ export async function POST(req: Request) {
 
         // 4) сезоны пачкой
         await prisma.season.createMany({
-            data: seasonsInfo.map((s) => ({
+            data: normalizedSeasonsInfo.map((s) => ({
                 seriesId: series.id,
                 number: s.number,
                 episodesCount: s.episodesCount,
