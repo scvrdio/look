@@ -10,12 +10,7 @@ import { pluralRu } from "@/lib/plural";
 
 import { PlaylistPlusFill, Search, XCircleFill } from "@/icons";
 
-type SeriesRow = {
-  id: string;
-  title: string;
-  source?: string | null;
-  sourceId?: number | null;
-};
+import type { BootstrapResponse, SeriesRow, SeasonRow, EpisodeRow } from "@/types/bootstrap";
 
 type Item = {
   id: number;

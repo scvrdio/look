@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/server_auth/getCurrentUser";
 
 export async function GET() {
+
   const user = await getCurrentUser();
 
   const series = await prisma.series.findMany({
@@ -14,6 +15,7 @@ export async function GET() {
       createdAt: true,
       source: true,
       sourceId: true,
+      posterUrl: true,
       seasons: {
         orderBy: { number: "asc" },
         select: {

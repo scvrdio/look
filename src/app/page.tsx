@@ -13,6 +13,8 @@ import { Button } from "../components/ui/button";
 import { AnimatedCounter } from "@/components/ui/AnimatedCounter";
 import { hapticImpact } from "@/lib/haptics";
 
+import type { BootstrapResponse, SeriesRow, SeasonRow, EpisodeRow } from "@/types/bootstrap";
+
 type Me = { name: string | null };
 type InProgress = { inProgressCount: number };
 
@@ -22,17 +24,6 @@ function getTgFirstNameSafe(): string | null {
   const n = tg?.initDataUnsafe?.user?.first_name;
   return typeof n === "string" && n.trim() ? n.trim() : null;
 }
-
-type SeriesRow = {
-  id: string;
-  title: string;
-  seasonsCount: number;
-  episodesCount: number;
-  progress: {
-    percent: number;
-    last: { season: number; episode: number } | null;
-  };
-};
 
 function TitleSeg({
   children,
@@ -202,6 +193,7 @@ export default function HomePage() {
                 ].join(" ")}
               >
                 <SeriesCard
+                  id={s.id}
                   title={s.title}
                   subtitle={`${s.seasonsCount} ${pluralRu(
                     s.seasonsCount,

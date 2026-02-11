@@ -1,40 +1,20 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getCurrentUser } from "@/server_auth/getCurrentUser"; // подстрой путь под твой проект
-
-type SeriesRow = {
-  id: string;
-  title: string;
-  seasonsCount: number;
-  episodesCount: number;
-  progress: {
-    percent: number;
-    last: { season: number; episode: number } | null;
-  };
-};
-
-type SeasonRow = { id: string; number: number; episodesCount: number };
-type EpisodeRow = { id: string; number: number; watched: boolean };
-
-type BootstrapResponse = {
-  series: SeriesRow[];
-  seasonsBySeries: Record<string, SeasonRow[]>;
-  episodesBySeason: Record<string, EpisodeRow[]>;
-};
+import { getCurrentUser } from "@/server_auth/getCurrentUser";
+import type { BootstrapResponse, SeasonRow, EpisodeRow } from "@/types/bootstrap";
 
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   // 1) серии пользователя
-  const series: Array<{ id: string; title: string; createdAt: Date }> = await prisma.series.findMany({
+  const series = await prisma.series.findMany({
     where: { userId: user.id },
-    select: { id: true, title: true, createdAt: true },
+    select: { id: true, title: true, posterUrl: true, source: true, sourceId: true, createdAt: true },
     orderBy: { createdAt: "desc" },
   });
-  
-  const seriesIds = series.map((s: { id: string }) => s.id);
-  
+
+  const seriesIds = series.map((s) => s.id);
 
   // 2) сезоны всех сериалов одним запросом
   const seasons = await prisma.season.findMany({
@@ -72,24 +52,7 @@ export async function GET() {
     });
   }
 
-  // 4) собрать SeriesRow с counts + progress (вычисляем из сезонов/episodesCount)
-  // episodesCount = сумма episodesCount по сезонам
-  // seasonsCount = количество сезонов
-  // progress = процент просмотренных эпизодов (по watched=true) среди всех эпизодов серии
-  // last = последний просмотренный эпизод (макс по (season.number, episode.number))
-  //
-  // Для точного progress нужен просмотр всех эпизодов серии.
-  // Это можно сделать 1 агрегирующим запросом по episodes через join season->series.
-  const watchedAgg = await prisma.episode.groupBy({
-    by: ["seasonId"],
-    _count: { _all: true, watched: true } as any, // TS может ругаться, но Prisma выполнит
-    where: {
-      season: { seriesId: { in: seriesIds } },
-    },
-  });
-
-  // Prisma groupBy не умеет _count watched из коробки в типах, поэтому ниже делаем проще и надежнее:
-  // возьмём все эпизоды серии (id, watched, season.number, episode.number) одним запросом
+  // 4) прогресс по всем эпизодам всех сериалов
   const allEpisodes = await prisma.episode.findMany({
     where: { season: { seriesId: { in: seriesIds } } },
     select: {
@@ -112,25 +75,27 @@ export async function GET() {
     st.total += 1;
     if (e.watched) {
       st.watched += 1;
-      st.last = { season: e.season.number, episode: e.number }; // так как сортировка asc, последний watched перезапишет
+      st.last = { season: e.season.number, episode: e.number };
     }
   }
 
-  const seriesRows: SeriesRow[] = series.map((s) => {
+  const seriesRows: BootstrapResponse["series"] = series.map((s) => {
     const seasonsArr = seasonsBySeries[s.id] ?? [];
     const seasonsCount = seasonsArr.length;
     const episodesCount = seasonsArr.reduce((acc, x) => acc + x.episodesCount, 0);
 
     const st = epStats[s.id] ?? { total: 0, watched: 0, last: null };
-    const percent =
-      st.total > 0 ? Math.round((st.watched / st.total) * 100) : 0;
+    const percent = st.total > 0 ? Math.round((st.watched / st.total) * 100) : 0;
 
     return {
-      id: s.id,
-      title: s.title,
-      seasonsCount,
-      episodesCount,
-      progress: { percent, last: st.last },
+        id: s.id,
+        title: s.title,
+        posterUrl: s.posterUrl ?? null,
+        source: s.source ?? null,
+        sourceId: (s.sourceId as number | null) ?? null,
+        seasonsCount,
+        episodesCount,
+        progress: { percent, last: st.last },
     };
   });
 
@@ -139,6 +104,6 @@ export async function GET() {
     seasonsBySeries,
     episodesBySeason,
   };
-
+  console.log("CURRENT USER ID", user.id);
   return NextResponse.json(payload);
 }

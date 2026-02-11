@@ -3,20 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { SWRConfig, useSWRConfig } from "swr";
 import { fetcher } from "@/lib/fetcher";
-
-type SeriesRow = {
-  id: string;
-  title: string;
-  seasonsCount: number;
-  episodesCount: number;
-  progress: {
-    percent: number;
-    last: { season: number; episode: number } | null;
-  };
-};
-
-type SeasonRow = { id: string; number: number; episodesCount: number };
-type EpisodeRow = { id: string; number: number; watched: boolean };
+import type { BootstrapResponse, SeriesRow, SeasonRow, EpisodeRow } from "@/types/bootstrap";
 
 type PreloadResponse = {
   seasonsBySeries: Record<string, SeasonRow[]>;
