@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import { useRouter } from "next/navigation";
 import { fetcher } from "@/lib/fetcher";
@@ -18,7 +18,7 @@ type SeriesRow = {
 };
 
 type Item = {
-  id: number; // внешний id (для catalog), для db может быть 0
+  id: number;
   name: string;
   year: number | null;
   posterUrl: string | null;
@@ -26,7 +26,6 @@ type Item = {
   seasonsCount?: number | null;
   episodesCount?: number | null;
 
-  // internal
   _localSeriesId?: string;
   _alreadyInDb?: boolean;
 };
@@ -55,21 +54,43 @@ function metaCountsLine(seasonsCount?: number | null, episodesCount?: number | n
   const parts: string[] = [];
   if (seasons != null) parts.push(`${seasons} ${pluralRu(seasons, "Сезон", "Сезона", "Сезонов")}`);
   if (episodes != null) parts.push(`${episodes} ${pluralRu(episodes, "Серия", "Серии", "Серий")}`);
-
   return parts.join(", ");
 }
 
 export default function AddPage() {
   const router = useRouter();
 
+  // animations
+  const [headerReady, setHeaderReady] = useState(false);
+  const [listReady, setListReady] = useState(false);
+
+  // placeholder typing
+  const placeholders = useMemo(
+    () => [
+      "Тед Лассо",
+      "Во все тяжкие",
+      "Игра престолов",
+      "Очень странные дела",
+      "Лучше звоните Солу",
+      "Друзья",
+      "Игра в кальмара",
+      "Наследники",
+    ],
+    []
+  );
+  const [placeholder, setPlaceholder] = useState("");
+
+  // screen state
   const [query, setQuery] = useState("");
   const [step, setStep] = useState<"idle" | "ready" | "results">("idle");
   const [source, setSource] = useState<"db" | "catalog">("db");
 
+  // results
   const [results, setResults] = useState<Item[]>([]);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // already added
   const { data: mySeries } = useSWR<SeriesRow[]>("/api/series", fetcher, {
     revalidateOnFocus: false,
   });
@@ -81,6 +102,63 @@ export default function AddPage() {
         .map((s) => s.sourceId as number)
     );
   }, [mySeries]);
+
+  // header enter
+  useEffect(() => {
+    const t = requestAnimationFrame(() => setHeaderReady(true));
+    return () => cancelAnimationFrame(t);
+  }, []);
+
+  // list enter when results appear
+  useEffect(() => {
+    if (step !== "results") return;
+    const t = requestAnimationFrame(() => setListReady(true));
+    return () => cancelAnimationFrame(t);
+  }, [step, results.length]);
+
+  // typing placeholder (only when query is empty)
+  useEffect(() => {
+    if (query.trim().length > 0) return;
+
+    let phraseIndex = 0;
+    let charIndex = 0;
+    let typing = true;
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+
+    const tick = () => {
+      const full = placeholders[phraseIndex];
+
+      if (typing) {
+        charIndex++;
+        setPlaceholder(full.slice(0, charIndex));
+        if (charIndex >= full.length) {
+          typing = false;
+          timeout = setTimeout(tick, 1000);
+          return;
+        }
+        timeout = setTimeout(tick, 125);
+        return;
+      }
+
+      charIndex--;
+      setPlaceholder(full.slice(0, charIndex));
+      if (charIndex <= 0) {
+        typing = true;
+        phraseIndex = (phraseIndex + 1) % placeholders.length;
+        timeout = setTimeout(tick, 300);
+        return;
+      }
+      timeout = setTimeout(tick, 60);
+    };
+
+    // start immediately with empty placeholder (no "artifact" text)
+    setPlaceholder("");
+    timeout = setTimeout(tick, 0);
+
+    return () => {
+      if (timeout) clearTimeout(timeout);
+    };
+  }, [query, placeholders]);
 
   function onChange(v: string) {
     setSource("db");
@@ -101,63 +179,6 @@ export default function AddPage() {
     setResults([]);
     setError(null);
     setStep("idle");
-  }
-
-  async function runSearch() {
-    const q = query.trim();
-    if (q.length < 2) return;
-
-    hapticImpact("medium");
-    setSearching(true);
-    setError(null);
-
-    try {
-      const url =
-        source === "db"
-          ? `/api/series/search?q=${encodeURIComponent(q)}`
-          : `/api/poiskkino/search?query=${encodeURIComponent(q)}&limit=10`;
-
-      const res = await fetch(url, { cache: "no-store" });
-
-      if (!res.ok) {
-        hapticNotify("error");
-        const msg = await readErrorMessage(res);
-        setError(msg);
-        if (res.status === 429) setStep("ready");
-        return;
-      }
-
-      const data = await res.json();
-      console.log("SOURCE", source, data?.items?.[0]);
-
-      if (source === "db") {
-        const items = Array.isArray(data?.items) ? data.items : [];
-        setResults(
-          items.map((s: any) => ({
-            id: s.sourceId ?? 0,
-            name: s.title,
-            year: s.year ?? null,
-            posterUrl: s.posterUrl ?? null,
-            type: s.kind === "movie" ? "movie" : "tv-series",
-            seasonsCount: s.seasonsCount ?? null,
-            episodesCount: s.episodesCount ?? null,
-
-            _localSeriesId: s.id,
-            _alreadyInDb: true,
-          }))
-        );
-        setStep("results");
-        return;
-      }
-
-      setResults(Array.isArray(data.items) ? data.items : []);
-      setStep("results");
-    } catch {
-      hapticNotify("error");
-      setError("Ошибка сети. Попробуйте еще раз.");
-    } finally {
-      setSearching(false);
-    }
   }
 
   const [addingId, setAddingId] = useState<number | null>(null);
@@ -193,19 +214,81 @@ export default function AddPage() {
     }
   }
 
+  async function runSearch() {
+    const q = query.trim();
+    if (q.length < 2) return;
+
+    setListReady(false);
+
+    hapticImpact("medium");
+    setSearching(true);
+    setError(null);
+
+    try {
+      const url =
+        source === "db"
+          ? `/api/series/search?q=${encodeURIComponent(q)}`
+          : `/api/poiskkino/search?query=${encodeURIComponent(q)}&limit=10`;
+
+      const res = await fetch(url, { cache: "no-store" });
+
+      if (!res.ok) {
+        hapticNotify("error");
+        const msg = await readErrorMessage(res);
+        setError(msg);
+        if (res.status === 429) setStep("ready");
+        return;
+      }
+
+      const data = await res.json();
+
+      if (source === "db") {
+        const items = Array.isArray(data?.items) ? data.items : [];
+        setResults(
+          items.map((s: any) => ({
+            id: s.sourceId ?? 0,
+            name: s.title,
+            year: s.year ?? null,
+            posterUrl: s.posterUrl ?? null,
+            type: s.kind === "movie" ? "movie" : "tv-series",
+            seasonsCount: s.seasonsCount ?? null,
+            episodesCount: s.episodesCount ?? null,
+            _localSeriesId: s.id,
+            _alreadyInDb: true,
+          }))
+        );
+        setStep("results");
+        return;
+      }
+
+      setResults(Array.isArray(data?.items) ? data.items : []);
+      setStep("results");
+    } catch {
+      hapticNotify("error");
+      setError("Ошибка сети. Попробуйте еще раз.");
+    } finally {
+      setSearching(false);
+    }
+  }
+
   const rightIcon = query.trim().length > 0 ? "clear" : "search";
 
   return (
     <main className="min-h-dvh bg-white">
       <div className="mx-auto max-w-[420px] px-4 pt-[calc(var(--tg-content-safe-top,0px)+64px)] pb-28">
-        {/* Top row: input + back */}
-        <div className="flex items-center gap-3">
+        {/* Header */}
+        <div
+          className={[
+            "flex items-center gap-3 transition-all duration-500 ease-out",
+            headerReady ? "opacity-100 translate-y-0 blur-0" : "opacity-0 translate-y-6 blur-[8px]",
+          ].join(" ")}
+        >
           <div className="relative flex-1">
             <input
               value={query}
               onChange={(e) => onChange(e.target.value)}
-              placeholder="Дан Да Дан"
-              className="w-full h-11 rounded-full bg-black/2 px-4 pr-10 text-[16px] font-medium outline-[1px] outline-black/5"
+              placeholder={placeholder}
+              className="w-full h-11 rounded-full bg-black/2 px-4 pr-10 text-[16px] font-medium outline-[1px] outline-black/5 placeholder:text-black/30"
             />
 
             <button
@@ -218,9 +301,9 @@ export default function AddPage() {
               disabled={rightIcon !== "clear"}
             >
               {rightIcon === "clear" ? (
-                <XCircleFill className="w-5 h-5 text-black/40" />
+                <XCircleFill className="w-5 h-5 text-black/30" />
               ) : (
-                <Search className="w-5 h-5 text-black/40" />
+                <Search className="w-6 h-6 text-black/30" />
               )}
             </button>
           </div>
@@ -237,67 +320,78 @@ export default function AddPage() {
           </button>
         </div>
 
-        {/* Results list */}
+        {/* Results */}
         {step === "results" && (
           <div className="mt-6 space-y-3">
             {results.length === 0 ? (
               <div className="text-[14px] opacity-60 px-1">Ничего не найдено</div>
             ) : (
-              results.map((item) => {
+              results.map((item, i) => {
                 const fromDb = !!item._alreadyInDb && !!item._localSeriesId;
                 const already = fromDb ? true : existingIds.has(item.id);
 
                 const typeLabel = metaTypeLabel(item.type);
                 const countsLine = metaCountsLine(item.seasonsCount, item.episodesCount);
 
+                const key = fromDb ? (item._localSeriesId as string) : String(item.id);
+
                 return (
-                  <div key={fromDb ? item._localSeriesId : item.id} className="flex gap-3">
-                    <div className="w-[80px] h-[120px] rounded-[8px] overflow-hidden bg-[#F2F2F2] shrink-0">
-                      {item.posterUrl ? (
-                        <img src={item.posterUrl} alt={item.name} className="w-full h-full object-cover" />
-                      ) : null}
-                    </div>
-
-                    <div className="flex-1 min-w-0 pt-1 flex flex-col justify-between h-[120px]">
-                      <div className="min-w-0">
-                        <div className="text-[16px] font-medium leading-[20px] truncate">{item.name}</div>
-
-                        <div className="text-[14px] leading-[18px] text-black/50 mt-1">
-                          {item.year ?? ""}
-                          {typeLabel ? ` · ${typeLabel}` : ""}
-                        </div>
-
-                        {countsLine ? (
-                          <div className="text-[14px] leading-[18px] text-black/50 mt-1">{countsLine}</div>
+                  <div
+                    key={key}
+                    style={{ transitionDelay: `${i * 80}ms` }}
+                    className={[
+                      "transition-all duration-500 ease-in-out",
+                      listReady ? "opacity-100 translate-y-0 blur-0" : "opacity-0 translate-y-12 blur-[8px]",
+                    ].join(" ")}
+                  >
+                    <div className="flex gap-3">
+                      <div className="w-[80px] h-[120px] rounded-[8px] overflow-hidden bg-[#F2F2F2] shrink-0">
+                        {item.posterUrl ? (
+                          <img src={item.posterUrl} alt={item.name} className="w-full h-full object-cover" />
                         ) : null}
                       </div>
 
-                      <div className="pt-3">
-                        {fromDb ? (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (!item._localSeriesId) return;
-                              hapticImpact("light");
-                              sessionStorage.setItem("openSeriesId", item._localSeriesId);
-                              router.push("/");
-                            }}
-                            className="inline-flex items-center gap-2 h-8 pl-3 pr-3 rounded-[8px] bg-[#F2F2F2] text-[13px] font-medium"
-                          >
-                            <span className="text-[16px] leading-none">↗</span>
-                            <span>Открыть</span>
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => addFromCatalog(item.id)}
-                            disabled={already || addingId === item.id}
-                            className="inline-flex items-center gap-2 h-9 px-4 rounded-full bg-[#F2F2F2] text-[14px] font-medium disabled:opacity-40"
-                          >
-                            <PlaylistPlusFill className="w-4 h-4 text-black" />
-                            <span>{already ? "В списке" : addingId === item.id ? "..." : "Добавить"}</span>
-                          </button>
-                        )}
+                      <div className="flex-1 min-w-0 pt-1 flex flex-col justify-between h-[120px]">
+                        <div className="min-w-0">
+                          <div className="text-[16px] font-medium leading-[20px] truncate">{item.name}</div>
+
+                          <div className="text-[14px] leading-[18px] text-black/50 mt-1">
+                            {item.year ?? ""}
+                            {typeLabel ? ` · ${typeLabel}` : ""}
+                          </div>
+
+                          {countsLine ? (
+                            <div className="text-[14px] leading-[18px] text-black/50 mt-1">{countsLine}</div>
+                          ) : null}
+                        </div>
+
+                        <div className="pt-3">
+                          {fromDb ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!item._localSeriesId) return;
+                                hapticImpact("light");
+                                sessionStorage.setItem("openSeriesId", item._localSeriesId);
+                                router.push("/");
+                              }}
+                              className="inline-flex items-center gap-2 h-8 pl-3 pr-3 rounded-[8px] bg-[#F2F2F2] text-[13px] font-medium"
+                            >
+                              <span className="text-[16px] leading-none">↗</span>
+                              <span>Открыть</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => addFromCatalog(item.id)}
+                              disabled={already || addingId === item.id}
+                              className="inline-flex items-center gap-2 h-9 px-4 rounded-full bg-[#F2F2F2] text-[14px] font-medium disabled:opacity-40"
+                            >
+                              <PlaylistPlusFill className="w-4 h-4 text-black" />
+                              <span>{already ? "В списке" : addingId === item.id ? "..." : "Добавить"}</span>
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -310,7 +404,7 @@ export default function AddPage() {
         {error && <div className="mt-3 text-[12px] text-red-500">{error}</div>}
       </div>
 
-      {/* Bottom button: only in "ready" */}
+      {/* Bottom button */}
       {step === "ready" && (
         <div className="fixed inset-x-0 bottom-0 bg-white">
           <div className="mx-auto max-w-[420px] px-5 pb-[calc(var(--tg-content-safe-bottom,0px)+20px)] pt-3">
