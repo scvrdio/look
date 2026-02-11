@@ -58,7 +58,6 @@ function metaCountsLine(seasonsCount?: number | null, episodesCount?: number | n
 }
 
 export default function AddPage() {
-    console.log("Search is", Search);
 
   const router = useRouter();
 
@@ -425,7 +424,7 @@ useEffect(() => {
       </div>
 
       {/* Bottom button */}
-      {step === "ready" && (
+      {/* {step === "ready" && (
         <div className="fixed inset-x-0 bottom-0 bg-white">
           <div className="mx-auto max-w-[420px] px-5 pb-[calc(var(--tg-content-safe-bottom,0px)+20px)] pt-3">
             <Button type="button" onClick={runSearch} disabled={searching || query.trim().length < 2}>
@@ -433,7 +432,7 @@ useEffect(() => {
             </Button>
           </div>
         </div>
-      )}
+      )} */}
     </main>
   );
 }
