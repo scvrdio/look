@@ -10,7 +10,7 @@ import { SeasonTabs } from "@/components/series/SeasonTabs";
 import { EpisodeGrid } from "@/components/series/EpisodeGrid";
 import { fetcher } from "@/lib/fetcher";
 
-import { X, Trash2 } from "lucide-react";
+import { X, Trash } from "@/icons";
 import { hapticImpact } from "@/lib/haptics";
 import { useRouter } from "next/navigation";
 
@@ -191,7 +191,7 @@ export function SeriesSheet({
                 className="absolute right-4 top-5 h-10 w-10 rounded-full inline-flex items-center justify-center text-black"
                 aria-label="Close"
               >
-                <X size={28} strokeWidth={1.5} />
+                <X className="w-6 h-6 text-black" />
               </button>
             </SheetClose>
 
@@ -207,7 +207,7 @@ export function SeriesSheet({
               className="absolute left-4 top-5 h-10 w-10 rounded-full inline-flex items-center justify-center text-[#FF0000]"
               aria-label="Delete"
             >
-              <Trash2 size={24} strokeWidth={1.5} />
+              <Trash className="w-6 h-6 text-red-500" />
             </button>
 
             {/* title */}
