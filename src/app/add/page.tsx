@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import { useRouter } from "next/navigation";
 import { fetcher } from "@/lib/fetcher";
@@ -90,6 +90,15 @@ export default function AddPage() {
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // autofocus (safe)
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  useEffect(() => {
+    const t = setTimeout(() => {
+      inputRef.current?.focus();
+    }, 80);
+    return () => clearTimeout(t);
+  }, []);
+
   // already added
   const { data: mySeries } = useSWR<SeriesRow[]>("/api/series", fetcher, {
     revalidateOnFocus: false,
@@ -151,7 +160,6 @@ export default function AddPage() {
       timeout = setTimeout(tick, 60);
     };
 
-    // start immediately with empty placeholder (no "artifact" text)
     setPlaceholder("");
     timeout = setTimeout(tick, 0);
 
@@ -285,6 +293,7 @@ export default function AddPage() {
         >
           <div className="relative flex-1">
             <input
+              ref={inputRef}
               value={query}
               onChange={(e) => onChange(e.target.value)}
               placeholder={placeholder}
@@ -340,7 +349,7 @@ export default function AddPage() {
                     key={key}
                     style={{ transitionDelay: `${i * 80}ms` }}
                     className={[
-                      "transition-all duration-500 ease-in-out",
+                      "transition-all duration-500 ease-out",
                       listReady ? "opacity-100 translate-y-0 blur-0" : "opacity-0 translate-y-12 blur-[8px]",
                     ].join(" ")}
                   >
