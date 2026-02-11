@@ -12,6 +12,13 @@
 
 @custom-variant dark (&:is(.dark *));
 
+:root {
+  --tg-viewport-height: 100vh;
+  --tg-viewport-stable-height: 100vh;
+  --tg-content-safe-top: 0px;
+  --tg-content-safe-bottom: 0px;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -131,7 +138,8 @@
   }
   body {
     @apply bg-background text-foreground;
-  }
+    font-feature-settings: "cv04" 1;
+  } 
 }
 
 /* hide scrollbar but keep scroll */

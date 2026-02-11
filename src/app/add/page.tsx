@@ -58,6 +58,8 @@ function metaCountsLine(seasonsCount?: number | null, episodesCount?: number | n
 }
 
 export default function AddPage() {
+    console.log("Search is", Search);
+
   const router = useRouter();
 
   // animations
