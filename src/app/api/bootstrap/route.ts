@@ -27,13 +27,14 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   // 1) серии пользователя
-  const series = await prisma.series.findMany({
+  const series: Array<{ id: string; title: string; createdAt: Date }> = await prisma.series.findMany({
     where: { userId: user.id },
     select: { id: true, title: true, createdAt: true },
     orderBy: { createdAt: "desc" },
   });
-
-  const seriesIds = series.map((s) => s.id);
+  
+  const seriesIds = series.map((s: { id: string }) => s.id);
+  
 
   // 2) сезоны всех сериалов одним запросом
   const seasons = await prisma.season.findMany({

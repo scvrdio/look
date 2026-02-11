@@ -12,6 +12,8 @@ export async function GET() {
       id: true,
       title: true,
       createdAt: true,
+      source: true,
+      sourceId: true,
       seasons: {
         orderBy: { number: "asc" },
         select: {
@@ -54,8 +56,10 @@ export async function GET() {
       id: s.id,
       title: s.title,
       createdAt: s.createdAt,
+      source: s.source,
+      sourceId: s.sourceId,
       seasonsCount: s.seasons.length,
-      episodesCount: total, // ← добавь это
+      episodesCount: total,
       progress: {
         percent,
         last:
@@ -66,6 +70,7 @@ export async function GET() {
         totalEpisodes: total,
       },
     };
+
   });
 
   return NextResponse.json(result);
