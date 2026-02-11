@@ -120,7 +120,7 @@ export function PoiskKinoSearch(props: {
                 <img
                   src={item.posterUrl}
                   alt={item.name}
-                  className="w-12 h-16 rounded-lg object-cover bg-[#F2F2F2]"
+                  className="w-12 h-12 rounded-full object-cover bg-[#F2F2F2]"
                 />
               ) : (
                 <div className="w-12 h-16 rounded-lg bg-[#F2F2F2]" />

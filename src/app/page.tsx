@@ -3,16 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
+import { useRouter } from "next/navigation";
 
 import { pluralRu } from "@/lib/plural";
 import { fetcher } from "@/lib/fetcher";
-
 import { SeriesCard } from "../components/series/SeriesCard";
 import { SeriesSheet } from "../components/series/SeriesSheet";
 import { Button } from "../components/ui/button";
-
 import { AnimatedCounter } from "@/components/ui/AnimatedCounter";
-
 import { hapticImpact } from "@/lib/haptics";
 
 type Me = { name: string | null };
@@ -62,29 +60,55 @@ function TitleSeg({
 }
 
 export default function HomePage() {
+  const router = useRouter();
+
   const [sheetOpen, setSheetOpen] = useState(false);
   const [activeSeriesId, setActiveSeriesId] = useState<string | null>(null);
-  const [activeTitle, setActiveTitle] = useState("");
+
+  // title всегда вычисляем из items, а не храним отдельно (иначе рассинхрон/“Загрузка…”)
+  const [listReady, setListReady] = useState(false);
+  const [titleReady, setTitleReady] = useState(false);
+  const [tgName, setTgName] = useState<string | null>(null);
 
   const { data: items, mutate: mutateSeries } = useSWR<SeriesRow[]>(
     "/api/series",
     fetcher
   );
-
   const { data: me } = useSWR<Me>("/api/me", fetcher);
   const { data: prog } = useSWR<InProgress>(
     "/api/series/in-progress-count",
     fetcher
   );
 
-  const [listReady, setListReady] = useState(false);
-  const [titleReady, setTitleReady] = useState(false);
-  const [tgName, setTgName] = useState<string | null>(null);
-
   useEffect(() => {
     setTitleReady(true);
     setTgName(getTgFirstNameSafe());
   }, []);
+
+  useEffect(() => {
+    if (!listReady && items) setListReady(true);
+  }, [items, listReady]);
+
+  // 1) простой “открыть сериал после возврата”: sessionStorage
+  useEffect(() => {
+    if (!items || items.length === 0) return;
+
+    const id = sessionStorage.getItem("openSeriesId");
+    if (!id) return;
+
+    sessionStorage.removeItem("openSeriesId");
+
+    const exists = items.some((s) => s.id === id);
+    if (!exists) return;
+
+    setActiveSeriesId(id);
+    setSheetOpen(true);
+  }, [items]);
+
+  const activeTitle = useMemo(() => {
+    if (!activeSeriesId) return "";
+    return (items ?? []).find((s) => s.id === activeSeriesId)?.title ?? "";
+  }, [items, activeSeriesId]);
 
   const firstName = useMemo(
     () => (me?.name ?? null) || tgName || "друг",
@@ -93,13 +117,8 @@ export default function HomePage() {
 
   const inProgressCount = prog?.inProgressCount ?? 0;
 
-  useEffect(() => {
-    if (!listReady && items) setListReady(true);
-  }, [items, listReady]);
-
   return (
     <main className="min-h-dvh bg-white">
-      {/* local keyframes only for this page */}
       <style jsx global>{`
         @keyframes titleRise {
           from {
@@ -121,7 +140,9 @@ export default function HomePage() {
             {titleReady && (
               <>
                 <TitleSeg delay={0}>Привет,</TitleSeg>{" "}
-                <TitleSeg delay={150} strong>{firstName}!</TitleSeg>{" "}
+                <TitleSeg delay={150} strong>
+                  {firstName}!
+                </TitleSeg>{" "}
                 <TitleSeg delay={300}>Что</TitleSeg>{" "}
                 <TitleSeg delay={450}>будем</TitleSeg>
                 <br />
@@ -134,9 +155,9 @@ export default function HomePage() {
                 <TitleSeg delay={1350} strong>
                   <AnimatedCounter value={inProgressCount} />
                 </TitleSeg>{" "}
-                <TitleSeg delay={1500}>сериал{pluralRu(inProgressCount, "", "а", "ов")}</TitleSeg>
-
-
+                <TitleSeg delay={1500}>
+                  сериал{pluralRu(inProgressCount, "", "а", "ов")}
+                </TitleSeg>
               </>
             )}
 
@@ -146,7 +167,9 @@ export default function HomePage() {
                 <span className="text-black">{firstName}!</span>
                 <span className="text-black/20"> Что будем</span>
                 <br />
-                <span className="text-black/20">смотреть сегодня? У тебя</span>
+                <span className="text-black/20">
+                  смотреть сегодня? У тебя
+                </span>
                 <br />
                 <span className="text-black/20">на очереди </span>
                 <span className="text-black">
@@ -196,7 +219,6 @@ export default function HomePage() {
                   onClick={() => {
                     hapticImpact("light");
                     setActiveSeriesId(s.id);
-                    setActiveTitle(s.title);
                     setSheetOpen(true);
                   }}
                   completed={completed}
@@ -209,7 +231,11 @@ export default function HomePage() {
 
       <div className="fixed inset-x-0 bottom-0">
         <div className="mx-auto max-w-[420px] px-5 pt-3 pb-[calc(var(--tg-content-safe-bottom,0px)+20px)]">
-          <Link href="/add" className="block" onClick={() => hapticImpact("light")}>
+          <Link
+            href="/add"
+            className="block"
+            onClick={() => hapticImpact("light")}
+          >
             <Button>Добавить сериал</Button>
           </Link>
         </div>

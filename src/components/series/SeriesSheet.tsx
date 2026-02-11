@@ -136,6 +136,10 @@ export function SeriesSheet({
   const initialLoading =
     (seasonsKey !== null && !seasons) || (episodesKey !== null && !uiEpisodes);
 
+
+  const displayTitle =
+    (title ?? "").trim() || (open && seriesId ? "Загрузка…" : "Сериал");
+
   // Фоновая валидация — когда данные есть, но идёт обновление
   const backgroundUpdating = Boolean(
     (seasons && validatingSeasons) || (uiEpisodes && validatingEpisodes)
@@ -173,7 +177,7 @@ export function SeriesSheet({
         className="p-0 rounded-t-[32px] border-0 shadow-none h-[65dvh] overflow-hidden"
       >
         <VisuallyHidden>
-          <Dialog.Title>{title || "Сериал"}</Dialog.Title>
+          <Dialog.Title>{displayTitle}</Dialog.Title>
         </VisuallyHidden>
 
         <div className="flex h-full flex-col">
@@ -208,7 +212,7 @@ export function SeriesSheet({
 
             {/* title */}
             <div className="text-center ty-h1 text-[24px] leading-[1.1] px-12">
-              {title}
+              {displayTitle}
             </div>
           </div>
 
