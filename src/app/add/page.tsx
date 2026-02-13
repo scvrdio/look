@@ -470,7 +470,7 @@ export default function AddPage() {
                               className="inline-flex items-center gap-2 h-8 px-3 rounded-[8px] bg-[#F2F2F2] text-[13px] font-medium disabled:opacity-40"
                             >
                               <PlaylistPlusFill className="w-4 h-4 text-black" />
-                              <span>{already ? "В списке" : addingId === item.id ? "..." : "Добавить"}</span>
+                              <span>{already ? "В списке" : addingId === item.id ? "Добавление..." : "Добавить"}</span>
                             </button>
                           )}
                         </div>

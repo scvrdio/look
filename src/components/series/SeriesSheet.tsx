@@ -31,37 +31,28 @@ type SeriesSheetProps = {
   onOpenChange: (v: boolean) => void;
   seriesId: string | null;
   title: string;
-  onChanged?: () => void; // дергаем, чтобы главная обновила прогресс
+  onChanged?: () => void;
 };
 
-export function SeriesSheet({
-  open,
-  onOpenChange,
-  seriesId,
-  title,
-  onChanged,
-}: SeriesSheetProps) {
+export function SeriesSheet({ open, onOpenChange, seriesId, title, onChanged }: SeriesSheetProps) {
   const [activeSeasonId, setActiveSeasonId] = React.useState<string | null>(null);
   const [uiEpisodes, setUiEpisodes] = React.useState<EpisodeRow[] | null>(null);
 
-  // держим предыдущий сериал, чтобы не сбрасывать состояние в фоне
+  // анимации
+  const [episodesReady, setEpisodesReady] = React.useState(false);
+  const [seasonsReady, setSeasonsReady] = React.useState(false);
+
   const prevSeriesIdRef = React.useRef<string | null>(null);
 
   const router = useRouter();
 
   const [confirmDeleteOpen, setConfirmDeleteOpen] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
-
   const deletingRef = React.useRef(false);
-
 
   // Сезоны
   const seasonsKey = open && seriesId ? `/api/series/${seriesId}/seasons` : null;
-  const {
-    data: seasons,
-    isLoading: loadingSeasons,
-    isValidating: validatingSeasons,
-  } = useSWR<SeasonRow[]>(seasonsKey, fetcher);
+  const { data: seasons, isValidating: validatingSeasons } = useSWR<SeasonRow[]>(seasonsKey, fetcher);
 
   // При открытии sheet на новый сериал — сбросить выбранный сезон и снапшот эпизодов
   React.useEffect(() => {
@@ -71,10 +62,13 @@ export function SeriesSheet({
       prevSeriesIdRef.current = seriesId;
       setActiveSeasonId(null);
       setUiEpisodes(null);
+
+      setEpisodesReady(false);
+      setSeasonsReady(false);
     }
   }, [open, seriesId]);
 
-  // Выбрать первый сезон по умолчанию (только когда sheet открыт и сезоны приехали)
+  // Выбрать первый сезон по умолчанию
   React.useEffect(() => {
     if (!open) return;
     if (activeSeasonId) return;
@@ -83,24 +77,35 @@ export function SeriesSheet({
     setActiveSeasonId(seasons[0].id);
   }, [open, activeSeasonId, seasons]);
 
+  // Запуск анимации табов, когда сезоны приехали
+  React.useEffect(() => {
+    if (!open) return;
+    if (!seasonsKey) return;
+    if (!seasons) return;
+
+    setSeasonsReady(false);
+    requestAnimationFrame(() => setSeasonsReady(true));
+  }, [open, seasonsKey, seasons]);
+
   // Эпизоды активного сезона
-  const episodesKey =
-    open && activeSeasonId ? `/api/seasons/${activeSeasonId}/episodes` : null;
+  const episodesKey = open && activeSeasonId ? `/api/seasons/${activeSeasonId}/episodes` : null;
 
   const {
     data: episodes,
-    isLoading: loadingEpisodes,
     isValidating: validatingEpisodes,
     mutate: mutateEpisodes,
   } = useSWR<EpisodeRow[]>(episodesKey, fetcher);
 
-  // UI-снапшот: обновляем только когда реально пришли данные для текущего ключа
+  // UI-снапшот + запуск анимации серий
   React.useEffect(() => {
     if (!open) return;
     if (!episodesKey) return;
     if (!episodes) return;
 
     setUiEpisodes(episodes);
+
+    setEpisodesReady(false);
+    requestAnimationFrame(() => setEpisodesReady(true));
   }, [open, episodesKey, episodes]);
 
   async function toggleEpisode(id: string) {
@@ -111,11 +116,9 @@ export function SeriesSheet({
     const prev = uiEpisodes;
     const next = prev.map((e) => (e.id === id ? { ...e, watched: !e.watched } : e));
 
-    // 1) мгновенно обновляем UI + SWR cache без revalidate
     setUiEpisodes(next);
     await mutateEpisodes(next, false);
 
-    // 2) пишем на сервер
     const res = await fetch(`/api/episodes/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -128,19 +131,14 @@ export function SeriesSheet({
       return;
     }
 
-    // 4) обновить прогресс на главной
     onChanged?.();
   }
 
-  // "Первичная" загрузка — когда данных реально нет
   const initialLoading =
     (seasonsKey !== null && !seasons) || (episodesKey !== null && !uiEpisodes);
 
+  const displayTitle = (title ?? "").trim() || (open && seriesId ? "Загрузка…" : "Сериал");
 
-  const displayTitle =
-    (title ?? "").trim() || (open && seriesId ? "Загрузка…" : "Сериал");
-
-  // Фоновая валидация — когда данные есть, но идёт обновление
   const backgroundUpdating = Boolean(
     (seasons && validatingSeasons) || (uiEpisodes && validatingEpisodes)
   );
@@ -151,16 +149,8 @@ export function SeriesSheet({
     deletingRef.current = true;
 
     try {
-      const res = await fetch(`/api/series/${seriesId}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        // не алерт на каждое нажатие, иначе будет ад
-        // лучше разово показать внутри модалки/шторки
-        return;
-      }
+      const res = await fetch(`/api/series/${seriesId}`, { method: "DELETE", credentials: "include" });
+      if (!res.ok) return;
 
       onOpenChange(false);
       onChanged?.();
@@ -168,7 +158,6 @@ export function SeriesSheet({
       deletingRef.current = false;
     }
   }
-
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -183,7 +172,6 @@ export function SeriesSheet({
         <div className="flex h-full flex-col">
           {/* Header */}
           <div className="relative px-5 pt-7 pb-4">
-            {/* left: close */}
             <SheetClose asChild>
               <button
                 type="button"
@@ -195,7 +183,6 @@ export function SeriesSheet({
               </button>
             </SheetClose>
 
-            {/* right: menu */}
             <button
               type="button"
               onClick={() => {
@@ -203,60 +190,59 @@ export function SeriesSheet({
                 hapticImpact("light");
                 setConfirmDeleteOpen(true);
               }}
-
               className="absolute left-4 top-5 h-10 w-10 rounded-full inline-flex items-center justify-center text-[#FF0000]"
               aria-label="Delete"
             >
               <Trash className="w-6 h-6 text-red-500" />
             </button>
 
-            {/* title */}
-            <div className="text-center ty-h1 text-[24px] leading-[1.1] px-12">
-              {displayTitle}
-            </div>
+            <div className="text-center ty-h1 text-[24px] leading-[1.1] px-12">{displayTitle}</div>
           </div>
 
-          {/* Body (scroll) */}
+          {/* Body */}
           <div className="flex-1 overflow-y-auto px-5 pb-6">
             <div className="flex h-full flex-col">
-              {/* Seasons (full-bleed, сверху) */}
+              {/* Seasons */}
               <div className="-mx-5">
                 <div className="px-5 overflow-x-auto no-scrollbar">
                   <div className="py-2">
                     <SeasonTabs
                       items={(seasons ?? []).map((s) => ({ id: s.id, number: s.number }))}
                       activeId={activeSeasonId}
+                      ready={seasonsReady}
                       onChange={(id) => {
+                        setEpisodesReady(false);
                         setActiveSeasonId(id);
-                        // при смене сезона не очищаем грид визуально — uiEpisodes останется старым,
-                        // а обновится, когда придут новые episodes
                       }}
                     />
                   </div>
                 </div>
               </div>
 
-              {/* Episodes (прилипают к низу) */}
+              {/* Episodes */}
               <div className="mt-auto pt-6">
                 {initialLoading ? (
                   <div className="text-black/40">Загрузка…</div>
                 ) : (
                   <>
-                    {backgroundUpdating}
-                    <EpisodeGrid items={uiEpisodes ?? []} onToggle={toggleEpisode} />
+                    {backgroundUpdating ? null : null}
+                    <EpisodeGrid
+                      items={uiEpisodes ?? []}
+                      onToggle={toggleEpisode}
+                      ready={episodesReady}
+                    />
                   </>
                 )}
               </div>
             </div>
           </div>
         </div>
+
         {confirmDeleteOpen && (
           <div className="absolute inset-0 z-50 flex items-end bg-black/40">
             <div className="w-full rounded-t-[24px] bg-white px-5 pb-[calc(var(--tg-content-safe-bottom,0px)+20px)] pt-5">
               <div className="text-[18px] font-semibold">Удалить сериал?</div>
-              <div className="mt-1 text-[14px] text-black/60">
-                Это действие нельзя отменить.
-              </div>
+              <div className="mt-1 text-[14px] text-black/60">Это действие нельзя отменить.</div>
 
               <div className="mt-5 flex gap-3">
                 <button
@@ -283,7 +269,6 @@ export function SeriesSheet({
             </div>
           </div>
         )}
-
       </SheetContent>
     </Sheet>
   );

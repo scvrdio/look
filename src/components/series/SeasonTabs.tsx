@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { hapticSelection } from "@/lib/haptics";
+import { SeasonButton } from "./SeasonButton";
 
 export type SeasonTab = { id: string; number: number };
 
@@ -10,31 +10,24 @@ type Props = {
   activeId: string | null;
   onChange: (id: string) => void;
   className?: string;
+
+  // для анимации
+  ready: boolean;
 };
 
-
-export function SeasonTabs({ items, activeId, onChange, className }: Props) {
+export function SeasonTabs({ items, activeId, onChange, className, ready }: Props) {
   return (
     <div className={cn("flex gap-2 pr-4", className)}>
-      {items.map((s) => {
-        const active = s.id === activeId;
-        return (
-          <button
-            key={s.id}
-            type="button"
-            onClick={() => {
-              hapticSelection();
-              onChange(s.id);
-            }}
-            className={cn(
-              "shrink-0 h-12 px-5 rounded-full text-[16px] font-medium",
-              active ? "bg-black text-white" : "bg-black/4 text-black"
-            )}
-          >
-            {s.number} сезон
-          </button>
-        );
-      })}
+      {items.map((s, i) => (
+        <SeasonButton
+          key={s.id}
+          number={s.number}
+          active={s.id === activeId}
+          index={i}
+          ready={ready}
+          onClick={() => onChange(s.id)}
+        />
+      ))}
     </div>
   );
 }
