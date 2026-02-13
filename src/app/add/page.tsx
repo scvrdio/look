@@ -349,6 +349,7 @@ export default function AddPage() {
             <input
               ref={inputRef}
               value={query}
+              type="search"
               onChange={(e) => onChange(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key !== "Enter") return;
