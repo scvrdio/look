@@ -4,13 +4,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import { useRouter } from "next/navigation";
 import { fetcher } from "@/lib/fetcher";
-import { Button } from "@/components/ui/button";
 import { hapticImpact, hapticNotify } from "@/lib/haptics";
 import { pluralRu } from "@/lib/plural";
-
 import { PlaylistPlusFill, Search, XCircleFill } from "@/icons";
-
-import type { BootstrapResponse, SeriesRow, SeasonRow, EpisodeRow } from "@/types/bootstrap";
+import type { SeriesRow } from "@/types/bootstrap";
 
 type Item = {
   id: number;
@@ -20,6 +17,7 @@ type Item = {
   type: string | null;
   seasonsCount?: number | null;
   episodesCount?: number | null;
+  genres?: string[];
 
   _localSeriesId?: string;
   _alreadyInDb?: boolean;
@@ -37,13 +35,14 @@ async function readErrorMessage(res: Response) {
 
 function metaTypeLabel(type: string | null) {
   if (!type) return "";
-  return type === "tv-series" ? "Сериал" : type;
+  if (type === "tv-series") return "Сериал";
+  if (type === "movie") return "Фильм";
+  return type;
 }
 
 function metaCountsLine(seasonsCount?: number | null, episodesCount?: number | null) {
   const seasons = seasonsCount ?? null;
   const episodes = episodesCount ?? null;
-
   if (seasons == null && episodes == null) return null;
 
   const parts: string[] = [];
@@ -52,8 +51,21 @@ function metaCountsLine(seasonsCount?: number | null, episodesCount?: number | n
   return parts.join(", ");
 }
 
-export default function AddPage() {
+function canSearch(raw: string) {
+  const q = raw.trim();
+  if (!q) return false;
 
+  // один токен: разрешаем 1-2 символа, иначе мусор
+  if (!/\s/.test(q)) {
+    if (q.length <= 2) return /^[\p{L}\p{N}]+$/u.test(q);
+    return q.length >= 2;
+  }
+
+  // есть пробелы: минимум 2
+  return q.length >= 2;
+}
+
+export default function AddPage() {
   const router = useRouter();
 
   // animations
@@ -78,8 +90,8 @@ export default function AddPage() {
 
   // screen state
   const [query, setQuery] = useState("");
+  const [committedQuery, setCommittedQuery] = useState(""); // запрос, по которому показана выдача
   const [step, setStep] = useState<"idle" | "ready" | "results">("idle");
-  const [source, setSource] = useState<"db" | "catalog">("db");
 
   // results
   const [results, setResults] = useState<Item[]>([]);
@@ -89,12 +101,10 @@ export default function AddPage() {
   // autofocus (safe)
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-useEffect(() => {
-  const t = setTimeout(() => {
-    inputRef.current?.focus();
-  }, 120);
-  return () => clearTimeout(t);
-}, []);
+  useEffect(() => {
+    const t = setTimeout(() => inputRef.current?.focus(), 120);
+    return () => clearTimeout(t);
+  }, []);
 
   // already added
   const { data: mySeries } = useSWR<SeriesRow[]>("/api/series", fetcher, {
@@ -165,24 +175,31 @@ useEffect(() => {
     };
   }, [query, placeholders]);
 
+  // IMPORTANT: change query must NOT wipe results; it only toggles "ready" state
   function onChange(v: string) {
-    setSource("db");
     setQuery(v);
     setError(null);
 
-    if (v.trim().length === 0) {
-      setStep("idle");
+    const q = v.trim();
+
+    if (q.length === 0) {
+      setCommittedQuery("");
       setResults([]);
+      setStep("idle");
       return;
     }
-    if (step !== "results") setStep("ready");
+
+    // оставляем выдачу, но показываем возможность запустить новый поиск
+    setStep("ready");
   }
 
   function clear() {
     hapticImpact("light");
     setQuery("");
+    setCommittedQuery("");
     setResults([]);
     setError(null);
+    setSearching(false);
     setStep("idle");
   }
 
@@ -219,10 +236,17 @@ useEffect(() => {
     }
   }
 
-  async function runSearch() {
-    const q = query.trim();
-    if (q.length < 2) return;
+  // IMPORTANT: take value from input to avoid stale state on Enter
+  async function runSearch(raw?: string) {
+    const q = (raw ?? query).trim();
 
+    if (!canSearch(q)) {
+      // если мы в results — оставляем выдачу, просто не ищем
+      if (step !== "results") setStep(q.length === 0 ? "idle" : "ready");
+      return;
+    }
+
+    setCommittedQuery(q);
     setListReady(false);
 
     hapticImpact("medium");
@@ -230,29 +254,25 @@ useEffect(() => {
     setError(null);
 
     try {
-      const url =
-        source === "db"
-          ? `/api/series/search?q=${encodeURIComponent(q)}`
-          : `/api/poiskkino/search?query=${encodeURIComponent(q)}&limit=10`;
+      // 1) сначала всегда ищем в БД
+      const resDb = await fetch(`/api/series/search?q=${encodeURIComponent(q)}`, { cache: "no-store" });
 
-      const res = await fetch(url, { cache: "no-store" });
-
-      if (!res.ok) {
+      if (!resDb.ok) {
         hapticNotify("error");
-        const msg = await readErrorMessage(res);
-        setError(msg);
-        if (res.status === 429) setStep("ready");
+        setError(await readErrorMessage(resDb));
+        setStep("results");
+        setResults([]);
         return;
       }
 
-      const data = await res.json();
+      const dataDb = await resDb.json().catch(() => null);
+      const dbItems = Array.isArray(dataDb?.items) ? dataDb.items : [];
 
-      if (source === "db") {
-        const items = Array.isArray(data?.items) ? data.items : [];
+      if (dbItems.length > 0) {
         setResults(
-          items.map((s: any) => ({
-            id: s.sourceId ?? 0,
-            name: s.title,
+          dbItems.map((s: any) => ({
+            id: typeof s.sourceId === "number" ? s.sourceId : 0,
+            name: s.title ?? "",
             year: s.year ?? null,
             posterUrl: s.posterUrl ?? null,
             type: s.kind === "movie" ? "movie" : "tv-series",
@@ -266,17 +286,35 @@ useEffect(() => {
         return;
       }
 
-      setResults(Array.isArray(data?.items) ? data.items : []);
+      // 2) если в БД пусто — fallback на каталог
+      const resCat = await fetch(`/api/poiskkino/search?query=${encodeURIComponent(q)}&limit=10`, {
+        cache: "no-store",
+      });
+
+      if (!resCat.ok) {
+        hapticNotify("error");
+        setError(await readErrorMessage(resCat));
+        setResults([]);
+        setStep("results");
+        return;
+      }
+
+      const dataCat = await resCat.json().catch(() => null);
+      setResults(Array.isArray(dataCat?.items) ? dataCat.items : []);
       setStep("results");
     } catch {
       hapticNotify("error");
       setError("Ошибка сети. Попробуйте еще раз.");
+      setResults([]);
+      setStep("results");
     } finally {
       setSearching(false);
     }
   }
 
   const rightIcon = query.trim().length > 0 ? "clear" : "search";
+  const qTrim = query.trim();
+  const isDirty = qTrim.length > 0 && qTrim !== committedQuery;
 
   return (
     <main className="min-h-dvh bg-white">
@@ -294,10 +332,9 @@ useEffect(() => {
               value={query}
               onChange={(e) => onChange(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  runSearch();
-                }
+                if (e.key !== "Enter") return;
+                e.preventDefault();
+                runSearch(e.currentTarget.value); // FIX: not from state
               }}
               inputMode="search"
               enterKeyHint="search"
@@ -334,11 +371,15 @@ useEffect(() => {
           </button>
         </div>
 
+        {/* Hint button (only when query changed vs results) */}
+
         {/* Results */}
         {step === "results" && (
           <div className="mt-6 space-y-3">
             {results.length === 0 ? (
-              <div className="text-[14px] opacity-60 px-1">Ничего не найдено</div>
+              <div className="text-[14px] opacity-60 px-1">
+                {searching ? "Поиск..." : "Ничего не найдено"}
+              </div>
             ) : (
               results.map((item, i) => {
                 const fromDb = !!item._alreadyInDb && !!item._localSeriesId;
@@ -374,6 +415,13 @@ useEffect(() => {
                             {typeLabel ? ` · ${typeLabel}` : ""}
                           </div>
 
+                          {item.genres?.length ? (
+                            <div className="text-[14px] text-black/50 mt-1">
+                              {item.genres.join(" · ")}
+                            </div>
+                          ) : null}
+
+
                           {countsLine ? (
                             <div className="text-[14px] leading-[18px] text-black/50 mt-1">{countsLine}</div>
                           ) : null}
@@ -389,7 +437,7 @@ useEffect(() => {
                                 sessionStorage.setItem("openSeriesId", item._localSeriesId);
                                 router.push("/");
                               }}
-                              className="inline-flex items-center gap-2 h-8 pl-3 pr-3 rounded-[8px] bg-[#F2F2F2] text-[13px] font-medium"
+                              className="inline-flex items-center gap-2 h-8 px-3 rounded-[8px] bg-[#F2F2F2] text-[13px] font-medium"
                             >
                               <span className="text-[16px] leading-none">↗</span>
                               <span>Открыть</span>
@@ -399,7 +447,7 @@ useEffect(() => {
                               type="button"
                               onClick={() => addFromCatalog(item.id)}
                               disabled={already || addingId === item.id}
-                              className="inline-flex items-center gap-2 h-9 px-4 rounded-full bg-[#F2F2F2] text-[14px] font-medium disabled:opacity-40"
+                              className="inline-flex items-center gap-2 h-8 px-3 rounded-[8px] bg-[#F2F2F2] text-[13px] font-medium disabled:opacity-40"
                             >
                               <PlaylistPlusFill className="w-4 h-4 text-black" />
                               <span>{already ? "В списке" : addingId === item.id ? "..." : "Добавить"}</span>
@@ -417,17 +465,6 @@ useEffect(() => {
 
         {error && <div className="mt-3 text-[12px] text-red-500">{error}</div>}
       </div>
-
-      {/* Bottom button */}
-      {/* {step === "ready" && (
-        <div className="fixed inset-x-0 bottom-0 bg-white">
-          <div className="mx-auto max-w-[420px] px-5 pb-[calc(var(--tg-content-safe-bottom,0px)+20px)] pt-3">
-            <Button type="button" onClick={runSearch} disabled={searching || query.trim().length < 2}>
-              {searching ? "Поиск..." : "Поиск"}
-            </Button>
-          </div>
-        </div>
-      )} */}
     </main>
   );
 }
