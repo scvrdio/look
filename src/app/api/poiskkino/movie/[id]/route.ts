@@ -10,25 +10,51 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
 
   const { id: idStr } = await ctx.params;
   const id = Number(idStr);
-
   if (!Number.isFinite(id)) return NextResponse.json({ message: "Bad id" }, { status: 400 });
 
-  const res = await fetch(`${BASE}/v1.4/movie/${id}`, {
+  const movieRes = await fetch(`${BASE}/v1.4/movie/${id}`, {
     headers: { "X-API-KEY": KEY },
-    next: { revalidate: 3600 },
   });
 
-  const data = await res.json().catch(() => null);
-  if (!res.ok) {
-    return NextResponse.json({ message: "PoiskKino error", status: res.status, data }, { status: 502 });
+  const movieData = await movieRes.json().catch(() => null);
+  if (!movieRes.ok) {
+    return NextResponse.json(
+      { message: "PoiskKino error", status: movieRes.status, data: movieData },
+      { status: 502 }
+    );
+  }
+
+  const type: string | null = movieData?.type ?? null;
+
+  let seasonsInfo: Array<{ number: number; episodesCount: number }> = [];
+
+  if (type === "tv-series") {
+    const seasonRes = await fetch(`${BASE}/v1.4/season?movieId=${id}`, {
+      headers: { "X-API-KEY": KEY },
+    });
+
+    const seasonData = await seasonRes.json().catch(() => null);
+
+    if (seasonRes.ok) {
+      const docs = Array.isArray(seasonData?.docs) ? seasonData.docs : [];
+
+      const mapped: Array<{ number: number; episodesCount: number }> = docs
+        .filter((s: any) => Number.isInteger(s?.number) && s.number >= 1)
+        .map((s: any) => ({
+          number: Number(s.number),
+          episodesCount: Array.isArray(s?.episodes) ? s.episodes.length : 0,
+        }));
+
+      seasonsInfo = mapped.sort((a, b) => a.number - b.number);
+    }
   }
 
   return NextResponse.json({
-    id: data?.id,
-    name: data?.name ?? data?.alternativeName ?? "",
-    year: data?.year ?? null,
-    posterUrl: data?.poster?.url ?? null,
-    type: data?.type ?? null,
-    seasonsInfo: Array.isArray(data?.seasonsInfo) ? data.seasonsInfo : [],
+    id: movieData?.id,
+    name: movieData?.name ?? movieData?.alternativeName ?? "",
+    year: movieData?.year ?? null,
+    posterUrl: movieData?.poster?.url ?? null,
+    type,
+    seasonsInfo,
   });
 }
