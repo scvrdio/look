@@ -235,6 +235,7 @@ export default function HomePage() {
       </div>
 
       <SeriesSheet
+        key={activeSeriesId}
         open={sheetOpen}
         onOpenChange={setSheetOpen}
         seriesId={activeSeriesId}
