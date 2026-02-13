@@ -202,8 +202,25 @@ export function SeriesSheet({ open, onOpenChange, seriesId, title, onChanged }: 
           {/* Body */}
           <div className="flex-1 overflow-y-auto px-5 pb-6">
             <div className="flex h-full flex-col">
+
+              {/* Episodes */}
+              <div className="pt-4">
+                {initialLoading ? (
+                  <div className="text-black/40">Загрузка…</div>
+                ) : (
+                  <>
+                    {backgroundUpdating ? null : null}
+                    <EpisodeGrid
+                      items={uiEpisodes ?? []}
+                      onToggle={toggleEpisode}
+                      ready={episodesReady}
+                    />
+                  </>
+                )}
+              </div>
+
               {/* Seasons */}
-              <div className="-mx-5">
+              <div className="mt-auto -mx-5">
                 <div className="px-5 overflow-x-auto no-scrollbar">
                   <div className="py-2">
                     <SeasonTabs
@@ -219,14 +236,7 @@ export function SeriesSheet({ open, onOpenChange, seriesId, title, onChanged }: 
                 </div>
               </div>
 
-              {/* Episodes */}
-              <div className="mt-auto pt-6">
-                <EpisodeGrid
-                  items={uiEpisodes ?? []}
-                  onToggle={toggleEpisode}
-                  ready={episodesReady}
-                />
-              </div>
+              
             </div>
           </div>
         </div>
