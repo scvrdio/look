@@ -221,18 +221,11 @@ export function SeriesSheet({ open, onOpenChange, seriesId, title, onChanged }: 
 
               {/* Episodes */}
               <div className="mt-auto pt-6">
-                {initialLoading ? (
-                  <div className="text-black/40">Загрузка…</div>
-                ) : (
-                  <>
-                    {backgroundUpdating ? null : null}
-                    <EpisodeGrid
-                      items={uiEpisodes ?? []}
-                      onToggle={toggleEpisode}
-                      ready={episodesReady}
-                    />
-                  </>
-                )}
+                <EpisodeGrid
+                  items={uiEpisodes ?? []}
+                  onToggle={toggleEpisode}
+                  ready={episodesReady}
+                />
               </div>
             </div>
           </div>
