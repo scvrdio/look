@@ -15,7 +15,7 @@ type Props = {
 
 export function SeasonTabs({ items, activeId, onChange, className }: Props) {
   return (
-    <div className={cn("flex gap-2", className)}>
+    <div className={cn("flex gap-2 pr-4", className)}>
       {items.map((s) => {
         const active = s.id === activeId;
         return (

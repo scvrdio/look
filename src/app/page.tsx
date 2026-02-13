@@ -195,6 +195,7 @@ export default function HomePage() {
                 <SeriesCard
                   id={s.id}
                   title={s.title}
+                  posterUrl={s.posterUrl ?? undefined}
                   subtitle={`${s.seasonsCount} ${pluralRu(
                     s.seasonsCount,
                     "сезон",

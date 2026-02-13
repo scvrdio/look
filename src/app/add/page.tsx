@@ -189,9 +189,13 @@ export default function AddPage() {
       return;
     }
 
-    // оставляем выдачу, но показываем возможность запустить новый поиск
+    // если уже показываем результаты — НЕ скрываем их при редактировании
+    if (step === "results") return;
+
+    // иначе можно искать (Enter)
     setStep("ready");
   }
+
 
   function clear() {
     hapticImpact("light");
@@ -241,8 +245,11 @@ export default function AddPage() {
     const q = (raw ?? query).trim();
 
     if (!canSearch(q)) {
-      // если мы в results — оставляем выдачу, просто не ищем
-      if (step !== "results") setStep(q.length === 0 ? "idle" : "ready");
+      if (q.length === 0) {
+        setCommittedQuery("");
+        setResults([]);
+        setStep("idle");
+      }
       return;
     }
 
@@ -254,53 +261,64 @@ export default function AddPage() {
     setError(null);
 
     try {
-      // 1) сначала всегда ищем в БД
-      const resDb = await fetch(`/api/series/search?q=${encodeURIComponent(q)}`, { cache: "no-store" });
+      // 1) параллельно: БД + каталог
+      const [resDb, resCat] = await Promise.all([
+        fetch(`/api/series/search?q=${encodeURIComponent(q)}`, { cache: "no-store" }),
+        fetch(`/api/poiskkino/search?query=${encodeURIComponent(q)}&limit=10`, { cache: "no-store" }),
+      ]);
 
-      if (!resDb.ok) {
-        hapticNotify("error");
+      // --- DB
+      let dbMapped: Item[] = [];
+      if (resDb.ok) {
+        const dataDb = await resDb.json().catch(() => null);
+        const dbItems = Array.isArray(dataDb?.items) ? dataDb.items : [];
+
+        dbMapped = dbItems.map((s: any) => ({
+          id: typeof s.sourceId === "number" ? s.sourceId : 0,
+          name: s.title ?? "",
+          year: s.year ?? null,
+          posterUrl: s.posterUrl ?? null,
+          type: s.kind === "movie" ? "movie" : "tv-series",
+          seasonsCount: s.seasonsCount ?? null,
+          episodesCount: s.episodesCount ?? null,
+          genres: Array.isArray(s.genres) ? s.genres : undefined,
+          _localSeriesId: s.id,
+          _alreadyInDb: true,
+        }));
+      } else {
+        // БД упала — это уже плохо, покажем ошибку, но всё равно попробуем показать каталог
         setError(await readErrorMessage(resDb));
-        setStep("results");
-        setResults([]);
-        return;
       }
 
-      const dataDb = await resDb.json().catch(() => null);
-      const dbItems = Array.isArray(dataDb?.items) ? dataDb.items : [];
-
-      if (dbItems.length > 0) {
-        setResults(
-          dbItems.map((s: any) => ({
-            id: typeof s.sourceId === "number" ? s.sourceId : 0,
-            name: s.title ?? "",
-            year: s.year ?? null,
-            posterUrl: s.posterUrl ?? null,
-            type: s.kind === "movie" ? "movie" : "tv-series",
-            seasonsCount: s.seasonsCount ?? null,
-            episodesCount: s.episodesCount ?? null,
-            _localSeriesId: s.id,
-            _alreadyInDb: true,
-          }))
-        );
-        setStep("results");
-        return;
+      // --- Catalog
+      let catItems: Item[] = [];
+      if (resCat.ok) {
+        const dataCat = await resCat.json().catch(() => null);
+        catItems = Array.isArray(dataCat?.items) ? dataCat.items : [];
+      } else {
+        // каталог упал — покажем ошибку, но БД результаты оставим
+        setError(await readErrorMessage(resCat));
       }
 
-      // 2) если в БД пусто — fallback на каталог
-      const resCat = await fetch(`/api/poiskkino/search?query=${encodeURIComponent(q)}&limit=10`, {
-        cache: "no-store",
+      // 2) дедуп каталога:
+      // - если item уже есть в БД (по sourceId)
+      // - или уже добавлен пользователем (existingIds)
+      const dbSourceIds = new Set<number>(
+        dbMapped
+          .map((x) => x.id)
+          .filter((x) => typeof x === "number" && x > 0)
+      );
+
+      const catFiltered = catItems.filter((it) => {
+        if (typeof it?.id !== "number") return false;
+        if (dbSourceIds.has(it.id)) return false;
+        // если хочешь чтобы в каталоге показывались "В списке" — убери эту строку
+        if (existingIds.has(it.id)) return false;
+        return true;
       });
 
-      if (!resCat.ok) {
-        hapticNotify("error");
-        setError(await readErrorMessage(resCat));
-        setResults([]);
-        setStep("results");
-        return;
-      }
-
-      const dataCat = await resCat.json().catch(() => null);
-      setResults(Array.isArray(dataCat?.items) ? dataCat.items : []);
+      // 3) склейка: сначала БД (кнопка "Открыть"), потом каталог ("Добавить")
+      setResults([...dbMapped, ...catFiltered]);
       setStep("results");
     } catch {
       hapticNotify("error");
@@ -311,6 +329,7 @@ export default function AddPage() {
       setSearching(false);
     }
   }
+
 
   const rightIcon = query.trim().length > 0 ? "clear" : "search";
   const qTrim = query.trim();

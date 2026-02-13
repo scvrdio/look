@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckWavesFill } from "@/icons";
+import { CheckWavesFill, CheckCircleFill } from "@/icons";
 import { cn } from "@/lib/utils";
 import useSWR from "swr";
 
@@ -57,8 +57,10 @@ export function SeriesCard({
         <div className="row-start-1 row-span-2 col-start-1 grid grid-rows-2 gap-y-1 min-w-0">
           {/* row 1: poster + title */}
           <div className="flex items-center gap-1 min-w-0">
-            <div className="h-[1.15em] w-[1.15em] rounded-full overflow-hidden bg-black/10 shrink-0">
-              {posterUrl ? (
+            <div className="h-[1.15em] w-[1.15em] rounded-full overflow-hidden bg-black/10 shrink-0 flex items-center justify-center">
+              {completed ? (
+                <CheckCircleFill className="h-[1.15em] w-[1.15em] text-[#13A600]" />
+              ) : posterUrl ? (
                 <img
                   src={posterUrl}
                   alt={title}
@@ -81,21 +83,14 @@ export function SeriesCard({
           </div>
         </div>
 
-        {/* RIGHT */}
-        {completed ? (
-          <div className="row-start-1 row-span-2 col-start-2 flex items-center justify-end">
-            <CheckWavesFill className="w-6 h-6 text-black" />
-          </div>
-        ) : (
-          <>
-            <div className="row-start-1 col-start-2 text-[16px] font-semibold leading-[1.15] text-right">
-              {rightTop}
-            </div>
-            <div className="row-start-2 col-start-2 text-[14px] leading-[1.15] text-black/40 text-right">
-              {rightBottom}
-            </div>
-          </>
-        )}
+        {/* right side (always show progress/counts) */}
+        <div className="row-start-1 col-start-2 text-[16px] font-semibold leading-[1.15] text-right">
+          {rightTop}
+        </div>
+
+        <div className="row-start-2 col-start-2 text-[14px] leading-[1.15] text-black/40 text-right">
+          {rightBottom}
+        </div>
       </div>
     </button>
   );
