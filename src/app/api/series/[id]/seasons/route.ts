@@ -75,7 +75,7 @@ export async function GET(
     const { id: seriesId } = await params;
   
     const seasons = await prisma.season.findMany({
-      where: { seriesId },
+      where: { seriesId, number: { gte: 1 } },
       orderBy: { number: "asc" },
       select: {
         id: true,
