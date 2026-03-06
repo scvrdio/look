@@ -290,6 +290,7 @@ export default function AddPage() {
       const res = await fetch("/api/series/import/poiskkino", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ id }),
       });
 
@@ -381,7 +382,9 @@ export default function AddPage() {
         }));
       } else {
         // БД упала — это уже плохо, покажем ошибку, но всё равно попробуем показать каталог
-        setError(await readErrorMessage(resDb));
+        if (resDb.status !== 401) {
+          setError(await readErrorMessage(resDb));
+        }
       }
 
       // --- Catalog

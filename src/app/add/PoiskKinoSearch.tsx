@@ -70,6 +70,7 @@ export function PoiskKinoSearch(props: {
       const res = await fetch("/api/series/import/poiskkino", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ id }),
       });
 

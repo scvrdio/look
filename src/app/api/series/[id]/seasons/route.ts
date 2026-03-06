@@ -101,6 +101,42 @@ export async function GET(
         episodesCount: true,
       },
     });
-  
-    return NextResponse.json(seasons);
+
+    if (seasons.length === 0) {
+      return NextResponse.json([]);
+    }
+
+    const watchedRows = await prisma.userEpisode.findMany({
+      where: {
+        userId: user.id,
+        episode: {
+          season: {
+            seriesId,
+          },
+        },
+      },
+      select: {
+        episode: {
+          select: {
+            seasonId: true,
+          },
+        },
+      },
+    });
+
+    const watchedBySeason = new Map<string, number>();
+    for (const row of watchedRows) {
+      const sid = row.episode.seasonId;
+      watchedBySeason.set(sid, (watchedBySeason.get(sid) ?? 0) + 1);
+    }
+
+    return NextResponse.json(
+      seasons.map((s) => {
+        const watchedEpisodes = watchedBySeason.get(s.id) ?? 0;
+        return {
+          ...s,
+          completed: s.episodesCount > 0 && watchedEpisodes >= s.episodesCount,
+        };
+      })
+    );
   }

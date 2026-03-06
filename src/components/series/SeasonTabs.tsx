@@ -2,9 +2,9 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import { SeasonButton } from "./SeasonButton";
+import { SeasonButtonNew } from "./SeasonButtonNew";
 
-export type SeasonTab = { id: string; number: number };
+export type SeasonTab = { id: string; number: number; completed?: boolean };
 
 type Props = {
   items: SeasonTab[];
@@ -68,9 +68,10 @@ export function SeasonTabs({ items, activeId, onChange, className, ready }: Prop
       <div aria-hidden className="shrink-0" />
       {items.map((s, i) => (
         <div key={s.id} data-season-id={s.id} className="shrink-0">
-          <SeasonButton
+          <SeasonButtonNew
             number={s.number}
             active={s.id === activeId}
+            completed={Boolean(s.completed)}
             index={i}
             ready={ready}
             onClick={() => onChange(s.id)}

@@ -19,11 +19,17 @@ type SeasonRow = {
   id: string;
   number: number;
   episodesCount: number;
+  completed?: boolean;
 };
 
 type EpisodeRow = {
   id: string;
   number: number;
+  watched: boolean;
+};
+
+type ToggleEpisodeResponse = {
+  id: string;
   watched: boolean;
 };
 
@@ -57,6 +63,7 @@ export function SeriesSheet({
   const [seasonsReady, setSeasonsReady] = React.useState(false);
   const [episodesClosing, setEpisodesClosing] = React.useState(false);
   const [showLoadingLottie, setShowLoadingLottie] = React.useState(false);
+  const [completedBySeasonId, setCompletedBySeasonId] = React.useState<Record<string, boolean>>({});
 
   const prevSeriesIdRef = React.useRef<string | null>(null);
   const prevEpisodesKeyRef = React.useRef<string | null>(null);
@@ -67,6 +74,7 @@ export function SeriesSheet({
 
   const [confirmDeleteOpen, setConfirmDeleteOpen] = React.useState(false);
   const deletingRef = React.useRef(false);
+  const pendingEpisodeIdsRef = React.useRef<Set<string>>(new Set());
 
   // Сезоны
   const seasonsKey = open && seriesId ? `/api/series/${seriesId}/seasons` : null;
@@ -81,6 +89,7 @@ export function SeriesSheet({
       prevEpisodesKeyRef.current = null;
       setActiveSeasonId(null);
       setUiEpisodes(null);
+      setCompletedBySeasonId({});
 
       setEpisodesReady(false);
       setSeasonsReady(false);
@@ -116,6 +125,7 @@ export function SeriesSheet({
       prevEpisodesKeyRef.current = null;
       setActiveSeasonId(null);
       setUiEpisodes(null);
+      setCompletedBySeasonId({});
       setEpisodesClosing(false);
       closeResetTimerRef.current = null;
     }, resetAfterMs);
@@ -185,6 +195,12 @@ export function SeriesSheet({
     if (validatingEpisodes) return;
 
     setUiEpisodes(episodes);
+    if (activeSeasonId) {
+      setCompletedBySeasonId((prev) => ({
+        ...prev,
+        [activeSeasonId]: episodes.length > 0 && episodes.every((e) => e.watched),
+      }));
+    }
     if (prevEpisodesKeyRef.current === episodesKey) {
       return;
     }
@@ -192,7 +208,7 @@ export function SeriesSheet({
     prevEpisodesKeyRef.current = episodesKey;
     setEpisodesReady(false);
     requestAnimationFrame(() => setEpisodesReady(true));
-  }, [open, episodesKey, episodes, validatingEpisodes]);
+  }, [open, episodesKey, episodes, validatingEpisodes, activeSeasonId]);
 
   React.useEffect(() => {
     uiEpisodesCountRef.current = uiEpisodes?.length ?? 0;
@@ -202,26 +218,61 @@ export function SeriesSheet({
     if (!open) return;
     if (!episodesKey) return;
     if (!uiEpisodes) return;
+    if (pendingEpisodeIdsRef.current.has(id)) return;
 
     const prev = uiEpisodes;
     const next = prev.map((e) => (e.id === id ? { ...e, watched: !e.watched } : e));
+    const nextTarget = next.find((e) => e.id === id)?.watched;
+    if (typeof nextTarget !== "boolean") return;
+
+    pendingEpisodeIdsRef.current.add(id);
 
     setUiEpisodes(next);
+    if (activeSeasonId) {
+      setCompletedBySeasonId((prevCompleted) => ({
+        ...prevCompleted,
+        [activeSeasonId]: next.length > 0 && next.every((e) => e.watched),
+      }));
+    }
     await mutateEpisodes(next, false);
 
-    const res = await fetch(`/api/episodes/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-    });
+    try {
+      const res = await fetch(`/api/episodes/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ watched: nextTarget }),
+      });
 
-    if (!res.ok) {
-      setUiEpisodes(prev);
-      await mutateEpisodes(prev, false);
-      return;
+      if (!res.ok) {
+        setUiEpisodes(prev);
+        if (activeSeasonId) {
+          setCompletedBySeasonId((prevCompleted) => ({
+            ...prevCompleted,
+            [activeSeasonId]: prev.length > 0 && prev.every((e) => e.watched),
+          }));
+        }
+        await mutateEpisodes(prev, false);
+        return;
+      }
+
+      const payload = (await res.json()) as ToggleEpisodeResponse;
+      if (typeof payload?.watched === "boolean") {
+        const synced = next.map((e) => (e.id === id ? { ...e, watched: payload.watched } : e));
+        setUiEpisodes(synced);
+        if (activeSeasonId) {
+          setCompletedBySeasonId((prevCompleted) => ({
+            ...prevCompleted,
+            [activeSeasonId]: synced.length > 0 && synced.every((e) => e.watched),
+          }));
+        }
+        await mutateEpisodes(synced, false);
+      }
+
+      onChanged?.();
+    } finally {
+      pendingEpisodeIdsRef.current.delete(id);
     }
-
-    onChanged?.();
   }
 
   const initialLoading =
@@ -341,7 +392,11 @@ export function SeriesSheet({
                 <div className="px-5 overflow-x-auto no-scrollbar">
                   <div className="py-2">
                     <SeasonTabs
-                      items={(seasons ?? []).map((s) => ({ id: s.id, number: s.number }))}
+                      items={(seasons ?? []).map((s) => ({
+                        id: s.id,
+                        number: s.number,
+                        completed: completedBySeasonId[s.id] ?? Boolean(s.completed),
+                      }))}
                       activeId={activeSeasonId}
                       ready={seasonsReady}
                       onChange={(id) => {

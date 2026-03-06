@@ -98,12 +98,13 @@ export async function POST(req: Request) {
     });
 
     const res = NextResponse.json({ ok: true });
+    const isHttps = req.url.startsWith("https://");
 
     // httpOnly cookie с внутренним userId
     res.cookies.set("uid", user.id, {
         httpOnly: true,
-        secure: true,      // на Vercel всегда https
-        sameSite: "lax",
+        secure: isHttps,
+        sameSite: isHttps ? "none" : "lax",
         path: "/",
         maxAge: 60 * 60 * 24 * 30, // 30 дней
     });

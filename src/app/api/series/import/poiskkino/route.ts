@@ -214,10 +214,18 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ series, alreadyExists: false });
   } catch (e: unknown) {
+    const message = getErrorMessage(e);
+    if (message === "Unauthorized") {
+      return NextResponse.json(
+        { message: "Unauthorized. Reopen the mini app to refresh session." },
+        { status: 401 }
+      );
+    }
+
     return NextResponse.json(
       {
         message: "Import failed",
-        error: getErrorMessage(e),
+        error: message,
         stack: process.env.NODE_ENV !== "production" ? getErrorStack(e) : null,
       },
       { status: 500 }

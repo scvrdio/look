@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/server_auth/getCurrentUser";
 export const runtime = "nodejs";
 
 export async function GET(req: Request) {
+    try {
     const user = await getCurrentUser();
 
     const { searchParams } = new URL(req.url);
@@ -51,4 +52,11 @@ export async function GET(req: Request) {
             episodesCount: s.seasons.reduce((sum, season) => sum + (season.episodesCount ?? 0), 0),
         })),
     });
+    } catch (e: unknown) {
+        const message = e instanceof Error ? e.message : String(e);
+        if (message === "Unauthorized") {
+            return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+        }
+        return NextResponse.json({ message: "Search failed", error: message }, { status: 500 });
+    }
 }

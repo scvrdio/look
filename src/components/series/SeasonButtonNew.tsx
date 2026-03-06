@@ -1,27 +1,26 @@
 "use client";
 
-import { cn } from "@/lib/utils";
+import { CheckCircleFill } from "@/icons";
 import { hapticSelection } from "@/lib/haptics";
+import { cn } from "@/lib/utils";
 
-type SeasonButtonProps = {
+type SeasonButtonNewProps = {
   number: number;
   active: boolean;
   completed?: boolean;
   onClick: () => void;
-
-  // для анимации
   index: number;
   ready: boolean;
 };
 
-export function SeasonButton({
+export function SeasonButtonNew({
   number,
   active,
   completed = false,
   onClick,
   index,
   ready,
-}: SeasonButtonProps) {
+}: SeasonButtonNewProps) {
   return (
     <div
       style={{ transitionDelay: `${index * 60}ms` }}
@@ -37,19 +36,19 @@ export function SeasonButton({
           onClick();
         }}
         className={cn(
-          "shrink-0 h-12 px-5 rounded-full text-[16px] font-medium whitespace-nowrap inline-flex items-center gap-2",
+          "shrink-0 h-12 px-4 rounded-full text-[16px] font-medium whitespace-nowrap inline-flex items-center gap-1",
           "transition active:scale-[0.97]",
           completed
-            ? "bg-[#DFE6DF] text-[#13A600]"
+            ? active
+              ? "bg-[#00A900] text-white"
+              : "bg-[#00A900]/5 text-[#13A600]"
             : active
               ? "bg-black text-white"
               : "bg-black/4 text-black"
         )}
       >
         {completed ? (
-          <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#13A600] text-white text-[15px] leading-none">
-            ✓
-          </span>
+          <CheckCircleFill className={cn("h-[21px] w-[21px]", active ? "text-white" : "text-[#13A600]")} />
         ) : null}
         {number} сезон
       </button>
