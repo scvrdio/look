@@ -160,27 +160,11 @@ export default function AddPage() {
   }, [step, results.length]);
 
   useEffect(() => {
-    if (searchLoaderEnterRaf1Ref.current) {
-      cancelAnimationFrame(searchLoaderEnterRaf1Ref.current);
-      searchLoaderEnterRaf1Ref.current = null;
-    }
-    if (searchLoaderEnterRaf2Ref.current) {
-      cancelAnimationFrame(searchLoaderEnterRaf2Ref.current);
-      searchLoaderEnterRaf2Ref.current = null;
-    }
-
     if (searching) {
       if (searchLoaderHideTimerRef.current) {
         clearTimeout(searchLoaderHideTimerRef.current);
         searchLoaderHideTimerRef.current = null;
       }
-      setSearchLoaderEntered(false);
-      setShowSearchLoader(true);
-      searchLoaderEnterRaf1Ref.current = requestAnimationFrame(() => {
-        searchLoaderEnterRaf2Ref.current = requestAnimationFrame(() => {
-          setSearchLoaderEntered(true);
-        });
-      });
       return;
     }
 
@@ -330,6 +314,25 @@ export default function AddPage() {
     setListReady(false);
     setResults([]);
     setStep("results");
+    if (searchLoaderHideTimerRef.current) {
+      clearTimeout(searchLoaderHideTimerRef.current);
+      searchLoaderHideTimerRef.current = null;
+    }
+    if (searchLoaderEnterRaf1Ref.current) {
+      cancelAnimationFrame(searchLoaderEnterRaf1Ref.current);
+      searchLoaderEnterRaf1Ref.current = null;
+    }
+    if (searchLoaderEnterRaf2Ref.current) {
+      cancelAnimationFrame(searchLoaderEnterRaf2Ref.current);
+      searchLoaderEnterRaf2Ref.current = null;
+    }
+    setSearchLoaderEntered(false);
+    setShowSearchLoader(true);
+    searchLoaderEnterRaf1Ref.current = requestAnimationFrame(() => {
+      searchLoaderEnterRaf2Ref.current = requestAnimationFrame(() => {
+        setSearchLoaderEntered(true);
+      });
+    });
 
     hapticImpact("medium");
     setSearching(true);
