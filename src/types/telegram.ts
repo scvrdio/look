@@ -2,6 +2,7 @@ export type TelegramHapticType = "success" | "warning" | "error";
 export type TelegramHapticStyle = "light" | "medium" | "heavy";
 
 export type TelegramWebApp = {
+  version?: string;
   initData?: string;
   initDataUnsafe?: {
     user?: {

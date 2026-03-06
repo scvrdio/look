@@ -5,6 +5,23 @@ import { getTelegramWebApp } from "@/types/telegram";
 
 type Insets = { top: number; bottom: number; left: number; right: number };
 
+function isVersionAtLeast(version: string | undefined, minVersion: string) {
+  if (!version) return false;
+
+  const a = version.split(".").map((x) => Number(x));
+  const b = minVersion.split(".").map((x) => Number(x));
+  const len = Math.max(a.length, b.length);
+
+  for (let i = 0; i < len; i += 1) {
+    const av = Number.isFinite(a[i]) ? a[i] : 0;
+    const bv = Number.isFinite(b[i]) ? b[i] : 0;
+    if (av > bv) return true;
+    if (av < bv) return false;
+  }
+
+  return true;
+}
+
 function setCssInsets(name: string, insets?: Partial<Insets> | null) {
   const top = Math.max(0, Math.floor(insets?.top ?? 0));
   const bottom = Math.max(0, Math.floor(insets?.bottom ?? 0));
@@ -26,7 +43,9 @@ export function TgBoot() {
     const forceFullscreen = () => {
       try {
         tg.expand?.();
-        tg.requestFullscreen?.();
+        if (isVersionAtLeast(tg.version, "8.0")) {
+          tg.requestFullscreen?.();
+        }
         tg.disableVerticalSwipes?.();
       } catch {}
     };
