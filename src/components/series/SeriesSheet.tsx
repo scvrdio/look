@@ -56,12 +56,14 @@ export function SeriesSheet({
   const [episodesReady, setEpisodesReady] = React.useState(false);
   const [seasonsReady, setSeasonsReady] = React.useState(false);
   const [episodesClosing, setEpisodesClosing] = React.useState(false);
+  const [showLoadingLottie, setShowLoadingLottie] = React.useState(false);
 
   const prevSeriesIdRef = React.useRef<string | null>(null);
   const prevEpisodesKeyRef = React.useRef<string | null>(null);
   const uiEpisodesCountRef = React.useRef(0);
   const prevOpenRef = React.useRef(open);
   const closeResetTimerRef = React.useRef<number | null>(null);
+  const loadingLottieTimerRef = React.useRef<number | null>(null);
 
   const [confirmDeleteOpen, setConfirmDeleteOpen] = React.useState(false);
   const deletingRef = React.useRef(false);
@@ -124,6 +126,9 @@ export function SeriesSheet({
       if (closeResetTimerRef.current) {
         window.clearTimeout(closeResetTimerRef.current);
       }
+      if (loadingLottieTimerRef.current) {
+        window.clearTimeout(loadingLottieTimerRef.current);
+      }
     };
   }, []);
 
@@ -177,6 +182,7 @@ export function SeriesSheet({
     if (!open) return;
     if (!episodesKey) return;
     if (!episodes) return;
+    if (validatingEpisodes) return;
 
     setUiEpisodes(episodes);
     if (prevEpisodesKeyRef.current === episodesKey) {
@@ -186,7 +192,7 @@ export function SeriesSheet({
     prevEpisodesKeyRef.current = episodesKey;
     setEpisodesReady(false);
     requestAnimationFrame(() => setEpisodesReady(true));
-  }, [open, episodesKey, episodes]);
+  }, [open, episodesKey, episodes, validatingEpisodes]);
 
   React.useEffect(() => {
     uiEpisodesCountRef.current = uiEpisodes?.length ?? 0;
@@ -220,6 +226,26 @@ export function SeriesSheet({
 
   const initialLoading =
     (seasonsKey !== null && !seasons) || (episodesKey !== null && !uiEpisodes);
+
+  React.useEffect(() => {
+    if (!open || !initialLoading) {
+      setShowLoadingLottie(false);
+      if (loadingLottieTimerRef.current) {
+        window.clearTimeout(loadingLottieTimerRef.current);
+        loadingLottieTimerRef.current = null;
+      }
+      return;
+    }
+
+    setShowLoadingLottie(false);
+    if (loadingLottieTimerRef.current) {
+      window.clearTimeout(loadingLottieTimerRef.current);
+    }
+    loadingLottieTimerRef.current = window.setTimeout(() => {
+      setShowLoadingLottie(true);
+      loadingLottieTimerRef.current = null;
+    }, 1000);
+  }, [open, initialLoading]);
 
   const displayTitle = (title ?? "").trim() || (open && seriesId ? "Загрузка…" : "Сериал");
 
@@ -291,9 +317,11 @@ export function SeriesSheet({
               <div className="pt-4">
                 {initialLoading ? (
                   <div className="h-[220px] flex items-center justify-center">
-                    <div className="w-[180px]">
-                      <Lottie animationData={loadingAnimation} loop autoplay />
-                    </div>
+                    {showLoadingLottie ? (
+                      <div className="w-[180px]">
+                        <Lottie animationData={loadingAnimation} loop autoplay />
+                      </div>
+                    ) : null}
                   </div>
                 ) : (
                   <>
@@ -319,6 +347,7 @@ export function SeriesSheet({
                       onChange={(id) => {
                         if (id === activeSeasonId) return;
                         setEpisodesReady(false);
+                        setUiEpisodes(null);
                         setActiveSeasonId(id);
                       }}
                     />
