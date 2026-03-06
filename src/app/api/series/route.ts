@@ -19,15 +19,44 @@ export async function GET() {
       seasons: {
         orderBy: { number: "asc" },
         select: {
+          id: true,
           number: true,
-          episodes: {
-            orderBy: { number: "asc" },
-            select: { number: true, watched: true },
-          },
+          episodesCount: true,
         },
       },
     },
   });
+
+  const seasonIds = series.flatMap((s) => s.seasons.map((x) => x.id));
+
+  // Watched episodes count per season.
+  const watchedCountsBySeason = await prisma.episode.groupBy({
+    by: ["seasonId"],
+    where: {
+      watched: true,
+      seasonId: { in: seasonIds },
+    },
+    _count: { _all: true },
+  });
+
+  // Last watched episode number per season.
+  const watchedMaxBySeason = await prisma.episode.groupBy({
+    by: ["seasonId"],
+    where: {
+      watched: true,
+      seasonId: { in: seasonIds },
+    },
+    _max: { number: true },
+  });
+
+  const watchedCountMap = new Map<string, number>(
+    watchedCountsBySeason.map((x) => [x.seasonId, x._count._all])
+  );
+  const watchedMaxMap = new Map<string, number>(
+    watchedMaxBySeason
+      .filter((x) => typeof x._max.number === "number")
+      .map((x) => [x.seasonId, x._max.number as number])
+  );
 
   const result = series.map((s) => {
     let total = 0;
@@ -37,17 +66,18 @@ export async function GET() {
     let lastEpisode = 0;
 
     for (const season of s.seasons) {
-      for (const ep of season.episodes) {
-        total += 1;
-        if (ep.watched) {
-          watched += 1;
-          if (
-            season.number > lastSeason ||
-            (season.number === lastSeason && ep.number > lastEpisode)
-          ) {
-            lastSeason = season.number;
-            lastEpisode = ep.number;
-          }
+      total += season.episodesCount;
+      const watchedInSeason = watchedCountMap.get(season.id) ?? 0;
+      watched += watchedInSeason;
+
+      const maxEpisodeInSeason = watchedMaxMap.get(season.id);
+      if (typeof maxEpisodeInSeason === "number") {
+        if (
+          season.number > lastSeason ||
+          (season.number === lastSeason && maxEpisodeInSeason > lastEpisode)
+        ) {
+          lastSeason = season.number;
+          lastEpisode = maxEpisodeInSeason;
         }
       }
     }
@@ -60,6 +90,7 @@ export async function GET() {
       createdAt: s.createdAt,
       source: s.source,
       sourceId: s.sourceId,
+      posterUrl: s.posterUrl,
       seasonsCount: s.seasons.length,
       episodesCount: total,
       progress: {

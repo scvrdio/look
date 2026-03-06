@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { SWRConfig, useSWRConfig } from "swr";
 import { fetcher } from "@/lib/fetcher";
-import type { SeriesRow, SeasonRow, EpisodeRow } from "@/types/bootstrap";
+import type { BootstrapResponse } from "@/types/bootstrap";
 import { getTelegramWebApp } from "@/types/telegram";
 
 function sleep(ms: number) {
@@ -61,64 +61,28 @@ function BootGate({ children }: { children: React.ReactNode }) {
           }
         } catch {}
 
-        async function preloadWholeSeries(seriesId: string) {
-          const seasonsKey = `/api/series/${seriesId}/seasons`;
-          const seasons = await fetcher<SeasonRow[]>(seasonsKey);
-          await mutateGlobal(seasonsKey, seasons, { revalidate: false });
-
-          for (const season of seasons) {
-            const episodesKey = `/api/seasons/${season.id}/episodes`;
-            const episodes = await fetcher<EpisodeRow[]>(episodesKey);
-            await mutateGlobal(episodesKey, episodes, { revalidate: false });
-          }
-        }
-
         // 1) auth (cookie)
         await telegramAuthIfNeeded();
         if (cancelled) return;
 
-        // 2) series list
-        const series = await fetcher<SeriesRow[]>("/api/series");
+        // 2) bootstrap in one request (series + seasons + first-season episodes)
+        const bootstrap = await fetcher<BootstrapResponse>("/api/bootstrap");
         if (cancelled) return;
 
-        await mutateGlobal("/api/series", series, { revalidate: false });
+        await mutateGlobal("/api/series", bootstrap.series, { revalidate: false });
 
-        // 3) top-3 blocking + rest background
-        const top = series.slice(0, 3);
-        const rest = series.slice(3);
+        const inProgressCount = bootstrap.series.filter((s) => {
+          const p = s.progress?.percent ?? 0;
+          return p > 0 && p < 100;
+        }).length;
+        await mutateGlobal("/api/series/in-progress-count", { inProgressCount }, { revalidate: false });
 
-        // TOP-3 blocking
-        {
-          const CONCURRENCY = 2;
-          let i = 0;
-
-          async function workerTop() {
-            while (i < top.length) {
-              const s = top[i++];
-              await preloadWholeSeries(s.id);
-              if (cancelled) return;
-            }
-          }
-
-          await Promise.all(Array.from({ length: CONCURRENCY }, workerTop));
+        for (const [seriesId, seasons] of Object.entries(bootstrap.seasonsBySeries ?? {})) {
+          await mutateGlobal(`/api/series/${seriesId}/seasons`, seasons, { revalidate: false });
         }
 
-        // rest in background
-        {
-          const CONCURRENCY_BG = 2;
-          let j = 0;
-
-          async function workerBg() {
-            while (j < rest.length) {
-              if (cancelled) return;
-              const s = rest[j++];
-              try {
-                await preloadWholeSeries(s.id);
-              } catch {}
-            }
-          }
-
-          void Promise.all(Array.from({ length: CONCURRENCY_BG }, workerBg));
+        for (const [seasonId, episodes] of Object.entries(bootstrap.episodesBySeason ?? {})) {
+          await mutateGlobal(`/api/seasons/${seasonId}/episodes`, episodes, { revalidate: false });
         }
 
         if (cancelled) return;
