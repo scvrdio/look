@@ -4,11 +4,13 @@ import * as React from "react";
 import useSWR from "swr";
 import * as Dialog from "@radix-ui/react-dialog";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
+import Lottie from "lottie-react";
 
 import { Sheet, SheetContent, SheetClose } from "@/components/ui/sheet";
 import { SeasonTabs } from "@/components/series/SeasonTabs";
 import { EpisodeGrid } from "@/components/series/EpisodeGrid";
 import { fetcher } from "@/lib/fetcher";
+import loadingAnimation from "../../../public/lottie.json";
 
 import { X, Trash } from "@/icons";
 import { hapticImpact } from "@/lib/haptics";
@@ -138,7 +140,9 @@ export function SeriesSheet({
     if (!episodes) return;
 
     setUiEpisodes(episodes);
-    if (prevEpisodesKeyRef.current === episodesKey) return;
+    if (prevEpisodesKeyRef.current === episodesKey) {
+      return;
+    }
 
     prevEpisodesKeyRef.current = episodesKey;
     setEpisodesReady(false);
@@ -243,7 +247,11 @@ export function SeriesSheet({
               {/* Episodes */}
               <div className="pt-4">
                 {initialLoading ? (
-                  null
+                  <div className="h-[220px] flex items-center justify-center">
+                    <div className="w-[180px]">
+                      <Lottie animationData={loadingAnimation} loop autoplay />
+                    </div>
+                  </div>
                 ) : (
                   <>
                     {backgroundUpdating ? null : null}

@@ -3,11 +3,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import { useRouter } from "next/navigation";
+import Lottie from "lottie-react";
 import { fetcher } from "@/lib/fetcher";
 import { hapticImpact, hapticNotify } from "@/lib/haptics";
 import { pluralRu } from "@/lib/plural";
 import { PlaylistPlusFill, Search, XCircleFill } from "@/icons";
 import type { SeriesRow } from "@/types/bootstrap";
+import loadingAnimation from "../../../public/lottie.json";
 
 type Item = {
   id: number;
@@ -116,6 +118,12 @@ export default function AddPage() {
   const [results, setResults] = useState<Item[]>([]);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showSearchLoader, setShowSearchLoader] = useState(false);
+  const [searchLoaderEntered, setSearchLoaderEntered] = useState(false);
+
+  const searchLoaderHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchLoaderEnterRaf1Ref = useRef<number | null>(null);
+  const searchLoaderEnterRaf2Ref = useRef<number | null>(null);
 
   // autofocus (safe)
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -150,6 +158,52 @@ export default function AddPage() {
     const t = requestAnimationFrame(() => setListReady(true));
     return () => cancelAnimationFrame(t);
   }, [step, results.length]);
+
+  useEffect(() => {
+    if (searchLoaderEnterRaf1Ref.current) {
+      cancelAnimationFrame(searchLoaderEnterRaf1Ref.current);
+      searchLoaderEnterRaf1Ref.current = null;
+    }
+    if (searchLoaderEnterRaf2Ref.current) {
+      cancelAnimationFrame(searchLoaderEnterRaf2Ref.current);
+      searchLoaderEnterRaf2Ref.current = null;
+    }
+
+    if (searching) {
+      if (searchLoaderHideTimerRef.current) {
+        clearTimeout(searchLoaderHideTimerRef.current);
+        searchLoaderHideTimerRef.current = null;
+      }
+      setSearchLoaderEntered(false);
+      setShowSearchLoader(true);
+      searchLoaderEnterRaf1Ref.current = requestAnimationFrame(() => {
+        searchLoaderEnterRaf2Ref.current = requestAnimationFrame(() => {
+          setSearchLoaderEntered(true);
+        });
+      });
+      return;
+    }
+
+    setSearchLoaderEntered(false);
+    searchLoaderHideTimerRef.current = setTimeout(() => {
+      setShowSearchLoader(false);
+      searchLoaderHideTimerRef.current = null;
+    }, 180);
+  }, [searching]);
+
+  useEffect(() => {
+    return () => {
+      if (searchLoaderHideTimerRef.current) {
+        clearTimeout(searchLoaderHideTimerRef.current);
+      }
+      if (searchLoaderEnterRaf1Ref.current) {
+        cancelAnimationFrame(searchLoaderEnterRaf1Ref.current);
+      }
+      if (searchLoaderEnterRaf2Ref.current) {
+        cancelAnimationFrame(searchLoaderEnterRaf2Ref.current);
+      }
+    };
+  }, []);
 
   // typing placeholder (only when query is empty)
   useEffect(() => {
@@ -274,6 +328,8 @@ export default function AddPage() {
 
     setCommittedQuery(q);
     setListReady(false);
+    setResults([]);
+    setStep("results");
 
     hapticImpact("medium");
     setSearching(true);
@@ -416,7 +472,18 @@ export default function AddPage() {
         {/* Results */}
         {step === "results" && (
           <div className="mt-6 space-y-3">
-            {results.length === 0 ? (
+            {showSearchLoader ? (
+              <div
+                className={[
+                  "h-[220px] flex items-center justify-center transition-all duration-200 ease-out",
+                  searchLoaderEntered ? "opacity-100 scale-100 blur-0" : "opacity-0 scale-95 blur-[8px]",
+                ].join(" ")}
+              >
+                <div className="w-[180px]">
+                  <Lottie animationData={loadingAnimation} loop autoplay />
+                </div>
+              </div>
+            ) : results.length === 0 ? (
               <div className="text-[14px] opacity-60 px-1">
                 {searching ? "Поиск..." : committedQuery ? `Ничего не найдено по "${committedQuery}"` : "Ничего не найдено"}
               </div>
