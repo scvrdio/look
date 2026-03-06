@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { getTelegramWebApp } from "@/types/telegram";
 
 type Insets = { top: number; bottom: number; left: number; right: number };
 
@@ -19,7 +20,7 @@ function setCssInsets(name: string, insets?: Partial<Insets> | null) {
 
 export function TgBoot() {
   useEffect(() => {
-    const tg = (window as any)?.Telegram?.WebApp;
+    const tg = getTelegramWebApp();
     if (!tg) return;
 
     try {

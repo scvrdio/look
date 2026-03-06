@@ -23,6 +23,18 @@ type Item = {
   _alreadyInDb?: boolean;
 };
 
+type DbSearchItem = {
+  id: string;
+  title?: string | null;
+  sourceId?: number | null;
+  year?: number | null;
+  posterUrl?: string | null;
+  kind?: string | null;
+  seasonsCount?: number | null;
+  episodesCount?: number | null;
+  genres?: string[] | null;
+};
+
 async function readErrorMessage(res: Response) {
   const text = await res.text().catch(() => "");
   try {
@@ -271,9 +283,9 @@ export default function AddPage() {
       let dbMapped: Item[] = [];
       if (resDb.ok) {
         const dataDb = await resDb.json().catch(() => null);
-        const dbItems = Array.isArray(dataDb?.items) ? dataDb.items : [];
+        const dbItems: DbSearchItem[] = Array.isArray(dataDb?.items) ? (dataDb.items as DbSearchItem[]) : [];
 
-        dbMapped = dbItems.map((s: any) => ({
+        dbMapped = dbItems.map((s) => ({
           id: typeof s.sourceId === "number" ? s.sourceId : 0,
           name: s.title ?? "",
           year: s.year ?? null,
@@ -332,8 +344,6 @@ export default function AddPage() {
 
 
   const rightIcon = query.trim().length > 0 ? "clear" : "search";
-  const qTrim = query.trim();
-  const isDirty = qTrim.length > 0 && qTrim !== committedQuery;
 
   return (
     <main className="min-h-dvh bg-white">
@@ -398,7 +408,7 @@ export default function AddPage() {
           <div className="mt-6 space-y-3">
             {results.length === 0 ? (
               <div className="text-[14px] opacity-60 px-1">
-                {searching ? "Поиск..." : "Ничего не найдено"}
+                {searching ? "Поиск..." : committedQuery ? `Ничего не найдено по "${committedQuery}"` : "Ничего не найдено"}
               </div>
             ) : (
               results.map((item, i) => {
@@ -488,3 +498,4 @@ export default function AddPage() {
     </main>
   );
 }
+

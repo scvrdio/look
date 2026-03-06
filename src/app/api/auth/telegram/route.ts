@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma } from "@/lib/db";
 
+type TelegramUserPayload = {
+    id?: string | number;
+};
+
 function verifyTelegramInitData(initData: string, botToken: string) {
     const params = new URLSearchParams(initData);
 
@@ -50,9 +54,9 @@ function verifyTelegramInitData(initData: string, botToken: string) {
     const userRaw = data["user"];
     if (!userRaw) return { ok: false as const, reason: "missing user" };
 
-    let user: any;
+    let user: TelegramUserPayload;
     try {
-        user = JSON.parse(userRaw);
+        user = JSON.parse(userRaw) as TelegramUserPayload;
     } catch {
         return { ok: false as const, reason: "bad user json" };
     }

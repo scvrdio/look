@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckWavesFill, CheckCircleFill } from "@/icons";
+import { CheckCircleFill } from "@/icons";
 import { cn } from "@/lib/utils";
 import useSWR from "swr";
 
@@ -40,7 +40,6 @@ export function SeriesCard({
   );
 
   const posterUrl = posterUrlProp ?? data?.posterUrl ?? null;
-  console.log("CARD", { id, title, posterUrlProp });
   return (
     <button
       type="button"

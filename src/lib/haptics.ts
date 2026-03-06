@@ -1,25 +1,21 @@
-export function hapticImpact(
-    style: "light" | "medium" | "heavy" = "light"
-  ) {
-    if (typeof window === "undefined") return;
-    const tg = (window as any)?.Telegram?.WebApp;
-    tg?.HapticFeedback?.impactOccurred(style);
-  }
-  
-  export function hapticSelection() {
-    if (typeof window === "undefined") return;
-    const tg = (window as any)?.Telegram?.WebApp;
-    tg?.HapticFeedback?.selectionChanged();
-  }
-  
-  export function hapticSuccess() {
-    if (typeof window === "undefined") return;
-    const tg = (window as any)?.Telegram?.WebApp;
-    tg?.HapticFeedback?.notificationOccurred("success");
-  }
-  
-  export function hapticNotify(type: "success" | "warning" | "error" = "success") {
-    if (typeof window === "undefined") return;
-    const tg = (window as any)?.Telegram?.WebApp;
-    tg?.HapticFeedback?.notificationOccurred?.(type);
-  }
+import { getTelegramWebApp, type TelegramHapticStyle, type TelegramHapticType } from "@/types/telegram";
+
+export function hapticImpact(style: TelegramHapticStyle = "light") {
+  const tg = getTelegramWebApp();
+  tg?.HapticFeedback?.impactOccurred?.(style);
+}
+
+export function hapticSelection() {
+  const tg = getTelegramWebApp();
+  tg?.HapticFeedback?.selectionChanged?.();
+}
+
+export function hapticSuccess() {
+  const tg = getTelegramWebApp();
+  tg?.HapticFeedback?.notificationOccurred?.("success");
+}
+
+export function hapticNotify(type: TelegramHapticType = "success") {
+  const tg = getTelegramWebApp();
+  tg?.HapticFeedback?.notificationOccurred?.(type);
+}

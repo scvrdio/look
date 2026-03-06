@@ -12,7 +12,6 @@ import { fetcher } from "@/lib/fetcher";
 
 import { X, Trash } from "@/icons";
 import { hapticImpact } from "@/lib/haptics";
-import { useRouter } from "next/navigation";
 
 type SeasonRow = {
   id: string;
@@ -44,10 +43,7 @@ export function SeriesSheet({ open, onOpenChange, seriesId, title, onChanged }: 
 
   const prevSeriesIdRef = React.useRef<string | null>(null);
 
-  const router = useRouter();
-
   const [confirmDeleteOpen, setConfirmDeleteOpen] = React.useState(false);
-  const [deleting, setDeleting] = React.useState(false);
   const deletingRef = React.useRef(false);
 
   // Сезоны
@@ -186,7 +182,7 @@ export function SeriesSheet({ open, onOpenChange, seriesId, title, onChanged }: 
             <button
               type="button"
               onClick={() => {
-                if (deleting) return;
+                if (deletingRef.current) return;
                 hapticImpact("light");
                 setConfirmDeleteOpen(true);
               }}
@@ -258,7 +254,7 @@ export function SeriesSheet({ open, onOpenChange, seriesId, title, onChanged }: 
 
                 <button
                   type="button"
-                  disabled={deleting}
+                  disabled={deletingRef.current}
                   onClick={async () => {
                     hapticImpact("heavy");
                     await deleteSeries();

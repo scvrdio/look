@@ -17,6 +17,17 @@ type PoiskKinoDetails = {
   seasonsInfo: Array<{ number: number; episodesCount: number }>;
 };
 
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function getErrorStack(error: unknown): string | null {
+  if (error instanceof Error && typeof error.stack === "string") {
+    return error.stack;
+  }
+  return null;
+}
+
 export async function POST(req: Request) {
   try {
     const user = await getCurrentUser();
@@ -174,12 +185,12 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ series, alreadyExists: false });
-  } catch (e: any) {
+  } catch (e: unknown) {
     return NextResponse.json(
       {
         message: "Import failed",
-        error: e?.message ?? String(e),
-        stack: process.env.NODE_ENV !== "production" ? e?.stack ?? null : null,
+        error: getErrorMessage(e),
+        stack: process.env.NODE_ENV !== "production" ? getErrorStack(e) : null,
       },
       { status: 500 }
     );

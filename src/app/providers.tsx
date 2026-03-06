@@ -3,12 +3,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { SWRConfig, useSWRConfig } from "swr";
 import { fetcher } from "@/lib/fetcher";
-import type { BootstrapResponse, SeriesRow, SeasonRow, EpisodeRow } from "@/types/bootstrap";
-
-type PreloadResponse = {
-  seasonsBySeries: Record<string, SeasonRow[]>;
-  episodesBySeason: Record<string, EpisodeRow[]>;
-};
+import type { SeriesRow, SeasonRow, EpisodeRow } from "@/types/bootstrap";
+import { getTelegramWebApp } from "@/types/telegram";
 
 function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
@@ -17,7 +13,7 @@ function sleep(ms: number) {
 async function waitForTelegramInitData(timeoutMs = 1500): Promise<string | null> {
   const started = Date.now();
   while (Date.now() - started < timeoutMs) {
-    const tg = (window as any)?.Telegram?.WebApp;
+    const tg = getTelegramWebApp();
     const initData: string | undefined = tg?.initData;
     if (initData && initData.length > 0) return initData;
     await sleep(50);
@@ -45,7 +41,6 @@ async function telegramAuthIfNeeded() {
 function BootGate({ children }: { children: React.ReactNode }) {
   const { mutate: mutateGlobal } = useSWRConfig();
 
-  const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const didBootRef = useRef(false);
@@ -59,12 +54,9 @@ function BootGate({ children }: { children: React.ReactNode }) {
     (async () => {
       try {
         setError(null);
-        setReady(false);
-
         // если уже делали boot в этой сессии — не повторяем
         try {
           if (sessionStorage.getItem("boot_done") === "1") {
-            setReady(true);
             return;
           }
         } catch {}
@@ -135,11 +127,10 @@ function BootGate({ children }: { children: React.ReactNode }) {
           sessionStorage.setItem("boot_done", "1");
         } catch {}
 
-        setReady(true);
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (cancelled) return;
-        setError(e?.message ?? "Boot failed");
-        setReady(true);
+        const message = e instanceof Error ? e.message : "Boot failed";
+        setError(message);
       }
     })();
 
@@ -175,3 +166,5 @@ export function Providers({ children }: { children: React.ReactNode }) {
     </SWRConfig>
   );
 }
+
+

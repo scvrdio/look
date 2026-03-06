@@ -5,6 +5,11 @@ export const runtime = "nodejs";
 const BASE = process.env.POISKKINO_BASE_URL ?? "https://api.poiskkino.dev";
 const KEY = process.env.POISKKINO_API_KEY;
 
+type SeasonDoc = {
+  number?: unknown;
+  episodes?: unknown;
+};
+
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   if (!KEY) return NextResponse.json({ message: "POISKKINO_API_KEY missing" }, { status: 500 });
 
@@ -36,13 +41,13 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     const seasonData = await seasonRes.json().catch(() => null);
 
     if (seasonRes.ok) {
-      const docs = Array.isArray(seasonData?.docs) ? seasonData.docs : [];
+      const docs: SeasonDoc[] = Array.isArray(seasonData?.docs) ? (seasonData.docs as SeasonDoc[]) : [];
 
       const mapped: Array<{ number: number; episodesCount: number }> = docs
-        .filter((s: any) => Number.isInteger(s?.number) && s.number >= 1)
-        .map((s: any) => ({
+        .filter((s) => Number.isInteger(s.number) && Number(s.number) >= 1)
+        .map((s) => ({
           number: Number(s.number),
-          episodesCount: Array.isArray(s?.episodes) ? s.episodes.length : 0,
+          episodesCount: Array.isArray(s.episodes) ? s.episodes.length : 0,
         }));
 
       seasonsInfo = mapped.sort((a, b) => a.number - b.number);

@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/server_auth/getCurrentUser"; // подстрой путь
+import type { EpisodeRow, SeasonRow } from "@/types/bootstrap";
 
 export async function GET(req: Request) {
   const user = await getCurrentUser();
@@ -39,10 +40,10 @@ export async function GET(req: Request) {
   });
 
   // 4) собрать структуру как SWR keys ждут
-  const seasonsBySeries: Record<string, any[]> = {};
+  const seasonsBySeries: Record<string, SeasonRow[]> = {};
   for (const s of seasons) (seasonsBySeries[s.seriesId] ||= []).push({ id: s.id, number: s.number, episodesCount: s.episodesCount });
 
-  const episodesBySeason: Record<string, any[]> = {};
+  const episodesBySeason: Record<string, EpisodeRow[]> = {};
   for (const e of episodes) (episodesBySeason[e.seasonId] ||= []).push({ id: e.id, number: e.number, watched: e.watched });
 
   const ms = Date.now() - t0;

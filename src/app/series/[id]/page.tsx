@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type Season = {
   id: string;
@@ -26,44 +26,42 @@ export default function SeriesPage({ params }: { params: Promise<{ id: string }>
 
   const episodesReq = useRef(0);
 
+  const loadEpisodes = useCallback(async (seasonId: string) => {
+    const reqId = ++episodesReq.current;
+
+    setLoadingEpisodes(true);
+    setEpisodes([]);
+
+    const res = await fetch(`/api/seasons/${seasonId}/episodes`);
+    const data = (await res.json()) as Episode[];
+
+    if (reqId !== episodesReq.current) return;
+
+    setEpisodes(data);
+    setLoadingEpisodes(false);
+  }, []);
+
+  const loadSeasons = useCallback(async (id: string) => {
+    setLoadingSeasons(true);
+    const res = await fetch(`/api/series/${id}/seasons`);
+    const data = (await res.json()) as Season[];
+    setSeasons(data);
+
+    if (!selectedSeasonId && data.length > 0) {
+      const firstId = data[0].id;
+      setSelectedSeasonId(firstId);
+      await loadEpisodes(firstId);
+    }
+
+    setLoadingSeasons(false);
+  }, [selectedSeasonId, loadEpisodes]);
+
   useEffect(() => {
     params.then(({ id }) => {
       setSeriesId(id);
       loadSeasons(id);
     });
-  }, [params]);
-
-  async function loadSeasons(id: string) {
-    setLoadingSeasons(true);
-    const res = await fetch(`/api/series/${id}/seasons`);
-    const data = (await res.json()) as Season[];
-    setSeasons(data);
-    setLoadingSeasons(false);
-  }
-
-  useEffect(() => {
-    if (!selectedSeasonId && seasons.length > 0) {
-      const firstId = seasons[0].id;
-      setSelectedSeasonId(firstId);
-      loadEpisodes(firstId);
-    }
-  }, [seasons, selectedSeasonId]);  
-
-  async function loadEpisodes(seasonId: string) {
-    const reqId = ++episodesReq.current;
-  
-    setLoadingEpisodes(true);
-    setEpisodes([]);
-  
-    const res = await fetch(`/api/seasons/${seasonId}/episodes`);
-    const data = (await res.json()) as Episode[];
-  
-    if (reqId !== episodesReq.current) return;
-  
-    setEpisodes(data);
-    setLoadingEpisodes(false);
-  }
-  
+  }, [params, loadSeasons]);
 
   async function addSeason() {
     if (!seriesId) return;

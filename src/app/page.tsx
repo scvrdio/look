@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
-import { useRouter } from "next/navigation";
 
 import { pluralRu } from "@/lib/plural";
 import { fetcher } from "@/lib/fetcher";
@@ -12,15 +11,15 @@ import { SeriesSheet } from "../components/series/SeriesSheet";
 import { Button } from "../components/ui/button";
 import { AnimatedCounter } from "@/components/ui/AnimatedCounter";
 import { hapticImpact } from "@/lib/haptics";
+import { getTelegramWebApp } from "@/types/telegram";
 
-import type { BootstrapResponse, SeriesRow, SeasonRow, EpisodeRow } from "@/types/bootstrap";
+import type { SeriesRow } from "@/types/bootstrap";
 
 type Me = { name: string | null };
 type InProgress = { inProgressCount: number };
 
 function getTgFirstNameSafe(): string | null {
-  if (typeof window === "undefined") return null;
-  const tg = (window as any)?.Telegram?.WebApp;
+  const tg = getTelegramWebApp();
   const n = tg?.initDataUnsafe?.user?.first_name;
   return typeof n === "string" && n.trim() ? n.trim() : null;
 }
@@ -51,15 +50,17 @@ function TitleSeg({
 }
 
 export default function HomePage() {
-  const router = useRouter();
-
   const [sheetOpen, setSheetOpen] = useState(false);
   const [activeSeriesId, setActiveSeriesId] = useState<string | null>(null);
 
   // title всегда вычисляем из items, а не храним отдельно (иначе рассинхрон/“Загрузка…”)
-  const [listReady, setListReady] = useState(false);
-  const [titleReady, setTitleReady] = useState(false);
-  const [tgName, setTgName] = useState<string | null>(null);
+  const [tgName] = useState<string | null>(() => getTgFirstNameSafe());
+  const [pendingOpenSeriesId, setPendingOpenSeriesId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    const id = sessionStorage.getItem("openSeriesId");
+    sessionStorage.removeItem("openSeriesId");
+    return id;
+  });
 
   const { data: items, mutate: mutateSeries } = useSWR<SeriesRow[]>(
     "/api/series",
@@ -71,35 +72,19 @@ export default function HomePage() {
     fetcher
   );
 
-  useEffect(() => {
-    setTitleReady(true);
-    setTgName(getTgFirstNameSafe());
-  }, []);
+  const autoOpenSeriesId = useMemo(() => {
+    if (!pendingOpenSeriesId || !items || items.length === 0) return null;
+    return items.some((s) => s.id === pendingOpenSeriesId) ? pendingOpenSeriesId : null;
+  }, [items, pendingOpenSeriesId]);
 
-  useEffect(() => {
-    if (!listReady && items) setListReady(true);
-  }, [items, listReady]);
-
-  // 1) простой “открыть сериал после возврата”: sessionStorage
-  useEffect(() => {
-    if (!items || items.length === 0) return;
-
-    const id = sessionStorage.getItem("openSeriesId");
-    if (!id) return;
-
-    sessionStorage.removeItem("openSeriesId");
-
-    const exists = items.some((s) => s.id === id);
-    if (!exists) return;
-
-    setActiveSeriesId(id);
-    setSheetOpen(true);
-  }, [items]);
-
+  const listReady = Boolean(items);
+  const titleReady = true;
+  const effectiveSeriesId = activeSeriesId ?? autoOpenSeriesId;
+  const effectiveSheetOpen = sheetOpen || Boolean(autoOpenSeriesId);
   const activeTitle = useMemo(() => {
-    if (!activeSeriesId) return "";
-    return (items ?? []).find((s) => s.id === activeSeriesId)?.title ?? "";
-  }, [items, activeSeriesId]);
+    if (!effectiveSeriesId) return "";
+    return (items ?? []).find((s) => s.id === effectiveSeriesId)?.title ?? "";
+  }, [items, effectiveSeriesId]);
 
   const firstName = useMemo(
     () => (me?.name ?? null) || tgName || "друг",
@@ -235,13 +220,19 @@ export default function HomePage() {
       </div>
 
       <SeriesSheet
-        key={activeSeriesId}
-        open={sheetOpen}
-        onOpenChange={setSheetOpen}
-        seriesId={activeSeriesId}
+        key={effectiveSeriesId}
+        open={effectiveSheetOpen}
+        onOpenChange={(open) => {
+          setSheetOpen(open);
+          if (!open) {
+            setPendingOpenSeriesId(null);
+          }
+        }}
+        seriesId={effectiveSeriesId}
         title={activeTitle}
         onChanged={() => void mutateSeries()}
       />
     </main>
   );
 }
+

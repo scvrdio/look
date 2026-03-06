@@ -83,6 +83,11 @@ type CreateSeriesBody = {
   seasons?: unknown;
 };
 
+type CreateSeasonInput = {
+  number?: unknown;
+  episodesCount?: unknown;
+};
+
 export async function POST(req: Request) {
   const user = await getCurrentUser();
 
@@ -103,10 +108,10 @@ export async function POST(req: Request) {
   }
 
   // normalize + validate
-  const seasons = body.seasons
-    .map((s: any) => ({
-      number: Number(s?.number),
-      episodesCount: Number(s?.episodesCount),
+  const seasons = (body.seasons as CreateSeasonInput[])
+    .map((s) => ({
+      number: Number(s.number),
+      episodesCount: Number(s.episodesCount),
     }))
     .sort((a, b) => a.number - b.number);
 

@@ -12,10 +12,15 @@ export function AnimatedCounter({
   delay?: number;
 }) {
   const [display, setDisplay] = useState(0);
+  const displayRef = useRef(0);
   const startRef = useRef<number | null>(null);
   const fromRef = useRef(0);
   const rafRef = useRef<number | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    displayRef.current = display;
+  }, [display]);
 
   useEffect(() => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -23,7 +28,7 @@ export function AnimatedCounter({
 
     timerRef.current = setTimeout(() => {
       startRef.current = null;
-      fromRef.current = display;
+      fromRef.current = displayRef.current;
 
       const step = (ts: number) => {
         if (!startRef.current) startRef.current = ts;
