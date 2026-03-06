@@ -18,16 +18,14 @@ model Series {
   id        String   @id @default(cuid())
   title     String
   createdAt DateTime @default(now())
-
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  seasons   Season[]
-
+  kind      String?
+  posterUrl String?
   source    String?
   sourceId  Int?
-  posterUrl String?
   year      Int?
-  kind      String? // "series" | "movie"
+  seasons   Season[]
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, source, sourceId])
   @@index([userId, title])

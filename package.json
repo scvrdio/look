@@ -1,9 +1,9 @@
 {
-  "name": "tg-miniapp",
+  "name": "look",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --webpack",
     "prisma:migrate:local": "dotenv -e .env.local -- prisma migrate dev",
     "prisma:generate:local": "dotenv -e .env.local -- prisma generate",
     "prisma:studio:local": "dotenv -e .env.local -- prisma studio",

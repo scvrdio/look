@@ -23,18 +23,33 @@ export function TgBoot() {
     const tg = getTelegramWebApp();
     if (!tg) return;
 
+    const forceFullscreen = () => {
+      try {
+        tg.expand?.();
+        tg.requestFullscreen?.();
+        tg.disableVerticalSwipes?.();
+      } catch {}
+    };
+
     try {
       tg.ready?.();
-      tg.expand?.();
+      forceFullscreen();
     } catch {}
 
     const apply = () => {
       // Если Telegram не отдаёт — будет 0, это ок.
       setCssInsets("tg-safe", tg.safeAreaInset);
       setCssInsets("tg-content-safe", tg.contentSafeAreaInset);
+      forceFullscreen();
     };
 
     apply();
+    const retries = [120, 300, 700, 1300];
+    const timers = retries.map((delay) =>
+      window.setTimeout(() => {
+        forceFullscreen();
+      }, delay)
+    );
 
     // События могут быть или не быть — оборачиваем безопасно
     try {
@@ -44,6 +59,7 @@ export function TgBoot() {
     } catch {}
 
     return () => {
+      timers.forEach((id) => window.clearTimeout(id));
       try {
         tg.offEvent?.("safeAreaChanged", apply);
         tg.offEvent?.("contentSafeAreaChanged", apply);

@@ -22,6 +22,10 @@ export type TelegramWebApp = {
   };
   ready?: () => void;
   expand?: () => void;
+  requestFullscreen?: () => void;
+  disableVerticalSwipes?: () => void;
+  isExpanded?: boolean;
+  isFullscreen?: boolean;
   onEvent?: (event: string, cb: () => void) => void;
   offEvent?: (event: string, cb: () => void) => void;
   HapticFeedback?: {
