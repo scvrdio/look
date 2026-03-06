@@ -52,6 +52,7 @@ export function SeriesSheet({
   const [seasonsReady, setSeasonsReady] = React.useState(false);
 
   const prevSeriesIdRef = React.useRef<string | null>(null);
+  const prevEpisodesKeyRef = React.useRef<string | null>(null);
 
   const [confirmDeleteOpen, setConfirmDeleteOpen] = React.useState(false);
   const deletingRef = React.useRef(false);
@@ -66,6 +67,7 @@ export function SeriesSheet({
 
     if (prevSeriesIdRef.current !== seriesId) {
       prevSeriesIdRef.current = seriesId;
+      prevEpisodesKeyRef.current = null;
       setActiveSeasonId(null);
       setUiEpisodes(null);
 
@@ -77,6 +79,7 @@ export function SeriesSheet({
   // On close, reset local selection so next open can apply auto-season logic again.
   React.useEffect(() => {
     if (open) return;
+    prevEpisodesKeyRef.current = null;
     setActiveSeasonId(null);
     setUiEpisodes(null);
     setEpisodesReady(false);
@@ -135,7 +138,9 @@ export function SeriesSheet({
     if (!episodes) return;
 
     setUiEpisodes(episodes);
+    if (prevEpisodesKeyRef.current === episodesKey) return;
 
+    prevEpisodesKeyRef.current = episodesKey;
     setEpisodesReady(false);
     requestAnimationFrame(() => setEpisodesReady(true));
   }, [open, episodesKey, episodes]);
