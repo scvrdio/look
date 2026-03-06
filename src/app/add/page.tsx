@@ -152,12 +152,24 @@ export default function AddPage() {
     return () => cancelAnimationFrame(t);
   }, []);
 
-  // list enter when results appear
+  // list enter only when cards are actually rendered (after loader hides)
   useEffect(() => {
     if (step !== "results") return;
-    const t = requestAnimationFrame(() => setListReady(true));
-    return () => cancelAnimationFrame(t);
-  }, [step, results.length]);
+    if (showSearchLoader) return;
+    if (results.length === 0) return;
+
+    let raf2 = 0;
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => {
+        setListReady(true);
+      });
+    });
+
+    return () => {
+      cancelAnimationFrame(raf1);
+      if (raf2) cancelAnimationFrame(raf2);
+    };
+  }, [step, showSearchLoader, results.length]);
 
   useEffect(() => {
     if (searching) {
