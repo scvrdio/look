@@ -27,6 +27,9 @@ type EpisodeRow = {
   watched: boolean;
 };
 
+const SHEET_CLOSE_MS = 500;
+const EPISODE_STAGGER_MS = 40;
+
 type SeriesSheetProps = {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -52,9 +55,13 @@ export function SeriesSheet({
   // анимации
   const [episodesReady, setEpisodesReady] = React.useState(false);
   const [seasonsReady, setSeasonsReady] = React.useState(false);
+  const [episodesClosing, setEpisodesClosing] = React.useState(false);
 
   const prevSeriesIdRef = React.useRef<string | null>(null);
   const prevEpisodesKeyRef = React.useRef<string | null>(null);
+  const uiEpisodesCountRef = React.useRef(0);
+  const prevOpenRef = React.useRef(open);
+  const closeResetTimerRef = React.useRef<number | null>(null);
 
   const [confirmDeleteOpen, setConfirmDeleteOpen] = React.useState(false);
   const deletingRef = React.useRef(false);
@@ -78,15 +85,47 @@ export function SeriesSheet({
     }
   }, [open, seriesId]);
 
-  // On close, reset local selection so next open can apply auto-season logic again.
+  // Run exit animation on close, then reset local state after sheet animation ends.
   React.useEffect(() => {
-    if (open) return;
-    prevEpisodesKeyRef.current = null;
-    setActiveSeasonId(null);
-    setUiEpisodes(null);
+    if (prevOpenRef.current === open) return;
+    prevOpenRef.current = open;
+
+    if (open) {
+      setEpisodesClosing(false);
+      if (closeResetTimerRef.current) {
+        window.clearTimeout(closeResetTimerRef.current);
+        closeResetTimerRef.current = null;
+      }
+      return;
+    }
+
     setEpisodesReady(false);
     setSeasonsReady(false);
+    setEpisodesClosing(true);
+
+    const itemsCount = uiEpisodesCountRef.current;
+    const reverseExitTotalMs = Math.max(itemsCount - 1, 0) * EPISODE_STAGGER_MS;
+    const resetAfterMs = SHEET_CLOSE_MS + reverseExitTotalMs;
+
+    if (closeResetTimerRef.current) {
+      window.clearTimeout(closeResetTimerRef.current);
+    }
+    closeResetTimerRef.current = window.setTimeout(() => {
+      prevEpisodesKeyRef.current = null;
+      setActiveSeasonId(null);
+      setUiEpisodes(null);
+      setEpisodesClosing(false);
+      closeResetTimerRef.current = null;
+    }, resetAfterMs);
   }, [open]);
+
+  React.useEffect(() => {
+    return () => {
+      if (closeResetTimerRef.current) {
+        window.clearTimeout(closeResetTimerRef.current);
+      }
+    };
+  }, []);
 
   // Выбрать сезон пользователя (по прогрессу), иначе первый
   React.useEffect(() => {
@@ -148,6 +187,10 @@ export function SeriesSheet({
     setEpisodesReady(false);
     requestAnimationFrame(() => setEpisodesReady(true));
   }, [open, episodesKey, episodes]);
+
+  React.useEffect(() => {
+    uiEpisodesCountRef.current = uiEpisodes?.length ?? 0;
+  }, [uiEpisodes]);
 
   async function toggleEpisode(id: string) {
     if (!open) return;
@@ -259,6 +302,7 @@ export function SeriesSheet({
                       items={uiEpisodes ?? []}
                       onToggle={toggleEpisode}
                       ready={episodesReady}
+                      closing={episodesClosing}
                     />
                   </>
                 )}
