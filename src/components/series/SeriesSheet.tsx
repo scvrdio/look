@@ -243,7 +243,7 @@ export function SeriesSheet({
               {/* Episodes */}
               <div className="pt-4">
                 {initialLoading ? (
-                  <div className="text-black/40">Загрузка…</div>
+                  null
                 ) : (
                   <>
                     {backgroundUpdating ? null : null}

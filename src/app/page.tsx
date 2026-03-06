@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import useSWR from "swr";
+import useSWR, { useSWRConfig } from "swr";
 
 import { pluralRu } from "@/lib/plural";
 import { fetcher } from "@/lib/fetcher";
@@ -13,7 +13,7 @@ import { AnimatedCounter } from "@/components/ui/AnimatedCounter";
 import { hapticImpact } from "@/lib/haptics";
 import { getTelegramWebApp } from "@/types/telegram";
 
-import type { SeriesRow } from "@/types/bootstrap";
+import type { EpisodeRow, SeasonRow, SeriesRow } from "@/types/bootstrap";
 
 type Me = { name: string | null };
 type InProgress = { inProgressCount: number };
@@ -50,10 +50,12 @@ function TitleSeg({
 }
 
 export default function HomePage() {
+  const { mutate: mutateGlobal, cache } = useSWRConfig();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [activeSeriesId, setActiveSeriesId] = useState<string | null>(null);
   const [listReady, setListReady] = useState(false);
   const listIntroPlayedRef = useRef(false);
+  const bgPreloadRef = useRef(false);
 
   // title всегда вычисляем из items, а не храним отдельно (иначе рассинхрон/“Загрузка…”)
   const [tgName] = useState<string | null>(() => getTgFirstNameSafe());
@@ -119,6 +121,56 @@ export default function HomePage() {
       if (raf2) window.cancelAnimationFrame(raf2);
     };
   }, [items]);
+
+  useEffect(() => {
+    if (!listReady) return;
+    if (!items || items.length === 0) return;
+    if (bgPreloadRef.current) return;
+    bgPreloadRef.current = true;
+
+    let cancelled = false;
+    const candidates = items.filter((s) => (s.progress?.percent ?? 0) < 100);
+    const CONCURRENCY = 2;
+    let idx = 0;
+
+    async function preloadSeries(seriesId: string) {
+      const seasonsKey = `/api/series/${seriesId}/seasons`;
+      let seasons: SeasonRow[] | null = null;
+
+      const cachedSeasons = cache.get(seasonsKey) as { data?: SeasonRow[] } | undefined;
+      if (Array.isArray(cachedSeasons?.data)) {
+        seasons = cachedSeasons.data;
+      } else {
+        seasons = await fetcher<SeasonRow[]>(seasonsKey);
+        await mutateGlobal(seasonsKey, seasons, { revalidate: false });
+      }
+
+      for (const season of seasons ?? []) {
+        if (cancelled) return;
+        const episodesKey = `/api/seasons/${season.id}/episodes`;
+        const cachedEpisodes = cache.get(episodesKey) as { data?: EpisodeRow[] } | undefined;
+        if (Array.isArray(cachedEpisodes?.data)) continue;
+
+        const episodes = await fetcher<EpisodeRow[]>(episodesKey);
+        await mutateGlobal(episodesKey, episodes, { revalidate: false });
+      }
+    }
+
+    async function worker() {
+      while (!cancelled && idx < candidates.length) {
+        const current = candidates[idx++];
+        try {
+          await preloadSeries(current.id);
+        } catch {}
+      }
+    }
+
+    void Promise.all(Array.from({ length: CONCURRENCY }, worker));
+
+    return () => {
+      cancelled = true;
+    };
+  }, [listReady, items, mutateGlobal, cache]);
 
   return (
     <main className="min-h-dvh bg-white">

@@ -77,11 +77,23 @@ function BootGate({ children }: { children: React.ReactNode }) {
         }).length;
         await mutateGlobal("/api/series/in-progress-count", { inProgressCount }, { revalidate: false });
 
+        const nonCompletedSeriesIds = new Set(
+          bootstrap.series
+            .filter((s) => (s.progress?.percent ?? 0) < 100)
+            .map((s) => s.id)
+        );
+        const nonCompletedSeasonIds = new Set<string>();
+
         for (const [seriesId, seasons] of Object.entries(bootstrap.seasonsBySeries ?? {})) {
           await mutateGlobal(`/api/series/${seriesId}/seasons`, seasons, { revalidate: false });
+          if (nonCompletedSeriesIds.has(seriesId)) {
+            for (const season of seasons) nonCompletedSeasonIds.add(season.id);
+          }
         }
 
         for (const [seasonId, episodes] of Object.entries(bootstrap.episodesBySeason ?? {})) {
+          if (!nonCompletedSeasonIds.has(seasonId)) continue;
+
           await mutateGlobal(`/api/seasons/${seasonId}/episodes`, episodes, { revalidate: false });
         }
 
