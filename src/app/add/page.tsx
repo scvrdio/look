@@ -35,6 +35,13 @@ type DbSearchItem = {
   genres?: string[] | null;
 };
 
+const SERIES_TYPES = new Set(["tv-series", "anime", "animated-series", "tv-show"]);
+
+function isSeriesType(type: string | null | undefined) {
+  if (!type) return false;
+  return SERIES_TYPES.has(type);
+}
+
 async function readErrorMessage(res: Response) {
   const text = await res.text().catch(() => "");
   try {
@@ -47,7 +54,7 @@ async function readErrorMessage(res: Response) {
 
 function metaTypeLabel(type: string | null) {
   if (!type) return "";
-  if (type === "tv-series") return "Сериал";
+  if (isSeriesType(type)) return "Сериал";
   if (type === "movie") return "Фильм";
   return type;
 }
@@ -306,7 +313,10 @@ export default function AddPage() {
       let catItems: Item[] = [];
       if (resCat.ok) {
         const dataCat = await resCat.json().catch(() => null);
-        catItems = Array.isArray(dataCat?.items) ? dataCat.items : [];
+        const rawCatItems = Array.isArray(dataCat?.items) ? dataCat.items : [];
+        catItems = rawCatItems.filter(
+          (it: Item) => isSeriesType(it?.type ?? null) || (it?.seasonsCount ?? 0) > 0
+        );
       } else {
         // каталог упал — покажем ошибку, но БД результаты оставим
         setError(await readErrorMessage(resCat));

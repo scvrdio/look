@@ -7,6 +7,7 @@ export const runtime = "nodejs";
 const SOURCE = "poiskkino";
 const BASE = process.env.POISKKINO_BASE_URL ?? "https://api.poiskkino.dev";
 const KEY = process.env.POISKKINO_API_KEY;
+const SERIES_TYPES = new Set(["tv-series", "anime", "animated-series", "tv-show"]);
 
 type PoiskKinoDetails = {
   id: number;
@@ -26,6 +27,11 @@ function getErrorStack(error: unknown): string | null {
     return error.stack;
   }
   return null;
+}
+
+function isSeriesType(type: string | null | undefined) {
+  if (!type) return false;
+  return SERIES_TYPES.has(type);
 }
 
 export async function POST(req: Request) {
@@ -69,7 +75,7 @@ export async function POST(req: Request) {
     // seasonsInfo собираем ТОЛЬКО из /season (там теперь реальные данные)
     let seasonsInfo: Array<{ number: number; episodesCount: number }> = [];
 
-    if (type === "tv-series") {
+    if (isSeriesType(type)) {
       const seasonRes = await fetch(`${BASE}/v1.4/season?movieId=${externalId}`, {
         headers: { "X-API-KEY": KEY },
       });
@@ -120,7 +126,7 @@ export async function POST(req: Request) {
       seasonsInfo,
     };
 
-    const isSeries = d.type === "tv-series" || d.seasonsInfo.length > 0;
+    const isSeries = isSeriesType(d.type) || d.seasonsInfo.length > 0;
     const kind = isSeries ? "series" : "movie";
 
     // 3) создаём series (гонку ловим через unique и fallback-read)

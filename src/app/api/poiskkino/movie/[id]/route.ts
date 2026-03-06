@@ -5,6 +5,13 @@ export const runtime = "nodejs";
 const BASE = process.env.POISKKINO_BASE_URL ?? "https://api.poiskkino.dev";
 const KEY = process.env.POISKKINO_API_KEY;
 
+const SERIES_TYPES = new Set(["tv-series", "anime", "animated-series", "tv-show"]);
+
+function isSeriesType(type: string | null | undefined) {
+  if (!type) return false;
+  return SERIES_TYPES.has(type);
+}
+
 type SeasonDoc = {
   number?: unknown;
   episodes?: unknown;
@@ -33,7 +40,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
 
   let seasonsInfo: Array<{ number: number; episodesCount: number }> = [];
 
-  if (type === "tv-series") {
+  if (isSeriesType(type)) {
     const seasonRes = await fetch(`${BASE}/v1.4/season?movieId=${id}`, {
       headers: { "X-API-KEY": KEY },
     });
