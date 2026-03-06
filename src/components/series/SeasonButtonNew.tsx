@@ -41,7 +41,7 @@ export function SeasonButtonNew({
           completed
             ? active
               ? "bg-[#00A900] text-white"
-              : "bg-[#00A900]/5 text-[#13A600]"
+              : "bg-[#00A900]/10 text-[#13A600]"
             : active
               ? "bg-black text-white"
               : "bg-black/4 text-black"
