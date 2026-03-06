@@ -9,7 +9,11 @@ export async function GET() {
 
   // 1) серии пользователя
   const series = await prisma.series.findMany({
-    where: { userId: user.id },
+    where: {
+      links: {
+        some: { userId: user.id },
+      },
+    },
     select: { id: true, title: true, posterUrl: true, source: true, sourceId: true, createdAt: true },
     orderBy: { createdAt: "desc" },
   });

@@ -10,7 +10,9 @@ export async function GET() {
   // При этом сериал принадлежит юзеру
   const inProgressCount = await prisma.series.count({
     where: {
-      userId: user.id,
+      links: {
+        some: { userId: user.id },
+      },
       seasons: {
         some: {
           episodes: {

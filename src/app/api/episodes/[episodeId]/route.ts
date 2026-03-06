@@ -6,13 +6,22 @@ export async function PATCH(
     _req: Request,
     { params }: { params: Promise<{ episodeId: string }> }
   ) {
-    await getCurrentUser();
+    const user = await getCurrentUser();
   
     const { episodeId } = await params;
   
-    const current = await prisma.episode.findUnique({
-      where: { id: episodeId },
-      select: { watched: true },
+    const current = await prisma.episode.findFirst({
+      where: {
+        id: episodeId,
+        season: {
+          series: {
+            links: {
+              some: { userId: user.id },
+            },
+          },
+        },
+      },
+      select: { id: true, watched: true },
     });
   
     if (!current) {
@@ -20,7 +29,7 @@ export async function PATCH(
     }
   
     const episode = await prisma.episode.update({
-      where: { id: episodeId },
+      where: { id: current.id },
       data: {
         watched: !current.watched,
       },

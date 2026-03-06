@@ -15,7 +15,11 @@ export async function GET(req: Request) {
 
   // 1) series top-N
   const series = await prisma.series.findMany({
-    where: { userId: user.id },
+    where: {
+      links: {
+        some: { userId: user.id },
+      },
+    },
     select: { id: true, title: true, createdAt: true },
     orderBy: { createdAt: "desc" },
     take: limit,

@@ -6,7 +6,7 @@ export async function POST(
     req: Request,
     { params }: { params: Promise<{ id: string }> }
   ) {
-    await getCurrentUser();
+    const user = await getCurrentUser();
   
     const { id: seriesId } = await params;
   
@@ -21,8 +21,13 @@ export async function POST(
     }
   
     // сериал должен существовать
-    const seriesExists = await prisma.series.findUnique({
-      where: { id: seriesId },
+    const seriesExists = await prisma.series.findFirst({
+      where: {
+        id: seriesId,
+        links: {
+          some: { userId: user.id },
+        },
+      },
       select: { id: true },
     });
   
@@ -71,8 +76,21 @@ export async function GET(
     _req: Request,
     { params }: { params: Promise<{ id: string }> }
   ) {
-    await getCurrentUser();
+    const user = await getCurrentUser();
     const { id: seriesId } = await params;
+
+    const allowed = await prisma.series.findFirst({
+      where: {
+        id: seriesId,
+        links: {
+          some: { userId: user.id },
+        },
+      },
+      select: { id: true },
+    });
+    if (!allowed) {
+      return NextResponse.json({ error: "Series not found" }, { status: 404 });
+    }
   
     const seasons = await prisma.season.findMany({
       where: { seriesId, number: { gte: 1 } },

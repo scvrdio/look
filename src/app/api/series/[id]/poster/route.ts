@@ -16,7 +16,9 @@ export async function GET(
   const row = await prisma.series.findFirst({
     where: {
       id,
-      userId: user.id,
+      links: {
+        some: { userId: user.id },
+      },
     },
     select: {
       posterUrl: true,

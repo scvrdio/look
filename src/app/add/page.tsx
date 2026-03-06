@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import useSWR from "swr";
+import useSWR, { mutate } from "swr";
 import { useRouter } from "next/navigation";
 import Lottie from "lottie-react";
 import { fetcher } from "@/lib/fetcher";
@@ -300,6 +300,10 @@ export default function AddPage() {
       }
 
       hapticNotify("success");
+      await Promise.all([
+        mutate("/api/series"),
+        mutate("/api/series/in-progress-count"),
+      ]);
       router.push("/");
     } catch {
       hapticNotify("error");

@@ -273,6 +273,7 @@ export function SeriesSheet({
                       activeId={activeSeasonId}
                       ready={seasonsReady}
                       onChange={(id) => {
+                        if (id === activeSeasonId) return;
                         setEpisodesReady(false);
                         setActiveSeasonId(id);
                       }}

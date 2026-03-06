@@ -7,7 +7,11 @@ export async function GET() {
   const user = await getCurrentUser();
 
   const series = await prisma.series.findMany({
-    where: { userId: user.id },
+    where: {
+      links: {
+        some: { userId: user.id },
+      },
+    },
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
@@ -174,10 +178,29 @@ export async function POST(req: Request) {
     }
   }
 
+  const existing = await prisma.series.findFirst({
+    where: { title: { equals: title, mode: "insensitive" } },
+    select: { id: true, title: true, createdAt: true },
+  });
+  if (existing) {
+    await prisma.userSeries.upsert({
+      where: {
+        userId_seriesId: { userId: user.id, seriesId: existing.id },
+      },
+      create: { userId: user.id, seriesId: existing.id },
+      update: {},
+    });
+
+    return NextResponse.json({ ...existing, alreadyExists: true });
+  }
+
   const created = await prisma.$transaction(async (tx) => {
     const series = await tx.series.create({
       data: { title, userId: user.id },
       select: { id: true, title: true, createdAt: true },
+    });
+    await tx.userSeries.create({
+      data: { userId: user.id, seriesId: series.id },
     });
 
     for (const s of seasons) {

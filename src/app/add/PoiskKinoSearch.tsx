@@ -80,7 +80,10 @@ export function PoiskKinoSearch(props: {
       }
 
       hapticNotify("success");
-      mutate("/api/series");
+      await Promise.all([
+        mutate("/api/series"),
+        mutate("/api/series/in-progress-count"),
+      ]);
       router.push("/");
     } catch {
       hapticNotify("error");

@@ -46,10 +46,17 @@ export async function POST(req: Request) {
 
     // 1) дедуп до запросов во внешний API
     const existing = await prisma.series.findFirst({
-      where: { userId: user.id, source: SOURCE, sourceId: externalId },
+      where: { source: SOURCE, sourceId: externalId },
       select: { id: true, title: true, kind: true },
     });
     if (existing) {
+      await prisma.userSeries.upsert({
+        where: {
+          userId_seriesId: { userId: user.id, seriesId: existing.id },
+        },
+        create: { userId: user.id, seriesId: existing.id },
+        update: {},
+      });
       return NextResponse.json({ series: existing, alreadyExists: true });
     }
 
@@ -130,28 +137,25 @@ export async function POST(req: Request) {
     const kind = isSeries ? "series" : "movie";
 
     // 3) создаём series (гонку ловим через unique и fallback-read)
-    let series: { id: string; title: string; kind: string | null };
-    try {
-      series = await prisma.series.create({
-        data: {
-          userId: user.id,
-          title: d.name || "Untitled",
-          source: SOURCE,
-          sourceId: externalId,
-          posterUrl: d.posterUrl ?? null,
-          year: d.year ?? null,
-          kind,
-        },
-        select: { id: true, title: true, kind: true },
-      });
-    } catch (e) {
-      const again = await prisma.series.findFirst({
-        where: { userId: user.id, source: SOURCE, sourceId: externalId },
-        select: { id: true, title: true, kind: true },
-      });
-      if (again) return NextResponse.json({ series: again, alreadyExists: true });
-      throw e;
-    }
+    const series: { id: string; title: string; kind: string | null } = await prisma.series.create({
+      data: {
+        userId: user.id,
+        title: d.name || "Untitled",
+        source: SOURCE,
+        sourceId: externalId,
+        posterUrl: d.posterUrl ?? null,
+        year: d.year ?? null,
+        kind,
+      },
+      select: { id: true, title: true, kind: true },
+    });
+    await prisma.userSeries.upsert({
+      where: {
+        userId_seriesId: { userId: user.id, seriesId: series.id },
+      },
+      create: { userId: user.id, seriesId: series.id },
+      update: {},
+    });
 
     // movie — без сезонов/эпизодов
     if (kind === "movie") {

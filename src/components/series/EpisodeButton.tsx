@@ -41,7 +41,7 @@ export function EpisodeButton({ number, watched, onClick }: EpisodeButtonProps) 
         "flex items-center justify-center",
         "text-[16px] font-medium",
         "transition active:scale-[0.9]",
-        pulse && "scale-[0.94] ring-2 ring-black/15",
+        pulse && "scale-[0.94]",
         watched ? "bg-black text-white" : "bg-black/4 text-black"
       )}
     >

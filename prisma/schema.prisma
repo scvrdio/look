@@ -12,6 +12,7 @@ model User {
   telegramId BigInt   @unique
   createdAt  DateTime @default(now())
   series     Series[]
+  links      UserSeries[]
 }
 
 model Series {
@@ -25,10 +26,22 @@ model Series {
   sourceId  Int?
   year      Int?
   seasons   Season[]
+  links     UserSeries[]
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, source, sourceId])
   @@index([userId, title])
+}
+
+model UserSeries {
+  userId    String
+  seriesId  String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  series    Series   @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+
+  @@id([userId, seriesId])
+  @@index([seriesId])
 }
 
 model Season {

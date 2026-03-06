@@ -15,7 +15,9 @@ export async function GET(req: Request) {
     // ILIKE для Postgres (работает в Prisma через mode: "insensitive")
     const items = await prisma.series.findMany({
         where: {
-            userId: user.id,
+            links: {
+                some: { userId: user.id },
+            },
             title: { contains: q, mode: "insensitive" },
         },
         orderBy: { createdAt: "desc" },

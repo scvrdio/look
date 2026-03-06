@@ -6,12 +6,17 @@ export async function GET(
   _req: Request,
   context: { params: Promise<{ id: string }> }
 ) {
-  await getCurrentUser();
+  const user = await getCurrentUser();
 
   const { id } = await context.params;
 
-  const series = await prisma.series.findUnique({
-    where: { id },
+  const series = await prisma.series.findFirst({
+    where: {
+      id,
+      links: {
+        some: { userId: user.id },
+      },
+    },
   });
 
   if (!series) {
@@ -31,6 +36,15 @@ export async function DELETE(
   const { id } = await context.params; // <-- ВАЖНО
 
   await prisma.$transaction(async (tx) => {
+    await tx.userSeries.deleteMany({
+      where: { userId: user.id, seriesId: id },
+    });
+
+    const linksCount = await tx.userSeries.count({
+      where: { seriesId: id },
+    });
+    if (linksCount > 0) return;
+
     const seasons = await tx.season.findMany({
       where: { seriesId: id },
       select: { id: true },
