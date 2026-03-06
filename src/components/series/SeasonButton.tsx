@@ -35,7 +35,7 @@ export function SeasonButton({
           onClick();
         }}
         className={cn(
-          "shrink-0 h-12 px-5 rounded-full text-[16px] font-medium",
+          "shrink-0 h-12 px-5 rounded-full text-[16px] font-medium whitespace-nowrap",
           "transition active:scale-[0.97]",
           active ? "bg-black text-white" : "bg-black/4 text-black"
         )}
