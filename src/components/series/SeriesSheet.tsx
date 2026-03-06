@@ -30,10 +30,20 @@ type SeriesSheetProps = {
   onOpenChange: (v: boolean) => void;
   seriesId: string | null;
   title: string;
+  preferredSeasonNumber?: number | null;
+  preferredEpisodeNumber?: number | null;
   onChanged?: () => void;
 };
 
-export function SeriesSheet({ open, onOpenChange, seriesId, title, onChanged }: SeriesSheetProps) {
+export function SeriesSheet({
+  open,
+  onOpenChange,
+  seriesId,
+  title,
+  preferredSeasonNumber,
+  preferredEpisodeNumber,
+  onChanged,
+}: SeriesSheetProps) {
   const [activeSeasonId, setActiveSeasonId] = React.useState<string | null>(null);
   const [uiEpisodes, setUiEpisodes] = React.useState<EpisodeRow[] | null>(null);
 
@@ -64,14 +74,31 @@ export function SeriesSheet({ open, onOpenChange, seriesId, title, onChanged }: 
     }
   }, [open, seriesId]);
 
-  // Выбрать первый сезон по умолчанию
+  // Выбрать сезон пользователя (по прогрессу), иначе первый
   React.useEffect(() => {
     if (!open) return;
     if (activeSeasonId) return;
     if (!seasons || seasons.length === 0) return;
 
-    setActiveSeasonId(seasons[0].id);
-  }, [open, activeSeasonId, seasons]);
+    const preferred =
+      preferredSeasonNumber != null
+        ? seasons.find((s) => s.number === preferredSeasonNumber)
+        : null;
+
+    let targetSeasonId = preferred?.id ?? seasons[0].id;
+
+    // If user completed preferred season, jump to the next one.
+    if (
+      preferred &&
+      preferredEpisodeNumber != null &&
+      preferredEpisodeNumber >= preferred.episodesCount
+    ) {
+      const nextSeason = seasons.find((s) => s.number === preferred.number + 1);
+      if (nextSeason) targetSeasonId = nextSeason.id;
+    }
+
+    setActiveSeasonId(targetSeasonId);
+  }, [open, activeSeasonId, seasons, preferredSeasonNumber, preferredEpisodeNumber]);
 
   // Запуск анимации табов, когда сезоны приехали
   React.useEffect(() => {

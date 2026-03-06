@@ -86,6 +86,14 @@ export default function HomePage() {
     if (!effectiveSeriesId) return "";
     return (items ?? []).find((s) => s.id === effectiveSeriesId)?.title ?? "";
   }, [items, effectiveSeriesId]);
+  const preferredSeasonNumber = useMemo(() => {
+    if (!effectiveSeriesId) return null;
+    return (items ?? []).find((s) => s.id === effectiveSeriesId)?.progress?.last?.season ?? null;
+  }, [items, effectiveSeriesId]);
+  const preferredEpisodeNumber = useMemo(() => {
+    if (!effectiveSeriesId) return null;
+    return (items ?? []).find((s) => s.id === effectiveSeriesId)?.progress?.last?.episode ?? null;
+  }, [items, effectiveSeriesId]);
 
   const firstName = useMemo(
     () => (me?.name ?? null) || tgName || "друг",
@@ -249,6 +257,8 @@ export default function HomePage() {
         }}
         seriesId={effectiveSeriesId}
         title={activeTitle}
+        preferredSeasonNumber={preferredSeasonNumber}
+        preferredEpisodeNumber={preferredEpisodeNumber}
         onChanged={() => void mutateSeries()}
       />
     </main>
