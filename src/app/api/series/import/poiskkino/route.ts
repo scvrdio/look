@@ -45,8 +45,13 @@ export async function POST(req: Request) {
     }
 
     // 1) дедуп до запросов во внешний API
-    const existing = await prisma.series.findFirst({
-      where: { source: SOURCE, sourceId: externalId },
+    const existing = await prisma.series.findUnique({
+      where: {
+        source_externalId: {
+          source: SOURCE,
+          externalId: String(externalId),
+        },
+      },
       select: { id: true, title: true, kind: true },
     });
     if (existing) {
@@ -134,14 +139,27 @@ export async function POST(req: Request) {
     };
 
     const isSeries = isSeriesType(d.type) || d.seasonsInfo.length > 0;
-    const kind = isSeries ? "series" : "movie";
+    const kind = isSeries ? "series" : (d.type ?? "movie");
 
     // 3) создаём series (гонку ловим через unique и fallback-read)
-    const series: { id: string; title: string; kind: string | null } = await prisma.series.create({
-      data: {
-        userId: user.id,
+    const series: { id: string; title: string; kind: string | null } = await prisma.series.upsert({
+      where: {
+        source_externalId: {
+          source: SOURCE,
+          externalId: String(externalId),
+        },
+      },
+      update: {
+        title: d.name || "Untitled",
+        posterUrl: d.posterUrl ?? null,
+        year: d.year ?? null,
+        kind,
+        sourceId: externalId,
+      },
+      create: {
         title: d.name || "Untitled",
         source: SOURCE,
+        externalId: String(externalId),
         sourceId: externalId,
         posterUrl: d.posterUrl ?? null,
         year: d.year ?? null,
@@ -158,7 +176,7 @@ export async function POST(req: Request) {
     });
 
     // movie — без сезонов/эпизодов
-    if (kind === "movie") {
+    if (!isSeries) {
       return NextResponse.json({ series, alreadyExists: false });
     }
 

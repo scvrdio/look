@@ -102,7 +102,7 @@ export async function GET(req: Request) {
   const limit = clamp(toInt(searchParams.get("limit"), 20), 1, 50);
 
   // фильмы пока скрываем; в будущем включишь параметром includeMovies=1
-  const includeMovies = searchParams.get("includeMovies") === "1";
+  const includeMovies = searchParams.get("includeMovies") !== "0";
 
   if (query.length < 2) {
     return NextResponse.json({ items: [], page, limit, pages: null, total: null });

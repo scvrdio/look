@@ -10,7 +10,7 @@ export async function PATCH(
   
     const { episodeId } = await params;
   
-    const current = await prisma.episode.findFirst({
+    const episode = await prisma.episode.findFirst({
       where: {
         id: episodeId,
         season: {
@@ -21,24 +21,39 @@ export async function PATCH(
           },
         },
       },
-      select: { id: true, watched: true },
+      select: { id: true },
     });
   
-    if (!current) {
+    if (!episode) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
-  
-    const episode = await prisma.episode.update({
-      where: { id: current.id },
-      data: {
-        watched: !current.watched,
+
+    const existing = await prisma.userEpisode.findUnique({
+      where: {
+        userId_episodeId: {
+          userId: user.id,
+          episodeId: episode.id,
+        },
       },
-      select: {
-        id: true,
-        watched: true,
-      },
+      select: { episodeId: true },
     });
-  
-    return NextResponse.json(episode);
+
+    if (existing) {
+      await prisma.userEpisode.delete({
+        where: {
+          userId_episodeId: {
+            userId: user.id,
+            episodeId: episode.id,
+          },
+        },
+      });
+      return NextResponse.json({ id: episode.id, watched: false });
+    }
+
+    await prisma.userEpisode.create({
+      data: { userId: user.id, episodeId: episode.id },
+    });
+
+    return NextResponse.json({ id: episode.id, watched: true });
   }
   

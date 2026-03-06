@@ -39,16 +39,31 @@ export async function GET(req: Request) {
   // 3) episodes for all these seasons
   const episodes = await prisma.episode.findMany({
     where: { seasonId: { in: seasonIds } },
-    select: { id: true, seasonId: true, number: true, watched: true },
+    select: { id: true, seasonId: true, number: true },
     orderBy: [{ seasonId: "asc" }, { number: "asc" }],
   });
+
+  const watchedRows = await prisma.userEpisode.findMany({
+    where: {
+      userId: user.id,
+      episodeId: { in: episodes.map((e) => e.id) },
+    },
+    select: { episodeId: true },
+  });
+  const watchedSet = new Set(watchedRows.map((x) => x.episodeId));
 
   // 4) собрать структуру как SWR keys ждут
   const seasonsBySeries: Record<string, SeasonRow[]> = {};
   for (const s of seasons) (seasonsBySeries[s.seriesId] ||= []).push({ id: s.id, number: s.number, episodesCount: s.episodesCount });
 
   const episodesBySeason: Record<string, EpisodeRow[]> = {};
-  for (const e of episodes) (episodesBySeason[e.seasonId] ||= []).push({ id: e.id, number: e.number, watched: e.watched });
+  for (const e of episodes) {
+    (episodesBySeason[e.seasonId] ||= []).push({
+      id: e.id,
+      number: e.number,
+      watched: watchedSet.has(e.id),
+    });
+  }
 
   const ms = Date.now() - t0;
 

@@ -47,7 +47,7 @@ export function PoiskKinoSearch(props: {
   const key = useMemo(() => {
     const q = query.trim();
     if (q.length < 2) return null;
-    return `/api/poiskkino/search?query=${encodeURIComponent(q)}&limit=20`;
+    return `/api/poiskkino/search?query=${encodeURIComponent(q)}&limit=20&includeMovies=1`;
   }, [query]);
 
   const { data, isLoading } = useSWR<SearchResponse>(key, fetcher, {

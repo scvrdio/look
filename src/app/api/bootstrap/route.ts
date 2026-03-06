@@ -14,7 +14,20 @@ export async function GET() {
         some: { userId: user.id },
       },
     },
-    select: { id: true, title: true, posterUrl: true, source: true, sourceId: true, createdAt: true },
+    select: {
+      id: true,
+      title: true,
+      kind: true,
+      posterUrl: true,
+      source: true,
+      sourceId: true,
+      createdAt: true,
+      links: {
+        where: { userId: user.id },
+        select: { watched: true },
+        take: 1,
+      },
+    },
     orderBy: { createdAt: "desc" },
   });
 
@@ -43,28 +56,42 @@ export async function GET() {
 
   const episodes = await prisma.episode.findMany({
     where: { seasonId: { in: firstSeasonIds } },
-    select: { id: true, seasonId: true, number: true, watched: true },
+    select: { id: true, seasonId: true, number: true },
     orderBy: [{ seasonId: "asc" }, { number: "asc" }],
   });
+
+  const watchedFirstRows = await prisma.userEpisode.findMany({
+    where: {
+      userId: user.id,
+      episodeId: { in: episodes.map((e) => e.id) },
+    },
+    select: { episodeId: true },
+  });
+  const watchedFirstSet = new Set(watchedFirstRows.map((x) => x.episodeId));
 
   const episodesBySeason: Record<string, EpisodeRow[]> = {};
   for (const e of episodes) {
     (episodesBySeason[e.seasonId] ||= []).push({
       id: e.id,
       number: e.number,
-      watched: e.watched,
+      watched: watchedFirstSet.has(e.id),
     });
   }
 
   // 4) прогресс по всем эпизодам всех сериалов
-  const allEpisodes = await prisma.episode.findMany({
-    where: { season: { seriesId: { in: seriesIds } } },
-    select: {
-      watched: true,
-      number: true,
-      season: { select: { seriesId: true, number: true } },
+  const watchedAllRows = await prisma.userEpisode.findMany({
+    where: {
+      userId: user.id,
+      episode: { season: { seriesId: { in: seriesIds } } },
     },
-    orderBy: [{ season: { number: "asc" } }, { number: "asc" }],
+    select: {
+      episode: {
+        select: {
+          number: true,
+          season: { select: { seriesId: true, number: true } },
+        },
+      },
+    },
   });
 
   const epStats: Record<
@@ -72,15 +99,12 @@ export async function GET() {
     { total: number; watched: number; last: { season: number; episode: number } | null }
   > = {};
 
-  for (const e of allEpisodes) {
+  for (const row of watchedAllRows) {
+    const e = row.episode;
     const sid = e.season.seriesId;
     const st = (epStats[sid] ||= { total: 0, watched: 0, last: null });
-
-    st.total += 1;
-    if (e.watched) {
-      st.watched += 1;
-      st.last = { season: e.season.number, episode: e.number };
-    }
+    st.watched += 1;
+    st.last = { season: e.season.number, episode: e.number };
   }
 
   const seriesRows: BootstrapResponse["series"] = series.map((s) => {
@@ -89,7 +113,9 @@ export async function GET() {
     const episodesCount = seasonsArr.reduce((acc, x) => acc + x.episodesCount, 0);
 
     const st = epStats[s.id] ?? { total: 0, watched: 0, last: null };
-    const percent = st.total > 0 ? Math.round((st.watched / st.total) * 100) : 0;
+    st.total = episodesCount;
+    const movieWatched = s.links[0]?.watched ?? false;
+    const percent = episodesCount > 0 ? Math.round((st.watched / st.total) * 100) : (movieWatched ? 100 : 0);
 
     return {
         id: s.id,

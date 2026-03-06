@@ -11,36 +11,38 @@ model User {
   id         String   @id @default(cuid())
   telegramId BigInt   @unique
   createdAt  DateTime @default(now())
-  series     Series[]
   links      UserSeries[]
+  episodes   UserEpisode[]
 }
 
 model Series {
   id        String   @id @default(cuid())
   title     String
   createdAt DateTime @default(now())
-  userId    String
   kind      String?
   posterUrl String?
-  source    String?
+  source    String   @default("manual")
+  externalId String
   sourceId  Int?
   year      Int?
   seasons   Season[]
   links     UserSeries[]
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, source, sourceId])
-  @@index([userId, title])
+  @@unique([source, externalId])
+  @@index([title])
+  @@index([source, sourceId])
 }
 
 model UserSeries {
   userId    String
   seriesId  String
+  watched   Boolean  @default(false)
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   series    Series   @relation(fields: [seriesId], references: [id], onDelete: Cascade)
 
   @@id([userId, seriesId])
+  @@index([userId])
   @@index([seriesId])
 }
 
@@ -60,9 +62,21 @@ model Episode {
   id        String   @id @default(cuid())
   seasonId  String
   number    Int
-  watched   Boolean  @default(false)
   createdAt DateTime @default(now())
+  users     UserEpisode[]
   season    Season   @relation(fields: [seasonId], references: [id], onDelete: Cascade)
 
   @@unique([seasonId, number])
+}
+
+model UserEpisode {
+  userId    String
+  episodeId String
+  watchedAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  episode   Episode  @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+
+  @@id([userId, episodeId])
+  @@index([userId])
+  @@index([episodeId])
 }

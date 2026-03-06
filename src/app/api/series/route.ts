@@ -16,10 +16,16 @@ export async function GET() {
     select: {
       id: true,
       title: true,
+      kind: true,
       createdAt: true,
       source: true,
       sourceId: true,
       posterUrl: true,
+      links: {
+        where: { userId: user.id },
+        select: { watched: true },
+        take: 1,
+      },
       seasons: {
         orderBy: { number: "asc" },
         select: {
@@ -33,64 +39,67 @@ export async function GET() {
 
   const seasonIds = series.flatMap((s) => s.seasons.map((x) => x.id));
 
-  // Watched episodes count per season.
-  const watchedCountsBySeason = await prisma.episode.groupBy({
-    by: ["seasonId"],
+  const watchedRows = await prisma.userEpisode.findMany({
     where: {
-      watched: true,
-      seasonId: { in: seasonIds },
+      userId: user.id,
+      episode: {
+        seasonId: { in: seasonIds },
+      },
     },
-    _count: { _all: true },
+    select: {
+      episode: {
+        select: {
+          seasonId: true,
+          number: true,
+          season: {
+            select: {
+              seriesId: true,
+              number: true,
+            },
+          },
+        },
+      },
+    },
   });
 
-  // Last watched episode number per season.
-  const watchedMaxBySeason = await prisma.episode.groupBy({
-    by: ["seasonId"],
-    where: {
-      watched: true,
-      seasonId: { in: seasonIds },
-    },
-    _max: { number: true },
-  });
+  const watchedCountMap = new Map<string, number>();
+  const lastMap = new Map<string, { season: number; episode: number }>();
 
-  const watchedCountMap = new Map<string, number>(
-    watchedCountsBySeason.map((x) => [x.seasonId, x._count._all])
-  );
-  const watchedMaxMap = new Map<string, number>(
-    watchedMaxBySeason
-      .filter((x) => typeof x._max.number === "number")
-      .map((x) => [x.seasonId, x._max.number as number])
-  );
+  for (const row of watchedRows) {
+    const ep = row.episode;
+    watchedCountMap.set(ep.seasonId, (watchedCountMap.get(ep.seasonId) ?? 0) + 1);
+
+    const prev = lastMap.get(ep.season.seriesId);
+    if (
+      !prev ||
+      ep.season.number > prev.season ||
+      (ep.season.number === prev.season && ep.number > prev.episode)
+    ) {
+      lastMap.set(ep.season.seriesId, {
+        season: ep.season.number,
+        episode: ep.number,
+      });
+    }
+  }
 
   const result = series.map((s) => {
     let total = 0;
     let watched = 0;
 
-    let lastSeason = 0;
-    let lastEpisode = 0;
-
     for (const season of s.seasons) {
       total += season.episodesCount;
       const watchedInSeason = watchedCountMap.get(season.id) ?? 0;
       watched += watchedInSeason;
-
-      const maxEpisodeInSeason = watchedMaxMap.get(season.id);
-      if (typeof maxEpisodeInSeason === "number") {
-        if (
-          season.number > lastSeason ||
-          (season.number === lastSeason && maxEpisodeInSeason > lastEpisode)
-        ) {
-          lastSeason = season.number;
-          lastEpisode = maxEpisodeInSeason;
-        }
-      }
     }
 
-    const percent = total === 0 ? 0 : Math.round((watched / total) * 100);
+    const personalMovieWatched = s.links[0]?.watched ?? false;
+    const percent = total === 0 ? (personalMovieWatched ? 100 : 0) : Math.round((watched / total) * 100);
+    const last = total === 0 ? null : (lastMap.get(s.id) ?? null);
 
     return {
       id: s.id,
       title: s.title,
+      kind: s.kind,
       createdAt: s.createdAt,
       source: s.source,
       sourceId: s.sourceId,
@@ -99,10 +108,7 @@ export async function GET() {
       episodesCount: total,
       progress: {
         percent,
-        last:
-          total === 0
-            ? null
-            : { season: lastSeason || 1, episode: lastEpisode || 1 },
+        last,
         watchedEpisodes: watched,
         totalEpisodes: total,
       },
@@ -122,6 +128,18 @@ type CreateSeasonInput = {
   number?: unknown;
   episodesCount?: unknown;
 };
+
+function normalizeManualExternalId(title: string) {
+  const normalized = title
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\u0400-\u04ff]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 120);
+
+  return `title:${normalized || "untitled"}`;
+}
 
 export async function POST(req: Request) {
   const user = await getCurrentUser();
@@ -178,29 +196,34 @@ export async function POST(req: Request) {
     }
   }
 
-  const existing = await prisma.series.findFirst({
-    where: { title: { equals: title, mode: "insensitive" } },
-    select: { id: true, title: true, createdAt: true },
-  });
-  if (existing) {
-    await prisma.userSeries.upsert({
-      where: {
-        userId_seriesId: { userId: user.id, seriesId: existing.id },
-      },
-      create: { userId: user.id, seriesId: existing.id },
-      update: {},
-    });
-
-    return NextResponse.json({ ...existing, alreadyExists: true });
-  }
+  const manualExternalId = normalizeManualExternalId(title);
 
   const created = await prisma.$transaction(async (tx) => {
-    const series = await tx.series.create({
-      data: { title, userId: user.id },
+    const series = await tx.series.upsert({
+      where: {
+        source_externalId: {
+          source: "manual",
+          externalId: manualExternalId,
+        },
+      },
+      update: {
+        title,
+        kind: "series",
+      },
+      create: {
+        title,
+        kind: "series",
+        source: "manual",
+        externalId: manualExternalId,
+      },
       select: { id: true, title: true, createdAt: true },
     });
-    await tx.userSeries.create({
-      data: { userId: user.id, seriesId: series.id },
+    await tx.userSeries.upsert({
+      where: {
+        userId_seriesId: { userId: user.id, seriesId: series.id },
+      },
+      create: { userId: user.id, seriesId: series.id },
+      update: {},
     });
 
     for (const s of seasons) {
@@ -217,7 +240,6 @@ export async function POST(req: Request) {
         data: Array.from({ length: s.episodesCount }, (_, i) => ({
           seasonId: season.id,
           number: i + 1,
-          watched: false,
         })),
       });
     }

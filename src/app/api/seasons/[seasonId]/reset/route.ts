@@ -6,12 +6,27 @@ export async function POST(
   _req: Request,
   { params }: { params: Promise<{ seasonId: string }> }
 ) {
-  await getCurrentUser();
+  const user = await getCurrentUser();
   const { seasonId } = await params;
 
   console.log("RESET seasonId =", seasonId);
 
   // удаляем все эпизоды сезона
+  const allowed = await prisma.season.findFirst({
+    where: {
+      id: seasonId,
+      series: {
+        links: {
+          some: { userId: user.id },
+        },
+      },
+    },
+    select: { id: true },
+  });
+  if (!allowed) {
+    return NextResponse.json({ error: "Season not found" }, { status: 404 });
+  }
+
   await prisma.episode.deleteMany({ where: { seasonId } });
 
   // берём сколько эпизодов должно быть

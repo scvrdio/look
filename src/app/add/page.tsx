@@ -358,7 +358,7 @@ export default function AddPage() {
       // 1) параллельно: БД + каталог
       const [resDb, resCat] = await Promise.all([
         fetch(`/api/series/search?q=${encodeURIComponent(q)}`, { cache: "no-store" }),
-        fetch(`/api/poiskkino/search?query=${encodeURIComponent(q)}&limit=10`, { cache: "no-store" }),
+        fetch(`/api/poiskkino/search?query=${encodeURIComponent(q)}&limit=10&includeMovies=1`, { cache: "no-store" }),
       ]);
 
       // --- DB
@@ -372,7 +372,7 @@ export default function AddPage() {
           name: s.title ?? "",
           year: s.year ?? null,
           posterUrl: s.posterUrl ?? null,
-          type: s.kind === "movie" ? "movie" : "tv-series",
+          type: s.kind ?? "tv-series",
           seasonsCount: s.seasonsCount ?? null,
           episodesCount: s.episodesCount ?? null,
           genres: Array.isArray(s.genres) ? s.genres : undefined,
@@ -389,9 +389,7 @@ export default function AddPage() {
       if (resCat.ok) {
         const dataCat = await resCat.json().catch(() => null);
         const rawCatItems = Array.isArray(dataCat?.items) ? dataCat.items : [];
-        catItems = rawCatItems.filter(
-          (it: Item) => isSeriesType(it?.type ?? null) || (it?.seasonsCount ?? 0) > 0
-        );
+        catItems = rawCatItems;
       } else {
         // каталог упал — покажем ошибку, но БД результаты оставим
         setError(await readErrorMessage(resCat));

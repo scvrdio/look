@@ -39,6 +39,16 @@ export async function DELETE(
     await tx.userSeries.deleteMany({
       where: { userId: user.id, seriesId: id },
     });
+    await tx.userEpisode.deleteMany({
+      where: {
+        userId: user.id,
+        episode: {
+          season: {
+            seriesId: id,
+          },
+        },
+      },
+    });
 
     const linksCount = await tx.userSeries.count({
       where: { seriesId: id },
