@@ -74,6 +74,15 @@ export function SeriesSheet({
     }
   }, [open, seriesId]);
 
+  // On close, reset local selection so next open can apply auto-season logic again.
+  React.useEffect(() => {
+    if (open) return;
+    setActiveSeasonId(null);
+    setUiEpisodes(null);
+    setEpisodesReady(false);
+    setSeasonsReady(false);
+  }, [open]);
+
   // Выбрать сезон пользователя (по прогрессу), иначе первый
   React.useEffect(() => {
     if (!open) return;
