@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
 
@@ -52,6 +52,8 @@ function TitleSeg({
 export default function HomePage() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [activeSeriesId, setActiveSeriesId] = useState<string | null>(null);
+  const [listReady, setListReady] = useState(false);
+  const listIntroPlayedRef = useRef(false);
 
   // title всегда вычисляем из items, а не храним отдельно (иначе рассинхрон/“Загрузка…”)
   const [tgName] = useState<string | null>(() => getTgFirstNameSafe());
@@ -77,7 +79,6 @@ export default function HomePage() {
     return items.some((s) => s.id === pendingOpenSeriesId) ? pendingOpenSeriesId : null;
   }, [items, pendingOpenSeriesId]);
 
-  const listReady = Boolean(items);
   const titleReady = true;
   const effectiveSeriesId = activeSeriesId ?? autoOpenSeriesId;
   const effectiveSheetOpen = sheetOpen || Boolean(autoOpenSeriesId);
@@ -92,6 +93,24 @@ export default function HomePage() {
   );
 
   const inProgressCount = prog?.inProgressCount ?? 0;
+
+  useEffect(() => {
+    if (!items || items.length === 0) return;
+    if (listIntroPlayedRef.current) return;
+    listIntroPlayedRef.current = true;
+
+    let raf2 = 0;
+    const raf1 = window.requestAnimationFrame(() => {
+      raf2 = window.requestAnimationFrame(() => {
+        setListReady(true);
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(raf1);
+      if (raf2) window.cancelAnimationFrame(raf2);
+    };
+  }, [items]);
 
   return (
     <main className="min-h-dvh bg-white">
