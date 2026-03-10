@@ -184,7 +184,7 @@ export function SeriesFooterCarousel({
                     className="w-full shrink-0 snap-start overflow-visible px-6"
                   >
                     <div className="relative flex min-h-[52px] items-center gap-x-[12px] overflow-visible pr-[132px]">
-                      <div className="h-[52px] w-[34px] shrink-0 rounded-md bg-white/10">
+                      <div className="h-[60px] w-[40px] shrink-0 rounded-md bg-white/10">
                         {series.posterUrl ? (
                           <img
                             src={series.posterUrl}
@@ -212,7 +212,7 @@ export function SeriesFooterCarousel({
                           onOpenSeries(series.id);
                         }}
                       >
-                        <div className="text-[16px] leading-[0.95] pb-1.5 break-words font-semibold whitespace-normal">{series.title}</div>
+                        <div className="text-[16px] leading-[1.2] pb-1 break-words font-semibold whitespace-normal">{series.title}</div>
                         <div className="text-[14px] leading-[1.2] text-white/60 break-words whitespace-normal">
                           {season ? `S${season}, ` : ""}
                           {episodesCount}{" "}
