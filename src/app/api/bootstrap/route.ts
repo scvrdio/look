@@ -87,6 +87,7 @@ export async function GET() {
     select: {
       episode: {
         select: {
+          seasonId: true,
           number: true,
           season: { select: { seriesId: true, number: true } },
         },
@@ -98,13 +99,22 @@ export async function GET() {
     string,
     { total: number; watched: number; last: { season: number; episode: number } | null }
   > = {};
+  const watchedBySeasonId = new Map<string, number>();
 
   for (const row of watchedAllRows) {
     const e = row.episode;
     const sid = e.season.seriesId;
+    watchedBySeasonId.set(e.seasonId, (watchedBySeasonId.get(e.seasonId) ?? 0) + 1);
     const st = (epStats[sid] ||= { total: 0, watched: 0, last: null });
     st.watched += 1;
     st.last = { season: e.season.number, episode: e.number };
+  }
+
+  for (const seasons of Object.values(seasonsBySeries)) {
+    for (const season of seasons) {
+      const watchedEpisodes = watchedBySeasonId.get(season.id) ?? 0;
+      season.completed = season.episodesCount > 0 && watchedEpisodes >= season.episodesCount;
+    }
   }
 
   const seriesRows: BootstrapResponse["series"] = series.map((s) => {

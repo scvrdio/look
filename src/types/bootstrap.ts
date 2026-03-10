@@ -12,7 +12,7 @@ export type SeriesRow = {
     };
   };
   
-  export type SeasonRow = { id: string; number: number; episodesCount: number };
+  export type SeasonRow = { id: string; number: number; episodesCount: number; completed?: boolean };
   export type EpisodeRow = { id: string; number: number; watched: boolean };
   
   export type BootstrapResponse = {
