@@ -57,7 +57,6 @@ export function SeriesSheet({
 }: SeriesSheetProps) {
   const SWIPE_CLOSE_DISTANCE_PX = 36;
   const SWIPE_CLOSE_VELOCITY_PX_PER_MS = 0.25;
-  const SWIPE_CLOSE_ANIMATION_MS = 280;
 
   const [activeSeasonId, setActiveSeasonId] = React.useState<string | null>(null);
   const [uiEpisodes, setUiEpisodes] = React.useState<EpisodeRow[] | null>(null);
@@ -195,16 +194,12 @@ export function SeriesSheet({
     }, 240);
   }
 
-  function animateSwipeClose(offsetY: number) {
+  function closeSheetBySwipe() {
     const content = dragContentRef.current;
-    if (!content) {
-      onOpenChange(false);
-      return;
+    if (content) {
+      content.style.transition = "";
+      content.style.transform = "";
     }
-
-    const target = Math.max(content.offsetHeight, offsetY + 120);
-    content.style.transition = `transform ${SWIPE_CLOSE_ANIMATION_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`;
-    content.style.transform = `translateY(${target}px)`;
     onOpenChange(false);
   }
 
@@ -220,6 +215,14 @@ export function SeriesSheet({
   function onSheetPointerDown(event: React.PointerEvent<HTMLDivElement>) {
     if (!open) return;
     if (event.pointerType === "mouse" && event.button !== 0) return;
+    const target = event.target as HTMLElement | null;
+    if (
+      target?.closest(
+        'button,a,input,textarea,select,label,[role="button"],[data-no-sheet-drag="true"]'
+      )
+    ) {
+      return;
+    }
 
     const content = resolveSheetContent(event.currentTarget);
     if (!content) return;
@@ -285,7 +288,7 @@ export function SeriesSheet({
     if (!wasActive) return;
 
     if (offset >= SWIPE_CLOSE_DISTANCE_PX || velocity >= SWIPE_CLOSE_VELOCITY_PX_PER_MS) {
-      animateSwipeClose(offset);
+      closeSheetBySwipe();
       return;
     }
 
