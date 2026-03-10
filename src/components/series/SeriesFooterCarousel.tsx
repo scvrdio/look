@@ -212,8 +212,8 @@ export function SeriesFooterCarousel({
                           onOpenSeries(series.id);
                         }}
                       >
-                        <div className="text-[16px] leading-[0.95] pb-1 break-words whitespace-normal">{series.title}</div>
-                        <div className="text-[14px] leading-[1.2] text-white/85 break-words whitespace-normal">
+                        <div className="text-[16px] leading-[0.95] pb-1.5 break-words font-semibold whitespace-normal">{series.title}</div>
+                        <div className="text-[14px] leading-[1.2] text-white/60 break-words whitespace-normal">
                           {season ? `S${season}, ` : ""}
                           {episodesCount}{" "}
                           {pluralRu(episodesCount, "серия", "серии", "серий")}

@@ -23,7 +23,6 @@ export default function HomePage() {
   const [activeSeriesId, setActiveSeriesId] = useState<string | null>(null);
   const [listReady, setListReady] = useState(false);
   const [footerReady, setFooterReady] = useState(false);
-  const listIntroPlayedRef = useRef(false);
   const bgPreloadRef = useRef(false);
 
   // title всегда вычисляем из items, а не храним отдельно (иначе рассинхрон/"Загрузка…")
@@ -79,8 +78,7 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!items || items.length === 0) return;
-    if (listIntroPlayedRef.current) return;
-    listIntroPlayedRef.current = true;
+    if (listReady) return;
 
     let raf2 = 0;
     const raf1 = window.requestAnimationFrame(() => {
@@ -93,7 +91,7 @@ export default function HomePage() {
       window.cancelAnimationFrame(raf1);
       if (raf2) window.cancelAnimationFrame(raf2);
     };
-  }, [items]);
+  }, [items, listReady]);
 
   useEffect(() => {
     if (!listReady) return;
