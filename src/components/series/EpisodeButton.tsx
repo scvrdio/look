@@ -22,7 +22,7 @@ export function EpisodeButton({ number, watched, onClick }: EpisodeButtonProps) 
         "h-16 w-16 rounded-full",
         "flex items-center justify-center",
         "text-[16px] font-medium",
-        "transition",
+        "transition-none",
         watched ? "bg-black text-white" : "bg-black/4 text-black"
       )}
     >
