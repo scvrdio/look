@@ -38,6 +38,22 @@ async function telegramAuthIfNeeded() {
   }
 }
 
+function isUnauthorizedError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const message = error.message.toLowerCase();
+  return message.includes("401") || message.includes("unauthorized");
+}
+
+async function fetchBootstrapWithAuthRetry(): Promise<BootstrapResponse> {
+  try {
+    return await fetcher<BootstrapResponse>("/api/bootstrap");
+  } catch (error) {
+    if (!isUnauthorizedError(error)) throw error;
+    await telegramAuthIfNeeded();
+    return fetcher<BootstrapResponse>("/api/bootstrap");
+  }
+}
+
 function BootGate({ children }: { children: React.ReactNode }) {
   const { mutate: mutateGlobal } = useSWRConfig();
 
@@ -61,12 +77,8 @@ function BootGate({ children }: { children: React.ReactNode }) {
           }
         } catch {}
 
-        // 1) auth (cookie)
-        await telegramAuthIfNeeded();
-        if (cancelled) return;
-
-        // 2) bootstrap in one request (series + seasons + first-season episodes)
-        const bootstrap = await fetcher<BootstrapResponse>("/api/bootstrap");
+        // 1) bootstrap immediately; fallback to Telegram auth only on 401.
+        const bootstrap = await fetchBootstrapWithAuthRetry();
         if (cancelled) return;
 
         await mutateGlobal("/api/series", bootstrap.series, { revalidate: false });

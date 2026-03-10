@@ -76,7 +76,6 @@ export function SeriesSheet({
   const closeResetTimerRef = React.useRef<number | null>(null);
   const loadingLottieTimerRef = React.useRef<number | null>(null);
   const dragResetTimerRef = React.useRef<number | null>(null);
-  const swipeCloseTimerRef = React.useRef<number | null>(null);
   const draggingPointerIdRef = React.useRef<number | null>(null);
   const dragPhaseRef = React.useRef<"idle" | "pending" | "active">("idle");
   const dragStartYRef = React.useRef(0);
@@ -156,9 +155,6 @@ export function SeriesSheet({
       if (dragResetTimerRef.current) {
         window.clearTimeout(dragResetTimerRef.current);
       }
-      if (swipeCloseTimerRef.current) {
-        window.clearTimeout(swipeCloseTimerRef.current);
-      }
     };
   }, []);
 
@@ -209,14 +205,7 @@ export function SeriesSheet({
     const target = Math.max(content.offsetHeight, offsetY + 120);
     content.style.transition = `transform ${SWIPE_CLOSE_ANIMATION_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`;
     content.style.transform = `translateY(${target}px)`;
-
-    if (swipeCloseTimerRef.current) {
-      window.clearTimeout(swipeCloseTimerRef.current);
-    }
-    swipeCloseTimerRef.current = window.setTimeout(() => {
-      swipeCloseTimerRef.current = null;
-      onOpenChange(false);
-    }, SWIPE_CLOSE_ANIMATION_MS);
+    onOpenChange(false);
   }
 
   function clearDragState() {

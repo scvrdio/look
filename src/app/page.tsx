@@ -50,6 +50,7 @@ function TitleSeg({
 }
 
 export default function HomePage() {
+  const SERIES_CACHE_KEY = "series_cache_v1";
   const { mutate: mutateGlobal, cache } = useSWRConfig();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [activeSeriesId, setActiveSeriesId] = useState<string | null>(null);
@@ -66,9 +67,22 @@ export default function HomePage() {
     return id;
   });
 
+  const cachedSeriesFallback = useMemo<SeriesRow[] | undefined>(() => {
+    if (typeof window === "undefined") return undefined;
+    try {
+      const raw = localStorage.getItem(SERIES_CACHE_KEY);
+      if (!raw) return undefined;
+      const parsed = JSON.parse(raw) as SeriesRow[];
+      return Array.isArray(parsed) ? parsed : undefined;
+    } catch {
+      return undefined;
+    }
+  }, []);
+
   const { data: items, mutate: mutateSeries } = useSWR<SeriesRow[]>(
     "/api/series",
-    fetcher
+    fetcher,
+    { fallbackData: cachedSeriesFallback }
   );
   const { data: me } = useSWR<Me>("/api/me", fetcher);
   const { data: prog } = useSWR<InProgress>(
@@ -103,6 +117,13 @@ export default function HomePage() {
   );
 
   const inProgressCount = prog?.inProgressCount ?? 0;
+
+  useEffect(() => {
+    if (!items) return;
+    try {
+      localStorage.setItem(SERIES_CACHE_KEY, JSON.stringify(items));
+    } catch {}
+  }, [items]);
 
   useEffect(() => {
     if (!items || items.length === 0) return;
