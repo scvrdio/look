@@ -55,8 +55,8 @@ export function SeriesSheet({
   preferredEpisodeNumber,
   onChanged,
 }: SeriesSheetProps) {
-  const SWIPE_CLOSE_VELOCITY_PX_PER_MS = 1.1;
-  const SWIPE_CLOSE_NEAR_BOTTOM_RATIO = 0.9;
+  const SWIPE_CLOSE_DISTANCE_PX = 36;
+  const SWIPE_CLOSE_VELOCITY_PX_PER_MS = 0.25;
   const SWIPE_CLOSE_ANIMATION_MS = 180;
 
   const [activeSeasonId, setActiveSeasonId] = React.useState<string | null>(null);
@@ -295,11 +295,7 @@ export function SeriesSheet({
 
     if (!wasActive) return;
 
-    const contentHeight = dragContentRef.current?.offsetHeight ?? 0;
-    const draggedNearBottom =
-      contentHeight > 0 && offset >= contentHeight * SWIPE_CLOSE_NEAR_BOTTOM_RATIO;
-
-    if (velocity >= SWIPE_CLOSE_VELOCITY_PX_PER_MS || draggedNearBottom) {
+    if (offset >= SWIPE_CLOSE_DISTANCE_PX || velocity >= SWIPE_CLOSE_VELOCITY_PX_PER_MS) {
       animateSwipeClose(offset);
       return;
     }
