@@ -274,6 +274,7 @@ export default function AddPage() {
     setError(null);
     setSearching(false);
     setStep("idle");
+    inputRef.current?.focus({ preventScroll: true });
   }
 
   const [addingId, setAddingId] = useState<number | null>(null);
@@ -441,18 +442,22 @@ export default function AddPage() {
             headerReady ? "opacity-100 translate-y-0 blur-0" : "opacity-0 translate-y-6 blur-[8px]",
           ].join(" ")}
         >
-          <div className="relative flex-1">
+          <form
+            className="relative flex-1"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const input = inputRef.current;
+              const raw = input?.value ?? query;
+              void runSearch(raw);
+              input?.blur();
+            }}
+          >
             <input
               ref={inputRef}
               value={query}
-              type="search"
+              type="text"
               onChange={(e) => onChange(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key !== "Enter") return;
-                e.preventDefault();
-                runSearch(e.currentTarget.value); // FIX: not from state
-              }}
-              inputMode="search"
+              inputMode="text"
               enterKeyHint="search"
               placeholder={placeholder}
               className="w-full h-11 rounded-full bg-black/2 px-4 pr-10 text-[16px] font-medium outline-[1px] outline-black/5 placeholder:text-black/30"
@@ -460,6 +465,11 @@ export default function AddPage() {
 
             <button
               type="button"
+              onPointerDown={(e) => {
+                if (rightIcon !== "clear") return;
+                // Keep focus on the input so mobile keyboard stays open.
+                e.preventDefault();
+              }}
               onClick={() => {
                 if (rightIcon === "clear") clear();
               }}
@@ -473,7 +483,7 @@ export default function AddPage() {
                 <Search className="w-6 h-6 text-black/30" />
               )}
             </button>
-          </div>
+          </form>
 
           <button
             type="button"
