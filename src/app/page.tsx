@@ -60,29 +60,11 @@ export default function HomePage() {
 
   // title всегда вычисляем из items, а не храним отдельно (иначе рассинхрон/“Загрузка…”)
   const [tgName] = useState<string | null>(() => getTgFirstNameSafe());
-  const [pendingOpenSeriesId, setPendingOpenSeriesId] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
-    const id = sessionStorage.getItem("openSeriesId");
-    sessionStorage.removeItem("openSeriesId");
-    return id;
-  });
-
-  const cachedSeriesFallback = useMemo<SeriesRow[] | undefined>(() => {
-    if (typeof window === "undefined") return undefined;
-    try {
-      const raw = localStorage.getItem(SERIES_CACHE_KEY);
-      if (!raw) return undefined;
-      const parsed = JSON.parse(raw) as SeriesRow[];
-      return Array.isArray(parsed) ? parsed : undefined;
-    } catch {
-      return undefined;
-    }
-  }, []);
+  const [pendingOpenSeriesId, setPendingOpenSeriesId] = useState<string | null>(null);
 
   const { data: items, mutate: mutateSeries } = useSWR<SeriesRow[]>(
     "/api/series",
-    fetcher,
-    { fallbackData: cachedSeriesFallback }
+    fetcher
   );
   const { data: me } = useSWR<Me>("/api/me", fetcher);
   const { data: prog } = useSWR<InProgress>(
@@ -117,6 +99,22 @@ export default function HomePage() {
   );
 
   const inProgressCount = prog?.inProgressCount ?? 0;
+
+  useEffect(() => {
+    try {
+      const id = sessionStorage.getItem("openSeriesId");
+      sessionStorage.removeItem("openSeriesId");
+      if (id) setPendingOpenSeriesId(id);
+    } catch {}
+
+    try {
+      const raw = localStorage.getItem(SERIES_CACHE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as SeriesRow[];
+      if (!Array.isArray(parsed)) return;
+      void mutateGlobal("/api/series", parsed, { revalidate: false });
+    } catch {}
+  }, [mutateGlobal]);
 
   useEffect(() => {
     if (!items) return;

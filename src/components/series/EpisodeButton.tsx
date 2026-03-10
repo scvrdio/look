@@ -1,8 +1,8 @@
 "use client";
 
-import * as React from "react";
 import { cn } from "@/lib/utils";
 import { hapticSelection } from "@/lib/haptics";
+import ClickSpark from "@/components/ClickSpark";
 
 type EpisodeButtonProps = {
   number: number;
@@ -11,7 +11,7 @@ type EpisodeButtonProps = {
 };
 
 export function EpisodeButton({ number, watched, onClick }: EpisodeButtonProps) {
-  return (
+  const button = (
     <button
       type="button"
       onClick={() => {
@@ -19,7 +19,7 @@ export function EpisodeButton({ number, watched, onClick }: EpisodeButtonProps) 
         onClick();
       }}
       className={cn(
-        "h-16 w-16 rounded-full",
+        "w-full aspect-square rounded-full",
         "flex items-center justify-center",
         "text-[16px] font-medium",
         "transition-none",
@@ -28,5 +28,19 @@ export function EpisodeButton({ number, watched, onClick }: EpisodeButtonProps) 
     >
       {number}
     </button>
+  );
+
+  return (
+    <ClickSpark
+      enabled={!watched}
+      center
+      sparkColor="#FF3D00"
+      sparkSize={12}
+      sparkRadius={24}
+      sparkCount={10}
+      duration={300}
+    >
+      {button}
+    </ClickSpark>
   );
 }

@@ -19,7 +19,7 @@ type Props = {
 
 export function EpisodeGrid({ items, onToggle, ready, closing = false }: Props) {
   return (
-    <div className="grid grid-cols-5 justify-between gap-2">
+    <div className="grid grid-cols-5 gap-[6px]">
       {items.map((e, i) => {
         // On close, play exit animation in reverse order: last episode first.
         // On open, keep the original order: first episode first.
