@@ -16,6 +16,12 @@ type SeriesFooterCarouselProps = {
   onAddEpisode: (seriesId: string) => Promise<void> | void;
 };
 
+type SeasonProgressView = {
+  season: number;
+  episode: number;
+  episodesCount: number;
+};
+
 export function SeriesFooterCarousel({
   items,
   onOpenSeries,
@@ -29,9 +35,8 @@ export function SeriesFooterCarousel({
   const dragStartYRef = useRef(0);
   const swipeUpArmedRef = useRef(false);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [addingBySeriesId, setAddingBySeriesId] = useState<Record<string, boolean>>({});
-  const [seasonEpisodesBySeriesId, setSeasonEpisodesBySeriesId] = useState<
-    Record<string, number>
+  const [seasonProgressViewBySeriesId, setSeasonProgressViewBySeriesId] = useState<
+    Record<string, SeasonProgressView>
   >({});
 
   const inProgressItems = useMemo(
@@ -43,10 +48,11 @@ export function SeriesFooterCarousel({
     let cancelled = false;
 
     async function loadSeasonEpisodeCounts() {
-      const nextMap: Record<string, number> = {};
+      const nextMap: Record<string, SeasonProgressView> = {};
 
       for (const series of inProgressItems) {
         const seasonNumber = series.progress?.last?.season;
+        const episodeNumber = series.progress?.last?.episode ?? 0;
         if (!seasonNumber) continue;
 
         const seasonsKey = `/api/series/${series.id}/seasons`;
@@ -62,14 +68,31 @@ export function SeriesFooterCarousel({
           await mutateGlobal(seasonsKey, seasons, { revalidate: false });
         }
 
-        const currentSeason = (seasons ?? []).find((s) => s.number === seasonNumber);
-        if (currentSeason) {
-          nextMap[series.id] = currentSeason.episodesCount;
+        const orderedSeasons = [...(seasons ?? [])].sort((a, b) => a.number - b.number);
+        const currentIndex = orderedSeasons.findIndex((s) => s.number === seasonNumber);
+        if (currentIndex < 0) continue;
+
+        const currentSeason = orderedSeasons[currentIndex];
+        const nextSeason = orderedSeasons[currentIndex + 1];
+
+        if (episodeNumber >= currentSeason.episodesCount && nextSeason) {
+          nextMap[series.id] = {
+            season: nextSeason.number,
+            episode: 0,
+            episodesCount: nextSeason.episodesCount,
+          };
+          continue;
         }
+
+        nextMap[series.id] = {
+          season: currentSeason.number,
+          episode: episodeNumber,
+          episodesCount: currentSeason.episodesCount,
+        };
       }
 
       if (!cancelled) {
-        setSeasonEpisodesBySeriesId(nextMap);
+        setSeasonProgressViewBySeriesId(nextMap);
       }
     }
 
@@ -174,9 +197,10 @@ export function SeriesFooterCarousel({
               className="mt-4 flex snap-x snap-mandatory overflow-x-auto overflow-y-visible pb-1 no-scrollbar touch-pan-x"
             >
               {inProgressItems.map((series, idx) => {
-                const season = series.progress?.last?.season ?? null;
-                const episodesCount =
-                  (season ? seasonEpisodesBySeriesId[series.id] : undefined) ?? series.episodesCount;
+                const seasonView = seasonProgressViewBySeriesId[series.id];
+                const season = seasonView?.season ?? series.progress?.last?.season ?? null;
+                const displayEpisode = seasonView?.episode ?? (series.progress?.last?.episode ?? 0);
+                const episodesCount = seasonView?.episodesCount ?? series.episodesCount;
                 return (
                   <div
                     key={series.id}
@@ -221,26 +245,19 @@ export function SeriesFooterCarousel({
                       </div>
 
                       <div
-                        className="absolute right-[64px] top-1/2 w-[58px] -translate-y-1/2 text-center text-[48px] font-black leading-[0.8] tabular-nums"
+                        className="absolute right-[64px] top-1/2 w-[58px] -translate-y-1/2 text-center text-[48px] font-black text-[#FF3D00] leading-[0.8] tabular-nums"
                         style={{ fontVariationSettings: '"wdth" 75', fontStretch: "75%" }}
                       >
-                        {String(series.progress?.last?.episode ?? 0).padStart(2, "0")}
+                        {String(displayEpisode).padStart(2, "0")}
                       </div>
 
                       <button
                         type="button"
                         onClick={() => {
-                          if (addingBySeriesId[series.id]) return;
                           hapticImpact("light");
-                          setAddingBySeriesId((prev) => ({ ...prev, [series.id]: true }));
-                          Promise.resolve(onAddEpisode(series.id))
-                            .catch(() => {})
-                            .finally(() => {
-                              setAddingBySeriesId((prev) => ({ ...prev, [series.id]: false }));
-                            });
+                          void Promise.resolve(onAddEpisode(series.id)).catch(() => {});
                         }}
-                        disabled={Boolean(addingBySeriesId[series.id])}
-                        className="absolute right-0 top-1/2 inline-flex h-13 w-13 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 text-white transition active:scale-95 disabled:opacity-50 disabled:active:scale-100"
+                        className="absolute right-0 top-1/2 inline-flex h-13 w-13 -translate-y-1/2 items-center justify-center rounded-full bg-[#FF3D00]/15 text-[#FF3D00] transition active:scale-95"
                         aria-label={`Добавить серию для ${series.title}`}
                       >
                         <PlusCircleFill className="h-5 w-5" />

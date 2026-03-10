@@ -9,7 +9,7 @@ import { fetcher } from "@/lib/fetcher";
 import { SeriesFooterCarousel } from "@/components/series/SeriesFooterCarousel";
 import { SeriesCard } from "../components/series/SeriesCard";
 import { SeriesSheet } from "../components/series/SeriesSheet";
-import { Button } from "@/components/ui/button";
+import { SearchCircleFill } from "@/icons";
 import { hapticImpact } from "@/lib/haptics";
 
 import type { EpisodeRow, SeasonRow, SeriesRow } from "@/types/bootstrap";
@@ -162,40 +162,75 @@ export default function HomePage() {
     return cached as T;
   }
 
-  async function addEpisodeToProgress(seriesId: string) {
-    const target = (items ?? []).find((s) => s.id === seriesId);
-    if (!target) return;
-    if ((target.progress?.percent ?? 0) >= 100) return;
+  function resolveNextLastEpisode(
+    prevLast: { season: number; episode: number },
+    seasons: SeasonRow[] | undefined
+  ) {
+    if (!Array.isArray(seasons) || seasons.length === 0) {
+      return { season: prevLast.season, episode: prevLast.episode + 1 };
+    }
 
-    const prevPercent = target.progress?.percent ?? 0;
-    const prevWatchedApprox = Math.round((prevPercent / 100) * target.episodesCount);
-    const nextWatchedApprox = Math.min(target.episodesCount, prevWatchedApprox + 1);
-    const nextPercent =
-      target.episodesCount > 0
-        ? Math.min(100, Math.round((nextWatchedApprox / target.episodesCount) * 100))
-        : 100;
-    const prevLast = target.progress?.last ?? { season: 1, episode: 0 };
+    const ordered = [...seasons].sort((a, b) => a.number - b.number);
+    const seasonIndex = ordered.findIndex((s) => s.number === prevLast.season);
+    if (seasonIndex === -1) {
+      return { season: prevLast.season, episode: prevLast.episode + 1 };
+    }
+
+    const currentSeason = ordered[seasonIndex];
+    if (prevLast.episode < currentSeason.episodesCount) {
+      return { season: currentSeason.number, episode: prevLast.episode + 1 };
+    }
+
+    const nextSeason = ordered[seasonIndex + 1];
+    if (nextSeason) {
+      return { season: nextSeason.number, episode: 1 };
+    }
+
+    return { season: currentSeason.number, episode: currentSeason.episodesCount };
+  }
+
+  async function addEpisodeToProgress(seriesId: string) {
+    let optimisticPrevPercent = 0;
+    let optimisticNextPercent = 0;
+    let hasOptimisticUpdate = false;
 
     // Optimistic UI first: user sees the new progress immediately.
     await mutateSeries(
       (current) =>
         (current ?? []).map((series) => {
           if (series.id !== seriesId) return series;
+          const prevPercent = series.progress?.percent ?? 0;
+          if (prevPercent >= 100) return series;
+
+          const prevLast = series.progress?.last ?? { season: 1, episode: 0 };
+          const seasonsKey = `/api/series/${seriesId}/seasons`;
+          const cachedSeasons = getCachedData<SeasonRow[]>(seasonsKey);
+          const nextLast = resolveNextLastEpisode(prevLast, cachedSeasons);
+          const prevWatchedApprox = Math.round((prevPercent / 100) * series.episodesCount);
+          const nextWatchedApprox = Math.min(series.episodesCount, prevWatchedApprox + 1);
+          const nextPercent =
+            series.episodesCount > 0
+              ? Math.min(100, Math.round((nextWatchedApprox / series.episodesCount) * 100))
+              : 100;
+
+          optimisticPrevPercent = prevPercent;
+          optimisticNextPercent = nextPercent;
+          hasOptimisticUpdate = true;
+
           return {
             ...series,
             progress: {
               percent: nextPercent,
-              last: {
-                season: prevLast.season,
-                episode: prevLast.episode + 1,
-              },
+              last: nextLast,
             },
           };
         }),
       false
     );
 
-    const becameCompleted = prevPercent < 100 && nextPercent >= 100;
+    if (!hasOptimisticUpdate) return;
+
+    const becameCompleted = optimisticPrevPercent < 100 && optimisticNextPercent >= 100;
     if (becameCompleted) {
       await mutateGlobal(
         "/api/series/in-progress-count",
@@ -295,17 +330,23 @@ export default function HomePage() {
       `}</style>
 
       <div className="mx-auto flex h-dvh w-full max-w-[420px] flex-col overflow-visible bg-black">
-        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-visible no-scrollbar rounded-b-[48px] bg-white px-4 pt-[calc(var(--tg-content-safe-top,0px)+64px)] flex flex-col">
-          <div className="">
+        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-visible no-scrollbar rounded-b-[32px] bg-white px-4 pt-[calc(var(--tg-content-safe-top,0px)+64px)] flex flex-col">
+          <div className="flex items-start justify-between gap-3">
             <h1
               className="pl-1 text-[32px] font-black leading-[0.92] text-black"
               style={{ fontVariationSettings: '"wdth" 75', fontStretch: "75%" }}
             >
-              Библиотека
-            </h1>
+              Библиотека</h1>
+            <Link
+              href="/add"
+              onClick={() => hapticImpact("light")}
+              className="shrink-0 text-black transition-transform active:scale-95"
+              aria-label="Открыть поиск"
+            >
+              <SearchCircleFill className="h-8 w-8" />
+            </Link>
           </div>
-
-          <div className="mt-6 space-y-2">
+          <div className="mt-6 space-y-2 pb-4">
           {(items ?? []).map((s, i) => {
             const rightTop = s.progress?.last
               ? `S${s.progress.last.season} E${s.progress.last.episode}`
@@ -353,16 +394,6 @@ export default function HomePage() {
             );
           })}
           </div>
-
-        <div className="mt-auto pt-5 sticky bottom-4 z-10">
-          <Link
-            href="/add"
-            className="block"
-            onClick={() => hapticImpact("light")}
-          >
-            <Button>Добавить</Button>
-          </Link>
-        </div>
       </div>
 
       {Array.isArray(items) && items.length > 0 ? (
