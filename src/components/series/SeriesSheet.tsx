@@ -192,7 +192,6 @@ export function SeriesSheet({
     if (!open) return;
     if (!episodesKey) return;
     if (!episodes) return;
-    if (validatingEpisodes) return;
 
     setUiEpisodes(episodes);
     if (activeSeasonId) {
@@ -202,13 +201,14 @@ export function SeriesSheet({
       }));
     }
     if (prevEpisodesKeyRef.current === episodesKey) {
+      setEpisodesReady(true);
       return;
     }
 
     prevEpisodesKeyRef.current = episodesKey;
     setEpisodesReady(false);
     requestAnimationFrame(() => setEpisodesReady(true));
-  }, [open, episodesKey, episodes, validatingEpisodes, activeSeasonId]);
+  }, [open, episodesKey, episodes, activeSeasonId]);
 
   React.useEffect(() => {
     uiEpisodesCountRef.current = uiEpisodes?.length ?? 0;
