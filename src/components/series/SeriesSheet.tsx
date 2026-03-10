@@ -453,12 +453,13 @@ export function SeriesSheet({
       while (true) {
         const desired = desiredWatchedByEpisodeIdRef.current.get(episodeId);
         if (typeof desired !== "boolean") break;
+        const requestedWatched = desired;
 
         const res = await fetch(`/api/episodes/${episodeId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify({ watched: desired }),
+          body: JSON.stringify({ watched: requestedWatched }),
         });
 
         if (!res.ok) {
@@ -466,12 +467,17 @@ export function SeriesSheet({
         }
 
         const payload = (await res.json()) as ToggleEpisodeResponse;
+        const latestDesired = desiredWatchedByEpisodeIdRef.current.get(episodeId);
         const serverWatched =
-          typeof payload?.watched === "boolean" ? payload.watched : desired;
+          typeof payload?.watched === "boolean" ? payload.watched : requestedWatched;
+
+        // If user changed the target state while this request was in-flight,
+        // ignore this stale response to avoid visual "self-repeat" toggles.
+        if (latestDesired !== requestedWatched) {
+          continue;
+        }
 
         setEpisodeWatchedLocal(seasonId, episodeId, serverWatched);
-
-        const latestDesired = desiredWatchedByEpisodeIdRef.current.get(episodeId);
         if (latestDesired === serverWatched) {
           desiredWatchedByEpisodeIdRef.current.delete(episodeId);
           break;
