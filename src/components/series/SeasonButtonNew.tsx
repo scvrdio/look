@@ -47,9 +47,17 @@ export function SeasonButtonNew({
               : "bg-black/4 text-black"
         )}
       >
-        {completed ? (
-          <CheckCircleFill className={cn("h-[21px] w-[21px]", active ? "text-white" : "text-[#13A600]")} />
-        ) : null}
+        <span
+          aria-hidden
+          className={cn(
+            "inline-flex items-center justify-center overflow-hidden transition-all duration-300 ease-out",
+            completed ? "w-[21px] opacity-100 translate-x-0 blur-0" : "w-0 opacity-0 -translate-x-1 blur-[6px]"
+          )}
+        >
+          <CheckCircleFill
+            className={cn("h-[21px] w-[21px] shrink-0", active ? "text-white" : "text-[#13A600]")}
+          />
+        </span>
         {number} сезон
       </button>
     </div>

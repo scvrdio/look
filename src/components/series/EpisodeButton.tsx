@@ -2,7 +2,6 @@
 
 import { cn } from "@/lib/utils";
 import { hapticSelection } from "@/lib/haptics";
-import ClickSpark from "@/components/ClickSpark";
 
 type EpisodeButtonProps = {
   number: number;
@@ -11,7 +10,7 @@ type EpisodeButtonProps = {
 };
 
 export function EpisodeButton({ number, watched, onClick }: EpisodeButtonProps) {
-  const button = (
+  return (
     <button
       type="button"
       onClick={() => {
@@ -28,19 +27,5 @@ export function EpisodeButton({ number, watched, onClick }: EpisodeButtonProps) 
     >
       {number}
     </button>
-  );
-
-  return (
-    <ClickSpark
-      enabled={!watched}
-      center
-      sparkColor="#FF3D00"
-      sparkSize={12}
-      sparkRadius={24}
-      sparkCount={10}
-      duration={300}
-    >
-      {button}
-    </ClickSpark>
   );
 }
