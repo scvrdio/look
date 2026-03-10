@@ -122,9 +122,9 @@ export function SeriesSheet({
       return;
     }
 
-    setEpisodesReady(false);
-    setSeasonsReady(false);
-    setEpisodesClosing(true);
+    // Keep inner content static on close to avoid heavy per-item animations.
+    // The sheet container animation is enough and is much smoother on mobile WebView.
+    setEpisodesClosing(false);
 
     const itemsCount = uiEpisodesCountRef.current;
     const reverseExitTotalMs = Math.max(itemsCount - 1, 0) * EPISODE_STAGGER_MS;
