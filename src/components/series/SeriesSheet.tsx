@@ -57,6 +57,8 @@ export function SeriesSheet({
 }: SeriesSheetProps) {
   const SWIPE_CLOSE_DISTANCE_PX = 36;
   const SWIPE_CLOSE_VELOCITY_PX_PER_MS = 0.25;
+  const EPISODE_FLUSH_DEBOUNCE_MS = 160;
+  const CHANGED_NOTIFY_DEBOUNCE_MS = 320;
 
   const [activeSeasonId, setActiveSeasonId] = React.useState<string | null>(null);
   const [uiEpisodes, setUiEpisodes] = React.useState<EpisodeRow[] | null>(null);
@@ -88,6 +90,8 @@ export function SeriesSheet({
   const deletingRef = React.useRef(false);
   const pendingEpisodeIdsRef = React.useRef<Set<string>>(new Set());
   const desiredWatchedByEpisodeIdRef = React.useRef<Map<string, boolean>>(new Map());
+  const flushTimerByEpisodeIdRef = React.useRef<Map<string, number>>(new Map());
+  const changedNotifyTimerRef = React.useRef<number | null>(null);
 
   // Сезоны
   const seasonsKey = open && seriesId ? `/api/series/${seriesId}/seasons` : null;
@@ -145,6 +149,7 @@ export function SeriesSheet({
   }, [open]);
 
   React.useEffect(() => {
+    const flushTimers = flushTimerByEpisodeIdRef.current;
     return () => {
       if (closeResetTimerRef.current) {
         window.clearTimeout(closeResetTimerRef.current);
@@ -155,6 +160,13 @@ export function SeriesSheet({
       if (dragResetTimerRef.current) {
         window.clearTimeout(dragResetTimerRef.current);
       }
+      if (changedNotifyTimerRef.current) {
+        window.clearTimeout(changedNotifyTimerRef.current);
+      }
+      for (const timer of flushTimers.values()) {
+        window.clearTimeout(timer);
+      }
+      flushTimers.clear();
     };
   }, []);
 
@@ -385,6 +397,29 @@ export function SeriesSheet({
     }, false);
   }
 
+  function scheduleChangedNotify() {
+    if (!onChanged) return;
+    if (changedNotifyTimerRef.current) {
+      window.clearTimeout(changedNotifyTimerRef.current);
+    }
+    changedNotifyTimerRef.current = window.setTimeout(() => {
+      changedNotifyTimerRef.current = null;
+      onChanged();
+    }, CHANGED_NOTIFY_DEBOUNCE_MS);
+  }
+
+  function scheduleEpisodeFlush(seasonId: string, episodeId: string) {
+    const prevTimer = flushTimerByEpisodeIdRef.current.get(episodeId);
+    if (prevTimer) {
+      window.clearTimeout(prevTimer);
+    }
+    const timer = window.setTimeout(() => {
+      flushTimerByEpisodeIdRef.current.delete(episodeId);
+      void flushEpisodeDesiredState(seasonId, episodeId);
+    }, EPISODE_FLUSH_DEBOUNCE_MS);
+    flushTimerByEpisodeIdRef.current.set(episodeId, timer);
+  }
+
   function toggleEpisodeLocal(seasonId: string, episodeId: string): boolean | null {
     let nextWatched: boolean | null = null;
 
@@ -443,7 +478,7 @@ export function SeriesSheet({
         }
       }
 
-      onChanged?.();
+      scheduleChangedNotify();
     } catch {
       desiredWatchedByEpisodeIdRef.current.delete(episodeId);
       const fresh = await mutateEpisodes();
@@ -474,7 +509,7 @@ export function SeriesSheet({
     if (typeof nextWatched !== "boolean") return;
 
     desiredWatchedByEpisodeIdRef.current.set(id, nextWatched);
-    void flushEpisodeDesiredState(seasonIdAtToggle, id);
+    scheduleEpisodeFlush(seasonIdAtToggle, id);
   }
 
   const initialLoading =
