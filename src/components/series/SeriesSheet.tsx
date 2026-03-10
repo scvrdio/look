@@ -87,6 +87,7 @@ export function SeriesSheet({
   const [confirmDeleteOpen, setConfirmDeleteOpen] = React.useState(false);
   const deletingRef = React.useRef(false);
   const pendingEpisodeIdsRef = React.useRef<Set<string>>(new Set());
+  const desiredWatchedByEpisodeIdRef = React.useRef<Map<string, boolean>>(new Map());
 
   // Сезоны
   const seasonsKey = open && seriesId ? `/api/series/${seriesId}/seasons` : null;
@@ -367,86 +368,113 @@ export function SeriesSheet({
     uiEpisodesCountRef.current = uiEpisodes?.length ?? 0;
   }, [uiEpisodes]);
 
+  function setEpisodeWatchedLocal(seasonId: string, episodeId: string, watched: boolean) {
+    setUiEpisodes((current) => {
+      if (!current) return current;
+      const next = current.map((e) => (e.id === episodeId ? { ...e, watched } : e));
+      setCompletedBySeasonId((prevCompleted) => ({
+        ...prevCompleted,
+        [seasonId]: next.length > 0 && next.every((e) => e.watched),
+      }));
+      return next;
+    });
+
+    void mutateEpisodes((current) => {
+      if (!Array.isArray(current)) return current;
+      return current.map((e) => (e.id === episodeId ? { ...e, watched } : e));
+    }, false);
+  }
+
+  function toggleEpisodeLocal(seasonId: string, episodeId: string): boolean | null {
+    let nextWatched: boolean | null = null;
+
+    setUiEpisodes((current) => {
+      if (!current) return current;
+      const next = current.map((e) => {
+        if (e.id !== episodeId) return e;
+        nextWatched = !e.watched;
+        return { ...e, watched: nextWatched };
+      });
+      setCompletedBySeasonId((prevCompleted) => ({
+        ...prevCompleted,
+        [seasonId]: next.length > 0 && next.every((e) => e.watched),
+      }));
+      return next;
+    });
+
+    void mutateEpisodes((current) => {
+      if (!Array.isArray(current)) return current;
+      return current.map((e) => (e.id === episodeId ? { ...e, watched: !e.watched } : e));
+    }, false);
+
+    return nextWatched;
+  }
+
+  async function flushEpisodeDesiredState(seasonId: string, episodeId: string) {
+    if (pendingEpisodeIdsRef.current.has(episodeId)) return;
+    pendingEpisodeIdsRef.current.add(episodeId);
+
+    try {
+      while (true) {
+        const desired = desiredWatchedByEpisodeIdRef.current.get(episodeId);
+        if (typeof desired !== "boolean") break;
+
+        const res = await fetch(`/api/episodes/${episodeId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ watched: desired }),
+        });
+
+        if (!res.ok) {
+          throw new Error(`PATCH /api/episodes/${episodeId} failed with ${res.status}`);
+        }
+
+        const payload = (await res.json()) as ToggleEpisodeResponse;
+        const serverWatched =
+          typeof payload?.watched === "boolean" ? payload.watched : desired;
+
+        setEpisodeWatchedLocal(seasonId, episodeId, serverWatched);
+
+        const latestDesired = desiredWatchedByEpisodeIdRef.current.get(episodeId);
+        if (latestDesired === serverWatched) {
+          desiredWatchedByEpisodeIdRef.current.delete(episodeId);
+          break;
+        }
+      }
+
+      onChanged?.();
+    } catch {
+      desiredWatchedByEpisodeIdRef.current.delete(episodeId);
+      const fresh = await mutateEpisodes();
+      if (Array.isArray(fresh)) {
+        setUiEpisodes(fresh);
+        setCompletedBySeasonId((prevCompleted) => ({
+          ...prevCompleted,
+          [seasonId]: fresh.length > 0 && fresh.every((e) => e.watched),
+        }));
+      }
+    } finally {
+      pendingEpisodeIdsRef.current.delete(episodeId);
+    }
+  }
+
   async function toggleEpisode(id: string) {
     if (!open) return;
     if (!episodesKey) return;
     if (!uiEpisodes) return;
     if (!activeSeasonId) return;
-    if (pendingEpisodeIdsRef.current.has(id)) return;
 
     const episode = uiEpisodes.find((e) => e.id === id);
     if (!episode) return;
 
     const seasonIdAtToggle = activeSeasonId;
-    const previousWatched = episode.watched;
-    const optimisticWatched = !previousWatched;
 
-    pendingEpisodeIdsRef.current.add(id);
+    const nextWatched = toggleEpisodeLocal(seasonIdAtToggle, id);
+    if (typeof nextWatched !== "boolean") return;
 
-    const applyWatched = (rows: EpisodeRow[], watched: boolean) =>
-      rows.map((e) => (e.id === id ? { ...e, watched } : e));
-
-    setUiEpisodes((current) => {
-      if (!current) return current;
-      const next = applyWatched(current, optimisticWatched);
-      setCompletedBySeasonId((prevCompleted) => ({
-        ...prevCompleted,
-        [seasonIdAtToggle]: next.length > 0 && next.every((e) => e.watched),
-      }));
-      return next;
-    });
-    await mutateEpisodes((current) => {
-      if (!Array.isArray(current)) return current;
-      return applyWatched(current, optimisticWatched);
-    }, false);
-
-    try {
-      const res = await fetch(`/api/episodes/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ watched: optimisticWatched }),
-      });
-
-      if (!res.ok) {
-        throw new Error(`PATCH /api/episodes/${id} failed with ${res.status}`);
-      }
-
-      const payload = (await res.json()) as ToggleEpisodeResponse;
-      if (typeof payload?.watched === "boolean") {
-        setUiEpisodes((current) => {
-          if (!current) return current;
-          const synced = applyWatched(current, payload.watched);
-          setCompletedBySeasonId((prevCompleted) => ({
-            ...prevCompleted,
-            [seasonIdAtToggle]: synced.length > 0 && synced.every((e) => e.watched),
-          }));
-          return synced;
-        });
-        await mutateEpisodes((current) => {
-          if (!Array.isArray(current)) return current;
-          return applyWatched(current, payload.watched);
-        }, false);
-      }
-
-      onChanged?.();
-    } catch {
-      setUiEpisodes((current) => {
-        if (!current) return current;
-        const rolledBack = applyWatched(current, previousWatched);
-        setCompletedBySeasonId((prevCompleted) => ({
-          ...prevCompleted,
-          [seasonIdAtToggle]: rolledBack.length > 0 && rolledBack.every((e) => e.watched),
-        }));
-        return rolledBack;
-      });
-      await mutateEpisodes((current) => {
-        if (!Array.isArray(current)) return current;
-        return applyWatched(current, previousWatched);
-      }, false);
-    } finally {
-      pendingEpisodeIdsRef.current.delete(id);
-    }
+    desiredWatchedByEpisodeIdRef.current.set(id, nextWatched);
+    void flushEpisodeDesiredState(seasonIdAtToggle, id);
   }
 
   const initialLoading =
