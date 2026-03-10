@@ -6,48 +6,15 @@ import useSWR, { useSWRConfig } from "swr";
 
 import { pluralRu } from "@/lib/plural";
 import { fetcher } from "@/lib/fetcher";
+import { SeriesFooterCarousel } from "@/components/series/SeriesFooterCarousel";
 import { SeriesCard } from "../components/series/SeriesCard";
 import { SeriesSheet } from "../components/series/SeriesSheet";
-import { Button } from "../components/ui/button";
-import { AnimatedCounter } from "@/components/ui/AnimatedCounter";
+import { Button } from "@/components/ui/button";
 import { hapticImpact } from "@/lib/haptics";
-import { getTelegramWebApp } from "@/types/telegram";
 
 import type { EpisodeRow, SeasonRow, SeriesRow } from "@/types/bootstrap";
 
-type Me = { name: string | null };
 type InProgress = { inProgressCount: number };
-
-function getTgFirstNameSafe(): string | null {
-  const tg = getTelegramWebApp();
-  const n = tg?.initDataUnsafe?.user?.first_name;
-  return typeof n === "string" && n.trim() ? n.trim() : null;
-}
-
-function TitleSeg({
-  children,
-  delay,
-  strong,
-}: {
-  children: React.ReactNode;
-  delay: number;
-  strong?: boolean;
-}) {
-  return (
-    <span
-      style={{
-        animation: "titleRise 520ms cubic-bezier(.2,.8,.2,1) forwards",
-        animationDelay: `${delay}ms`,
-      }}
-      className={[
-        "inline-block opacity-0",
-        strong ? "text-black" : "text-black/20",
-      ].join(" ")}
-    >
-      {children}
-    </span>
-  );
-}
 
 export default function HomePage() {
   const SERIES_CACHE_KEY = "series_cache_v1";
@@ -55,20 +22,15 @@ export default function HomePage() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [activeSeriesId, setActiveSeriesId] = useState<string | null>(null);
   const [listReady, setListReady] = useState(false);
+  const [footerReady, setFooterReady] = useState(false);
   const listIntroPlayedRef = useRef(false);
   const bgPreloadRef = useRef(false);
 
-  // title всегда вычисляем из items, а не храним отдельно (иначе рассинхрон/“Загрузка…”)
-  const [tgName] = useState<string | null>(() => getTgFirstNameSafe());
+  // title всегда вычисляем из items, а не храним отдельно (иначе рассинхрон/"Загрузка…")
   const [pendingOpenSeriesId, setPendingOpenSeriesId] = useState<string | null>(null);
 
   const { data: items, mutate: mutateSeries } = useSWR<SeriesRow[]>(
     "/api/series",
-    fetcher
-  );
-  const { data: me } = useSWR<Me>("/api/me", fetcher);
-  const { data: prog } = useSWR<InProgress>(
-    "/api/series/in-progress-count",
     fetcher
   );
 
@@ -77,7 +39,6 @@ export default function HomePage() {
     return items.some((s) => s.id === pendingOpenSeriesId) ? pendingOpenSeriesId : null;
   }, [items, pendingOpenSeriesId]);
 
-  const titleReady = true;
   const effectiveSeriesId = activeSeriesId ?? autoOpenSeriesId;
   const effectiveSheetOpen = sheetOpen || Boolean(autoOpenSeriesId);
   const activeTitle = useMemo(() => {
@@ -92,13 +53,6 @@ export default function HomePage() {
     if (!effectiveSeriesId) return null;
     return (items ?? []).find((s) => s.id === effectiveSeriesId)?.progress?.last?.episode ?? null;
   }, [items, effectiveSeriesId]);
-
-  const firstName = useMemo(
-    () => (me?.name ?? null) || tgName || "друг",
-    [me?.name, tgName]
-  );
-
-  const inProgressCount = prog?.inProgressCount ?? 0;
 
   useEffect(() => {
     try {
@@ -191,71 +145,169 @@ export default function HomePage() {
     };
   }, [listReady, items, mutateGlobal, cache]);
 
+  useEffect(() => {
+    if (!Array.isArray(items) || items.length === 0) {
+      setFooterReady(false);
+      return;
+    }
+
+    const raf = window.requestAnimationFrame(() => setFooterReady(true));
+    return () => window.cancelAnimationFrame(raf);
+  }, [items]);
+
+  function getCachedData<T>(key: string): T | undefined {
+    const cached = cache.get(key) as { data?: T } | T | undefined;
+    if (!cached) return undefined;
+    if (typeof cached === "object" && cached !== null && "data" in cached) {
+      return (cached as { data?: T }).data;
+    }
+    return cached as T;
+  }
+
+  async function addEpisodeToProgress(seriesId: string) {
+    const target = (items ?? []).find((s) => s.id === seriesId);
+    if (!target) return;
+    if ((target.progress?.percent ?? 0) >= 100) return;
+
+    const prevPercent = target.progress?.percent ?? 0;
+    const prevWatchedApprox = Math.round((prevPercent / 100) * target.episodesCount);
+    const nextWatchedApprox = Math.min(target.episodesCount, prevWatchedApprox + 1);
+    const nextPercent =
+      target.episodesCount > 0
+        ? Math.min(100, Math.round((nextWatchedApprox / target.episodesCount) * 100))
+        : 100;
+    const prevLast = target.progress?.last ?? { season: 1, episode: 0 };
+
+    // Optimistic UI first: user sees the new progress immediately.
+    await mutateSeries(
+      (current) =>
+        (current ?? []).map((series) => {
+          if (series.id !== seriesId) return series;
+          return {
+            ...series,
+            progress: {
+              percent: nextPercent,
+              last: {
+                season: prevLast.season,
+                episode: prevLast.episode + 1,
+              },
+            },
+          };
+        }),
+      false
+    );
+
+    const becameCompleted = prevPercent < 100 && nextPercent >= 100;
+    if (becameCompleted) {
+      await mutateGlobal(
+        "/api/series/in-progress-count",
+        (current: InProgress | undefined) => ({
+          inProgressCount: Math.max(0, (current?.inProgressCount ?? 0) - 1),
+        }),
+        { revalidate: false }
+      );
+    }
+
+    try {
+      const seasonsKey = `/api/series/${seriesId}/seasons`;
+      const cachedSeasons = getCachedData<SeasonRow[]>(seasonsKey);
+      const seasons = Array.isArray(cachedSeasons)
+        ? cachedSeasons
+        : await fetcher<SeasonRow[]>(seasonsKey);
+      if (!Array.isArray(cachedSeasons)) {
+        await mutateGlobal(seasonsKey, seasons, { revalidate: false });
+      }
+
+      const orderedSeasons = [...(seasons ?? [])].sort((a, b) => a.number - b.number);
+
+      for (const season of orderedSeasons) {
+        const episodesKey = `/api/seasons/${season.id}/episodes`;
+        const cachedEpisodes = getCachedData<EpisodeRow[]>(episodesKey);
+        const episodes = Array.isArray(cachedEpisodes)
+          ? cachedEpisodes
+          : await fetcher<EpisodeRow[]>(episodesKey);
+        if (!Array.isArray(cachedEpisodes)) {
+          await mutateGlobal(episodesKey, episodes, { revalidate: false });
+        }
+
+        const nextEpisode = [...(episodes ?? [])]
+          .sort((a, b) => a.number - b.number)
+          .find((episode) => !episode.watched);
+
+        if (!nextEpisode) continue;
+
+        await mutateGlobal(
+          episodesKey,
+          (current: EpisodeRow[] | undefined) =>
+            (current ?? episodes).map((episode) =>
+              episode.id === nextEpisode.id ? { ...episode, watched: true } : episode
+            ),
+          { revalidate: false }
+        );
+
+        const res = await fetch(`/api/episodes/${nextEpisode.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ watched: true }),
+        });
+
+        if (!res.ok) {
+          throw new Error(`PATCH /api/episodes/${nextEpisode.id} failed with ${res.status}`);
+        }
+
+        void mutateSeries();
+        void mutateGlobal("/api/series/in-progress-count");
+        return;
+      }
+
+      void mutateSeries();
+      void mutateGlobal("/api/series/in-progress-count");
+    } catch {
+      // Rollback to server state if request failed.
+      await Promise.all([
+        mutateSeries(),
+        mutateGlobal("/api/series/in-progress-count"),
+      ]);
+    }
+  }
+
   return (
-    <main className="min-h-dvh bg-white">
-      <style jsx global>{`
-        @keyframes titleRise {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-            filter: blur(6px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-            filter: blur(0);
-          }
+    <main className="h-dvh bg-black">
+      <style jsx>{`
+        .footer-shell {
+          display: grid;
+          grid-template-rows: 0fr;
+          opacity: 0;
+          pointer-events: none;
+          transition: grid-template-rows 760ms cubic-bezier(0.22, 1, 0.36, 1), opacity 420ms ease-out;
+          will-change: grid-template-rows, opacity;
+        }
+
+        .footer-shell--ready {
+          grid-template-rows: 1fr;
+          opacity: 1;
+          pointer-events: auto;
+        }
+
+        .footer-shell__inner {
+          overflow: hidden;
+          min-height: 0;
         }
       `}</style>
 
-      <div className="mx-auto max-w-[420px] px-4 pb-28 pt-[calc(var(--tg-content-safe-top,0px)+64px)]">
-        <div>
-          <div className="ty-h1 text-[24px] leading-[1.2] pl-1">
-            {titleReady && (
-              <>
-                <TitleSeg delay={0}>Привет,</TitleSeg>{" "}
-                <TitleSeg delay={150} strong>
-                  {firstName}!
-                </TitleSeg>{" "}
-                <TitleSeg delay={300}>Что</TitleSeg>{" "}
-                <TitleSeg delay={450}>будем</TitleSeg>
-                <br />
-                <TitleSeg delay={600}>смотреть</TitleSeg>{" "}
-                <TitleSeg delay={750}>сегодня?</TitleSeg>{" "}
-                <TitleSeg delay={900}>У тебя</TitleSeg>{" "}
-                <br />
-                <TitleSeg delay={1050}>на</TitleSeg>{" "}
-                <TitleSeg delay={1200}>очереди</TitleSeg>{" "}
-                <TitleSeg delay={1350} strong>
-                  <AnimatedCounter value={inProgressCount} />
-                </TitleSeg>{" "}
-                <TitleSeg delay={1500}>
-                  сериал{pluralRu(inProgressCount, "", "а", "ов")}
-                </TitleSeg>
-              </>
-            )}
-
-            {!titleReady && (
-              <>
-                <span className="text-black/20">Привет, </span>
-                <span className="text-black">{firstName}!</span>
-                <span className="text-black/20"> Что будем</span>
-                <br />
-                <span className="text-black/20">
-                  смотреть сегодня? У тебя
-                </span>
-                <br />
-                <span className="text-black/20">на очереди </span>
-                <span className="text-black">
-                  {inProgressCount} сериал
-                  {pluralRu(inProgressCount, "", "а", "ов")}
-                </span>
-              </>
-            )}
+      <div className="mx-auto flex h-dvh w-full max-w-[420px] flex-col overflow-visible bg-black">
+        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-visible no-scrollbar rounded-b-[48px] bg-white px-4 pt-[calc(var(--tg-content-safe-top,0px)+64px)] flex flex-col">
+          <div className="">
+            <h1
+              className="pl-1 text-[32px] font-black leading-[0.92] text-black"
+              style={{ fontVariationSettings: '"wdth" 75', fontStretch: "75%" }}
+            >
+              Библиотека
+            </h1>
           </div>
-        </div>
 
-        <div className="mt-6 space-y-2">
+          <div className="mt-6 space-y-2">
           {(items ?? []).map((s, i) => {
             const rightTop = s.progress?.last
               ? `S${s.progress.last.season} E${s.progress.last.episode}`
@@ -302,19 +354,44 @@ export default function HomePage() {
               </div>
             );
           })}
-        </div>
-      </div>
+          </div>
 
-      <div className="fixed inset-x-0 bottom-0">
-        <div className="mx-auto max-w-[420px] px-5 pt-3 pb-[calc(var(--tg-content-safe-bottom,0px)+20px)]">
+        <div className="mt-auto pt-5 sticky bottom-4 z-10">
           <Link
             href="/add"
             className="block"
             onClick={() => hapticImpact("light")}
           >
-            <Button>Добавить сериал</Button>
+            <Button>Добавить</Button>
           </Link>
         </div>
+      </div>
+
+      {Array.isArray(items) && items.length > 0 ? (
+        <div
+          className={[
+            "shrink-0 footer-shell",
+            footerReady ? "footer-shell--ready" : "",
+          ].join(" ")}
+        >
+          <div
+            className={[
+              "footer-shell__inner transition-all duration-500 ease-out",
+              footerReady ? "opacity-100 blur-0" : "opacity-0 blur-[8px]",
+            ].join(" ")}
+          >
+            <SeriesFooterCarousel
+              items={items}
+              onOpenSeries={(seriesId) => {
+                hapticImpact("light");
+                setActiveSeriesId(seriesId);
+                setSheetOpen(true);
+              }}
+              onAddEpisode={(seriesId) => addEpisodeToProgress(seriesId)}
+            />
+          </div>
+        </div>
+      ) : null}
       </div>
 
       <SeriesSheet
@@ -335,4 +412,3 @@ export default function HomePage() {
     </main>
   );
 }
-
