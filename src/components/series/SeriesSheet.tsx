@@ -55,6 +55,10 @@ export function SeriesSheet({
   preferredEpisodeNumber,
   onChanged,
 }: SeriesSheetProps) {
+  const SWIPE_CLOSE_VELOCITY_PX_PER_MS = 1.1;
+  const SWIPE_CLOSE_NEAR_BOTTOM_RATIO = 0.9;
+  const SWIPE_CLOSE_ANIMATION_MS = 180;
+
   const [activeSeasonId, setActiveSeasonId] = React.useState<string | null>(null);
   const [uiEpisodes, setUiEpisodes] = React.useState<EpisodeRow[] | null>(null);
 
@@ -71,6 +75,16 @@ export function SeriesSheet({
   const prevOpenRef = React.useRef(open);
   const closeResetTimerRef = React.useRef<number | null>(null);
   const loadingLottieTimerRef = React.useRef<number | null>(null);
+  const dragResetTimerRef = React.useRef<number | null>(null);
+  const swipeCloseTimerRef = React.useRef<number | null>(null);
+  const draggingPointerIdRef = React.useRef<number | null>(null);
+  const dragPhaseRef = React.useRef<"idle" | "pending" | "active">("idle");
+  const dragStartYRef = React.useRef(0);
+  const dragStartXRef = React.useRef(0);
+  const dragStartedAtRef = React.useRef(0);
+  const dragOffsetYRef = React.useRef(0);
+  const dragContentRef = React.useRef<HTMLElement | null>(null);
+  const scrollAreaRef = React.useRef<HTMLDivElement | null>(null);
 
   const [confirmDeleteOpen, setConfirmDeleteOpen] = React.useState(false);
   const deletingRef = React.useRef(false);
@@ -139,8 +153,159 @@ export function SeriesSheet({
       if (loadingLottieTimerRef.current) {
         window.clearTimeout(loadingLottieTimerRef.current);
       }
+      if (dragResetTimerRef.current) {
+        window.clearTimeout(dragResetTimerRef.current);
+      }
+      if (swipeCloseTimerRef.current) {
+        window.clearTimeout(swipeCloseTimerRef.current);
+      }
     };
   }, []);
+
+  React.useEffect(() => {
+    if (!open) return;
+
+    const content = dragContentRef.current;
+    if (!content) return;
+    content.style.transform = "";
+    content.style.transition = "";
+  }, [open]);
+
+  function resolveSheetContent(element: HTMLElement): HTMLElement | null {
+    return element.closest('[data-slot="sheet-content"]') as HTMLElement | null;
+  }
+
+  function setDragTransform(offsetY: number) {
+    const content = dragContentRef.current;
+    if (!content) return;
+    content.style.transition = "none";
+    content.style.transform = `translateY(${offsetY}px)`;
+  }
+
+  function animateDragReset() {
+    const content = dragContentRef.current;
+    if (!content) return;
+    content.style.transition = "transform 220ms cubic-bezier(0.22, 1, 0.36, 1)";
+    content.style.transform = "translateY(0px)";
+    if (dragResetTimerRef.current) {
+      window.clearTimeout(dragResetTimerRef.current);
+    }
+    dragResetTimerRef.current = window.setTimeout(() => {
+      const node = dragContentRef.current;
+      if (!node) return;
+      // Keep transform at zero to avoid a visual jump after release.
+      node.style.transition = "";
+      dragResetTimerRef.current = null;
+    }, 240);
+  }
+
+  function animateSwipeClose(offsetY: number) {
+    const content = dragContentRef.current;
+    if (!content) {
+      onOpenChange(false);
+      return;
+    }
+
+    const target = Math.max(content.offsetHeight, offsetY + 120);
+    content.style.transition = `transform ${SWIPE_CLOSE_ANIMATION_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`;
+    content.style.transform = `translateY(${target}px)`;
+
+    if (swipeCloseTimerRef.current) {
+      window.clearTimeout(swipeCloseTimerRef.current);
+    }
+    swipeCloseTimerRef.current = window.setTimeout(() => {
+      swipeCloseTimerRef.current = null;
+      onOpenChange(false);
+    }, SWIPE_CLOSE_ANIMATION_MS);
+  }
+
+  function clearDragState() {
+    draggingPointerIdRef.current = null;
+    dragPhaseRef.current = "idle";
+    dragStartYRef.current = 0;
+    dragStartXRef.current = 0;
+    dragStartedAtRef.current = 0;
+    dragOffsetYRef.current = 0;
+  }
+
+  function onSheetPointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    if (!open) return;
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+
+    const content = resolveSheetContent(event.currentTarget);
+    if (!content) return;
+
+    dragContentRef.current = content;
+    draggingPointerIdRef.current = event.pointerId;
+    dragPhaseRef.current = "pending";
+    dragStartYRef.current = event.clientY;
+    dragStartXRef.current = event.clientX;
+    dragStartedAtRef.current = performance.now();
+    dragOffsetYRef.current = 0;
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function onSheetPointerMove(event: React.PointerEvent<HTMLDivElement>) {
+    if (draggingPointerIdRef.current !== event.pointerId) return;
+    const deltaY = event.clientY - dragStartYRef.current;
+    const deltaX = event.clientX - dragStartXRef.current;
+
+    if (dragPhaseRef.current === "pending") {
+      if (Math.abs(deltaY) < 6 && Math.abs(deltaX) < 6) return;
+
+      const isVertical = Math.abs(deltaY) > Math.abs(deltaX);
+      const atTop = (scrollAreaRef.current?.scrollTop ?? 0) <= 0;
+      if (!isVertical || deltaY <= 0 || !atTop) {
+        clearDragState();
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+          event.currentTarget.releasePointerCapture(event.pointerId);
+        }
+        return;
+      }
+
+      dragPhaseRef.current = "active";
+    }
+
+    if (dragPhaseRef.current !== "active") return;
+
+    const rawOffset = Math.max(0, deltaY);
+    if (rawOffset <= 0) {
+      dragOffsetYRef.current = 0;
+      setDragTransform(0);
+      return;
+    }
+
+    dragOffsetYRef.current = rawOffset;
+    setDragTransform(rawOffset);
+    event.preventDefault();
+  }
+
+  function onSheetPointerEnd(event: React.PointerEvent<HTMLDivElement>) {
+    if (draggingPointerIdRef.current !== event.pointerId) return;
+
+    const wasActive = dragPhaseRef.current === "active";
+    const offset = Math.max(0, dragOffsetYRef.current);
+    const elapsedMs = Math.max(1, performance.now() - dragStartedAtRef.current);
+    const velocity = offset / elapsedMs;
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    clearDragState();
+
+    if (!wasActive) return;
+
+    const contentHeight = dragContentRef.current?.offsetHeight ?? 0;
+    const draggedNearBottom =
+      contentHeight > 0 && offset >= contentHeight * SWIPE_CLOSE_NEAR_BOTTOM_RATIO;
+
+    if (velocity >= SWIPE_CLOSE_VELOCITY_PX_PER_MS || draggedNearBottom) {
+      animateSwipeClose(offset);
+      return;
+    }
+
+    animateDragReset();
+  }
 
   // Выбрать сезон пользователя (по прогрессу), иначе первый
   React.useEffect(() => {
@@ -332,7 +497,13 @@ export function SeriesSheet({
 
         <div className="flex h-full flex-col">
           {/* Header */}
-          <div className="relative px-5 pt-7 pb-4">
+          <div
+            className="relative px-5 pt-7 pb-4"
+            onPointerDown={onSheetPointerDown}
+            onPointerMove={onSheetPointerMove}
+            onPointerUp={onSheetPointerEnd}
+            onPointerCancel={onSheetPointerEnd}
+          >
             <SheetClose asChild>
               <button
                 type="button"
@@ -361,7 +532,14 @@ export function SeriesSheet({
           </div>
 
           {/* Body */}
-          <div className="flex-1 overflow-y-auto px-5 pb-6">
+          <div
+            ref={scrollAreaRef}
+            className="flex-1 overflow-y-auto px-5 pb-6"
+            onPointerDown={onSheetPointerDown}
+            onPointerMove={onSheetPointerMove}
+            onPointerUp={onSheetPointerEnd}
+            onPointerCancel={onSheetPointerEnd}
+          >
             <div className="flex h-full flex-col">
 
               {/* Episodes */}
