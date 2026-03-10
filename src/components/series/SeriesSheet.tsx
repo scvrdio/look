@@ -57,7 +57,7 @@ export function SeriesSheet({
 }: SeriesSheetProps) {
   const SWIPE_CLOSE_DISTANCE_PX = 36;
   const SWIPE_CLOSE_VELOCITY_PX_PER_MS = 0.25;
-  const SWIPE_CLOSE_ANIMATION_MS = 180;
+  const SWIPE_CLOSE_ANIMATION_MS = 280;
 
   const [activeSeasonId, setActiveSeasonId] = React.useState<string | null>(null);
   const [uiEpisodes, setUiEpisodes] = React.useState<EpisodeRow[] | null>(null);
