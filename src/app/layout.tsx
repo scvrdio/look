@@ -6,6 +6,15 @@ import { Providers } from "./providers";
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ru" suppressHydrationWarning>
+      <head>
+        <link
+          rel="preload"
+          href="/fonts/TikTokSans-Variable.ttf"
+          as="font"
+          type="font/ttf"
+          crossOrigin="anonymous"
+        />
+      </head>
       <body>
         <Script
           src="https://telegram.org/js/telegram-web-app.js"

@@ -56,6 +56,7 @@ async function fetchBootstrapWithAuthRetry(): Promise<BootstrapResponse> {
 
 function BootGate({ children }: { children: React.ReactNode }) {
   const { mutate: mutateGlobal } = useSWRConfig();
+  const showBootDebug = process.env.NODE_ENV !== "production";
 
   const [error, setError] = useState<string | null>(null);
 
@@ -129,7 +130,7 @@ function BootGate({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      {error ? (
+      {showBootDebug && error ? (
         <div className="fixed top-2 left-1/2 -translate-x-1/2 z-50 rounded-xl border border-black/10 bg-white px-3 py-2 text-xs text-black/60 shadow-sm">
           Boot: {error}
         </div>
