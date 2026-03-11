@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/server_auth/getCurrentUser";
+import { isSeriesContentKind, normalizeContentKind } from "@/lib/contentKind";
 
 export const runtime = "nodejs";
 
 const SOURCE = "poiskkino";
 const BASE = process.env.POISKKINO_BASE_URL ?? "https://api.poiskkino.dev";
 const KEY = process.env.POISKKINO_API_KEY;
-const SERIES_TYPES = new Set(["tv-series", "anime", "animated-series", "tv-show"]);
 
 type PoiskKinoDetails = {
   id: number;
@@ -27,11 +27,6 @@ function getErrorStack(error: unknown): string | null {
     return error.stack;
   }
   return null;
-}
-
-function isSeriesType(type: string | null | undefined) {
-  if (!type) return false;
-  return SERIES_TYPES.has(type);
 }
 
 export async function POST(req: Request) {
@@ -87,7 +82,7 @@ export async function POST(req: Request) {
     // seasonsInfo собираем ТОЛЬКО из /season (там теперь реальные данные)
     let seasonsInfo: Array<{ number: number; episodesCount: number }> = [];
 
-    if (isSeriesType(type)) {
+    if (isSeriesContentKind(type)) {
       const seasonRes = await fetch(`${BASE}/v1.4/season?movieId=${externalId}`, {
         headers: { "X-API-KEY": KEY },
       });
@@ -138,8 +133,8 @@ export async function POST(req: Request) {
       seasonsInfo,
     };
 
-    const isSeries = isSeriesType(d.type) || d.seasonsInfo.length > 0;
-    const kind = isSeries ? "series" : (d.type ?? "movie");
+    const isSeries = isSeriesContentKind(d.type) || d.seasonsInfo.length > 0;
+    const kind = isSeries ? "series" : normalizeContentKind(d.type);
 
     // 3) создаём series (гонку ловим через unique и fallback-read)
     const series: { id: string; title: string; kind: string | null } = await prisma.series.upsert({

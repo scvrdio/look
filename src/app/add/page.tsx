@@ -37,7 +37,7 @@ type DbSearchItem = {
   genres?: string[] | null;
 };
 
-const SERIES_TYPES = new Set(["tv-series", "anime", "animated-series", "tv-show"]);
+const SERIES_TYPES = new Set(["tv-series", "anime", "animated-series", "tv-show", "series"]);
 
 function isSeriesType(type: string | null | undefined) {
   if (!type) return false;
@@ -55,10 +55,10 @@ async function readErrorMessage(res: Response) {
 }
 
 function metaTypeLabel(type: string | null) {
-  if (!type) return "";
+  if (!type) return "\u0424\u0438\u043b\u044c\u043c";
   if (isSeriesType(type)) return "Сериал";
   if (type === "movie") return "Фильм";
-  return type;
+  return "\u0424\u0438\u043b\u044c\u043c";
 }
 
 function metaCountsLine(seasonsCount?: number | null, episodesCount?: number | null) {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/server_auth/getCurrentUser";
+import { normalizeContentKind } from "@/lib/contentKind";
 
 export const runtime = "nodejs";
 
@@ -45,7 +46,7 @@ export async function GET(req: Request) {
             title: s.title,
             year: s.year ?? null,
             posterUrl: s.posterUrl ?? null,
-            kind: s.kind ?? "series",
+            kind: normalizeContentKind(s.kind),
             source: s.source ?? null,
             sourceId: s.sourceId ?? null,
             seasonsCount: s._count.seasons,

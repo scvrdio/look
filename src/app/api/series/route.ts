@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/server_auth/getCurrentUser";
+import { normalizeContentKind } from "@/lib/contentKind";
 
 export async function GET() {
 
@@ -99,7 +100,7 @@ export async function GET() {
     return {
       id: s.id,
       title: s.title,
-      kind: s.kind,
+      kind: normalizeContentKind(s.kind),
       createdAt: s.createdAt,
       source: s.source,
       sourceId: s.sourceId,
