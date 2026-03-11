@@ -37,7 +37,7 @@ type ToggleEpisodeResponse = {
   watched: boolean;
 };
 
-const SHEET_CLOSE_MS = 500;
+const SHEET_CLOSE_MS = 560;
 const EPISODE_STAGGER_MS = 40;
 
 type SeriesSheetProps = {
