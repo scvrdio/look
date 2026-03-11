@@ -50,13 +50,22 @@ export function SeasonButtonNew({
         <span
           aria-hidden
           className={cn(
-            "inline-flex items-center justify-center overflow-hidden transition-[width,opacity] duration-300 ease-out",
-            completed ? "w-[21px] opacity-100" : "w-0 opacity-0"
+            "relative inline-flex h-[21px] items-center overflow-visible transition-[width] duration-[460ms] ease-[cubic-bezier(0.22,1,0.36,1)]",
+            completed ? "w-[21px]" : "w-0"
           )}
         >
-          <CheckCircleFill
-            className={cn("h-[21px] w-[21px] shrink-0", active ? "text-white" : "text-[#13A600]")}
-          />
+          <span
+            className={cn(
+              "pointer-events-none absolute left-0 top-1/2 inline-flex h-[21px] w-[21px] -translate-y-1/2 items-center justify-center transition-[opacity,filter] duration-[460ms] ease-[cubic-bezier(0.22,1,0.36,1)]",
+              completed
+                ? "opacity-100 blur-0"
+                : "opacity-0 blur-[8px]"
+            )}
+          >
+            <CheckCircleFill
+              className={cn("h-[21px] w-[21px] shrink-0", active ? "text-white" : "text-[#13A600]")}
+            />
+          </span>
         </span>
         {number} сезон
       </button>

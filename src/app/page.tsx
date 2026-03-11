@@ -687,7 +687,7 @@ export default function HomePage() {
                     onClick={() => openFolder("paused")}
                     className="inline-flex h-8 shrink-0 items-center rounded-[8px] bg-[#F2F2F2] px-3 text-[13px] font-medium transition active:scale-[0.99]"
                   >
-                  На паузе →
+                  На паузе
                   </button>
                 ) : null}
               </div>

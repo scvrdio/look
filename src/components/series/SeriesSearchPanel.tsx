@@ -4,7 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { mutate } from "swr";
 import Lottie from "lottie-react";
 
-import { PlaylistPlusFill, Search, X, XCircleFill } from "@/icons";
+import { Search, X, XCircleFill } from "@/icons";
+import { AddSeriesActionButton } from "@/components/series/AddSeriesActionButton";
 import { hapticImpact, hapticNotify } from "@/lib/haptics";
 import { pluralRu } from "@/lib/plural";
 
@@ -486,6 +487,7 @@ export function SeriesSearchPanel({ items, onBack, onOpenSeries, onAddedSeries }
             results.map((item, i) => {
               const fromDb = !!item._alreadyInDb && !!item._localSeriesId;
               const already = fromDb ? true : existingIds.has(item.id);
+              const isAdding = addingId === item.id;
               const typeLabel = metaTypeLabel(item.type);
               const countsLine = metaCountsLine(item.seasonsCount, item.episodesCount);
               const key = fromDb ? (item._localSeriesId as string) : String(item.id);
@@ -540,15 +542,12 @@ export function SeriesSearchPanel({ items, onBack, onOpenSeries, onAddedSeries }
                             <span>Открыть</span>
                           </button>
                         ) : (
-                          <button
-                            type="button"
+                          <AddSeriesActionButton
+                            label={already ? "В списке" : "Добавить"}
+                            loading={isAdding}
+                            disabled={already || isAdding}
                             onClick={() => addFromCatalog(item.id)}
-                            disabled={already || addingId === item.id}
-                            className="inline-flex h-8 items-center gap-2 rounded-[8px] bg-[#F2F2F2] px-3 text-[13px] font-medium disabled:opacity-40"
-                          >
-                            <PlaylistPlusFill className="h-4 w-4 text-black" />
-                            <span>{already ? "В списке" : addingId === item.id ? "Добавление..." : "Добавить"}</span>
-                          </button>
+                          />
                         )}
                       </div>
                     </div>

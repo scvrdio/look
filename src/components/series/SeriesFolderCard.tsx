@@ -16,7 +16,7 @@ export function SeriesFolderCard({
   const visiblePosters = posters.filter((item) => item.posterUrl).slice(-3);
   const remainingCount = Math.max(0, count - 3);
   const className = [
-    "h-[144px] w-full rounded-[24px] pt-[14px] pb-[14px] pl-4 pr-[14px]",
+    "h-[136px] w-full rounded-[24px] pt-[14px] pb-[14px] pl-4 pr-[14px]",
     "flex flex-col justify-between",
     "bg-black/[0.05]",
   ].join(" ");
@@ -32,7 +32,7 @@ export function SeriesFolderCard({
 
       <div className="flex items-end justify-between">
         <div
-          className="text-[96px] leading-[0.78] text-black"
+          className="text-[88px] leading-[0.78] text-black"
           style={{ fontVariationSettings: '"wdth" 75, "wght" 400, "opsz" 56', fontStretch: "75%" }}
         >
           {count}
