@@ -83,7 +83,7 @@ export function SeriesCard({
             </div>
           </div>
 
-          <div className="flex items-center gap-[2px] text-[14px] leading-[1.15] text-black/40 min-w-0">
+          <div className="flex items-center gap-[4px] text-[14px] leading-[1.15] text-black/40 min-w-0">
             <div className="h-[21px] w-[21px] shrink-0 flex items-center justify-center">
               <svg
                 viewBox="0 0 17 17"
