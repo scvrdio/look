@@ -316,25 +316,31 @@ export default function HomePage() {
   }
 
   return (
-    <main className="h-dvh overflow-hidden bg-black">
+    <main className="h-dvh overflow-hidden overscroll-none bg-black">
       <style jsx>{`
         .footer-shell {
           display: grid;
+          width: 100%;
+          min-width: 0;
           grid-template-rows: 0fr;
-          opacity: 0;
+          transform: translateY(100%);
           pointer-events: none;
-          transition: grid-template-rows 760ms cubic-bezier(0.22, 1, 0.36, 1), opacity 420ms ease-out;
-          will-change: grid-template-rows, opacity;
+          transition:
+            grid-template-rows 760ms cubic-bezier(0.22, 1, 0.36, 1),
+            transform 760ms cubic-bezier(0.22, 1, 0.36, 1);
+          will-change: grid-template-rows, transform;
         }
 
         .footer-shell--ready {
           grid-template-rows: 1fr;
-          opacity: 1;
+          transform: translateY(0);
           pointer-events: auto;
         }
 
         .footer-shell__inner {
-          overflow: hidden;
+          width: 100%;
+          min-width: 0;
+          overflow: visible;
           min-height: 0;
         }
       `}</style>
@@ -423,16 +429,11 @@ export default function HomePage() {
         {Array.isArray(items) && items.length > 0 ? (
           <div
             className={[
-              "shrink-0 footer-shell",
+              "w-full shrink-0 footer-shell",
               footerReady ? "footer-shell--ready" : "",
             ].join(" ")}
           >
-            <div
-              className={[
-                "footer-shell__inner transition-all duration-500 ease-out",
-                footerReady ? "opacity-100 blur-0" : "opacity-0 blur-[8px]",
-              ].join(" ")}
-            >
+            <div className="footer-shell__inner">
               <SeriesFooterCarousel
                 items={items}
                 onOpenSeries={(seriesId) => {

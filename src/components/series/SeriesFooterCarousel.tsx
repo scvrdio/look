@@ -175,9 +175,9 @@ export function SeriesFooterCarousel({
   }, [activeIndex, inProgressItems.length]);
 
   return (
-    <div className="bg-black pb-[calc(var(--tg-content-safe-bottom,0px)+14px)] pt-3 text-white">
+    <div className="w-full bg-black pb-[calc(var(--tg-content-safe-bottom,0px)+14px)] pt-3 text-white">
       <div
-        className="pb-5 pt-0 text-white"
+        className="w-full pb-5 pt-0 text-white"
         data-swipe-up-ready="true"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -194,7 +194,7 @@ export function SeriesFooterCarousel({
           <>
             <div
               ref={scrollRef}
-              className="mt-4 flex snap-x snap-mandatory overflow-x-auto overflow-y-visible pb-1 no-scrollbar touch-pan-x"
+              className="mt-4 flex w-full snap-x snap-mandatory overflow-x-auto overflow-y-visible pb-1 no-scrollbar touch-pan-x"
             >
               {inProgressItems.map((series, idx) => {
                 const seasonView = seasonProgressViewBySeriesId[series.id];
