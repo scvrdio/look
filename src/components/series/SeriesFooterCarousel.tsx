@@ -34,6 +34,8 @@ export function SeriesFooterCarousel({
   const dragStartXRef = useRef(0);
   const dragStartYRef = useRef(0);
   const swipeUpArmedRef = useRef(false);
+  const loopingAdjustRef = useRef(false);
+  const initLoopPositionRef = useRef(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const [seasonProgressViewBySeriesId, setSeasonProgressViewBySeriesId] = useState<
     Record<string, SeasonProgressView>
@@ -43,6 +45,16 @@ export function SeriesFooterCarousel({
     () => items.filter((s) => (s.progress?.percent ?? 0) < 100),
     [items]
   );
+  const loopedItems = useMemo(() => {
+    if (inProgressItems.length <= 1) return inProgressItems;
+    const first = inProgressItems[0];
+    const last = inProgressItems[inProgressItems.length - 1];
+    return [last, ...inProgressItems, first];
+  }, [inProgressItems]);
+
+  useEffect(() => {
+    initLoopPositionRef.current = false;
+  }, [inProgressItems.length]);
 
   useEffect(() => {
     let cancelled = false;
@@ -108,6 +120,7 @@ export function SeriesFooterCarousel({
     if (!node) return;
 
     const handleScroll = () => {
+      if (loopingAdjustRef.current) return;
       const cards = Array.from(
         node.querySelectorAll<HTMLElement>('[data-carousel-card="true"]')
       );
@@ -126,6 +139,34 @@ export function SeriesFooterCarousel({
           bestDistance = distance;
         }
       });
+      if (inProgressItems.length > 1) {
+        if (best === 0) {
+          const target = cards[inProgressItems.length];
+          if (target) {
+            loopingAdjustRef.current = true;
+            node.scrollTo({ left: target.offsetLeft, behavior: "auto" });
+            setActiveIndex(inProgressItems.length - 1);
+            requestAnimationFrame(() => {
+              loopingAdjustRef.current = false;
+            });
+          }
+          return;
+        }
+        if (best === cards.length - 1) {
+          const target = cards[1];
+          if (target) {
+            loopingAdjustRef.current = true;
+            node.scrollTo({ left: target.offsetLeft, behavior: "auto" });
+            setActiveIndex(0);
+            requestAnimationFrame(() => {
+              loopingAdjustRef.current = false;
+            });
+          }
+          return;
+        }
+        setActiveIndex(best - 1);
+        return;
+      }
       setActiveIndex(best);
     };
 
@@ -133,6 +174,25 @@ export function SeriesFooterCarousel({
     node.addEventListener("scroll", handleScroll, { passive: true });
     return () => node.removeEventListener("scroll", handleScroll);
   }, [inProgressItems.length]);
+
+  useEffect(() => {
+    const node = scrollRef.current;
+    if (!node) return;
+    if (inProgressItems.length <= 1) {
+      initLoopPositionRef.current = false;
+      return;
+    }
+    if (initLoopPositionRef.current) return;
+
+    const cards = Array.from(
+      node.querySelectorAll<HTMLElement>('[data-carousel-card="true"]')
+    );
+    const firstRealCard = cards[1];
+    if (!firstRealCard) return;
+
+    node.scrollTo({ left: firstRealCard.offsetLeft, behavior: "auto" });
+    initLoopPositionRef.current = true;
+  }, [inProgressItems.length, loopedItems.length]);
 
   function onPointerDown(event: React.PointerEvent<HTMLDivElement>) {
     if (event.pointerType === "mouse" && event.button !== 0) return;
@@ -164,7 +224,8 @@ export function SeriesFooterCarousel({
     const cards = node
       ? Array.from(node.querySelectorAll<HTMLElement>('[data-carousel-card="true"]'))
       : [];
-    const card = cards[index];
+    const targetIndex = inProgressItems.length > 1 ? index + 1 : index;
+    const card = cards[targetIndex];
     if (!node || !card) return;
     node.scrollTo({ left: card.offsetLeft, behavior: "smooth" });
   }
@@ -196,14 +257,14 @@ export function SeriesFooterCarousel({
               ref={scrollRef}
               className="mt-4 flex w-full snap-x snap-mandatory overflow-x-auto overflow-y-visible pb-1 no-scrollbar touch-pan-x"
             >
-              {inProgressItems.map((series, idx) => {
+              {loopedItems.map((series, idx) => {
                 const seasonView = seasonProgressViewBySeriesId[series.id];
                 const season = seasonView?.season ?? series.progress?.last?.season ?? null;
                 const displayEpisode = seasonView?.episode ?? (series.progress?.last?.episode ?? 0);
                 const episodesCount = seasonView?.episodesCount ?? series.episodesCount;
                 return (
                   <div
-                    key={series.id}
+                    key={`${series.id}-${idx}`}
                     data-carousel-card="true"
                     className="w-full shrink-0 snap-start overflow-visible px-6"
                   >
