@@ -731,7 +731,7 @@ export function SeriesSheet({
           </div>
 
           {/* Footer actions */}
-          <div className="px-5 pb-[calc(var(--tg-content-safe-bottom,0px)+16px)] pt-2 bg-[linear-gradient(180deg,rgba(255,255,255,0)_0%,#fff_50%,#fff_100%)]">
+          <div className="px-5 pb-[calc(var(--tg-content-safe-bottom,0px)+24px)] pt-2 bg-[linear-gradient(180deg,rgba(255,255,255,0)_0%,#fff_50%,#fff_100%)]">
             <div className="flex items-center justify-center gap-[24px]">
               <button
                 type="button"
