@@ -316,7 +316,7 @@ export default function HomePage() {
   }
 
   return (
-    <main className="h-dvh bg-black">
+    <main className="h-dvh overflow-hidden bg-black">
       <style jsx>{`
         .footer-shell {
           display: grid;
@@ -339,8 +339,8 @@ export default function HomePage() {
         }
       `}</style>
 
-      <div className="mx-auto flex h-dvh w-full max-w-[420px] flex-col overflow-visible bg-black">
-        <div className="min-h-0 flex flex-1 flex-col overflow-y-auto overflow-x-visible no-scrollbar rounded-b-[32px] bg-white px-4 pt-[calc(var(--tg-content-safe-top,0px)+64px)]">
+      <div className="mx-auto flex h-dvh w-full max-w-[420px] flex-col overflow-hidden bg-black">
+        <div className="min-h-0 flex flex-1 flex-col overflow-y-auto overflow-x-visible overscroll-y-contain no-scrollbar rounded-b-[32px] bg-white px-4 pt-[calc(var(--tg-content-safe-top,0px)+64px)]">
           {searchOpen ? (
             <SeriesSearchPanel
               items={items ?? []}
