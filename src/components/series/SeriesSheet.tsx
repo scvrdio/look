@@ -10,9 +10,10 @@ import { Sheet, SheetContent, SheetClose } from "@/components/ui/sheet";
 import { SeasonTabs } from "@/components/series/SeasonTabs";
 import { EpisodeGrid } from "@/components/series/EpisodeGrid";
 import { fetcher } from "@/lib/fetcher";
+import { getTelegramWebApp } from "@/types/telegram";
 import loadingAnimation from "../../../public/lottie.json";
 
-import { X, Trash } from "@/icons";
+import { X, TrashFill, PauseFill, PlaylistCheckFill } from "@/icons";
 import { hapticImpact } from "@/lib/haptics";
 
 type SeasonRow = {
@@ -41,6 +42,7 @@ type SeriesSheetProps = {
   onOpenChange: (v: boolean) => void;
   seriesId: string | null;
   title: string;
+  posterUrl?: string | null;
   preferredSeasonNumber?: number | null;
   preferredEpisodeNumber?: number | null;
   onChanged?: () => void;
@@ -51,6 +53,7 @@ export function SeriesSheet({
   onOpenChange,
   seriesId,
   title,
+  posterUrl,
   preferredSeasonNumber,
   preferredEpisodeNumber,
   onChanged,
@@ -563,6 +566,27 @@ export function SeriesSheet({
     }
   }
 
+  async function confirmDeleteSeriesSystem() {
+    const tg = getTelegramWebApp();
+    if (tg?.showPopup) {
+      return await new Promise<boolean>((resolve) => {
+        tg.showPopup?.(
+          {
+            title: "Удалить сериал?",
+            message: "Это действие нельзя отменить",
+            buttons: [
+              { id: "cancel", type: "cancel", text: "Отмена" },
+              { id: "delete", type: "destructive", text: "Удалить" },
+            ],
+          },
+          (buttonId) => resolve(buttonId === "delete")
+        );
+      });
+    }
+
+    return window.confirm("Удалить сериал?\n\nЭто действие нельзя отменить");
+  }
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
@@ -576,97 +600,130 @@ export function SeriesSheet({
         <div className="flex h-full flex-col">
           {/* Header */}
           <div
-            className="relative px-5 pt-7 pb-4"
+            className="px-5 pb-0 pt-6"
             onPointerDown={onSheetPointerDown}
             onPointerMove={onSheetPointerMove}
             onPointerUp={onSheetPointerEnd}
             onPointerCancel={onSheetPointerEnd}
           >
-            <SheetClose asChild>
+            <div className="grid grid-cols-[28px_1fr_28px] items-center gap-3">
+              <div className="h-7 w-7 overflow-hidden rounded-full bg-black/10">
+                {posterUrl ? (
+                  <img
+                    src={posterUrl}
+                    alt={displayTitle}
+                    className="h-full w-full object-cover"
+                    loading="eager"
+                    decoding="async"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : null}
+              </div>
+
+              <div className="min-w-0 text-center ty-h1 text-[24px] leading-[1.1] truncate">
+                {displayTitle}
+              </div>
+
+              <SheetClose asChild>
+                <button
+                  type="button"
+                  onClick={() => hapticImpact("light")}
+                  className="inline-flex h-7 w-7 items-center justify-center text-black"
+                  aria-label="Close"
+                >
+                  <X className="h-7 w-7 text-black" />
+                </button>
+              </SheetClose>
+            </div>
+          </div>
+
+          {/* Seasons */}
+          <div className="mt-8 px-5 overflow-x-auto no-scrollbar">
+            <div>
+              <SeasonTabs
+                items={(seasons ?? []).map((s) => ({
+                  id: s.id,
+                  number: s.number,
+                  completed: completedBySeasonId[s.id] ?? Boolean(s.completed),
+                }))}
+                activeId={activeSeasonId}
+                ready={seasonsReady}
+                onChange={(id) => {
+                  if (id === activeSeasonId) return;
+                  setEpisodesReady(false);
+                  setUiEpisodes(null);
+                  setActiveSeasonId(id);
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Episodes */}
+          <div
+            ref={scrollAreaRef}
+            className="min-h-0 flex-1 overflow-y-auto no-scrollbar px-5 pb-6 pt-8"
+            onPointerDown={onSheetPointerDown}
+            onPointerMove={onSheetPointerMove}
+            onPointerUp={onSheetPointerEnd}
+            onPointerCancel={onSheetPointerEnd}
+          >
+            {initialLoading ? (
+              <div className="flex h-[220px] items-center justify-center">
+                {showLoadingLottie ? (
+                  <div className="w-[180px]">
+                    <Lottie animationData={loadingAnimation} loop autoplay />
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <>
+                {backgroundUpdating ? null : null}
+                <EpisodeGrid
+                  items={uiEpisodes ?? []}
+                  onToggle={toggleEpisode}
+                  ready={episodesReady}
+                  closing={episodesClosing}
+                />
+              </>
+            )}
+          </div>
+
+          {/* Footer actions */}
+          <div className="px-5 pb-[calc(var(--tg-content-safe-bottom,0px)+12px)] pt-2">
+            <div className="flex items-center justify-center gap-[16px]">
+              <button
+                type="button"
+                onClick={async () => {
+                  if (deletingRef.current) return;
+                  hapticImpact("light");
+                  const confirmed = await confirmDeleteSeriesSystem();
+                  if (!confirmed) return;
+                  hapticImpact("heavy");
+                  await deleteSeries();
+                }}
+                className="inline-flex h-[60px] w-[60px] items-center justify-center"
+                aria-label="Delete series"
+              >
+                <TrashFill className="h-7 w-7 text-[#FF0000]" />
+              </button>
+
               <button
                 type="button"
                 onClick={() => hapticImpact("light")}
-                className="absolute right-4 top-5 h-10 w-10 rounded-full inline-flex items-center justify-center text-black"
-                aria-label="Close"
+                className="inline-flex h-[60px] w-[60px] items-center justify-center"
+                aria-label="Pause"
               >
-                <X className="w-6 h-6 text-black" />
+                <PauseFill className="h-7 w-7 text-[#000000]" />
               </button>
-            </SheetClose>
 
-            <button
-              type="button"
-              onClick={() => {
-                if (deletingRef.current) return;
-                hapticImpact("light");
-                setConfirmDeleteOpen(true);
-              }}
-              className="absolute left-4 top-5 h-10 w-10 rounded-full inline-flex items-center justify-center text-[#FF0000]"
-              aria-label="Delete"
-            >
-              <Trash className="w-6 h-6 text-red-500" />
-            </button>
-
-            <div className="text-center ty-h1 text-[24px] leading-[1.1] px-12">{displayTitle}</div>
-          </div>
-
-          {/* Body */}
-          <div
-            ref={scrollAreaRef}
-            className="flex-1 overflow-y-auto px-5 pb-6"
-            onPointerDown={onSheetPointerDown}
-            onPointerMove={onSheetPointerMove}
-            onPointerUp={onSheetPointerEnd}
-            onPointerCancel={onSheetPointerEnd}
-          >
-            <div className="flex h-full flex-col">
-
-              {/* Episodes */}
-              <div className="pt-4">
-                {initialLoading ? (
-                  <div className="h-[220px] flex items-center justify-center">
-                    {showLoadingLottie ? (
-                      <div className="w-[180px]">
-                        <Lottie animationData={loadingAnimation} loop autoplay />
-                      </div>
-                    ) : null}
-                  </div>
-                ) : (
-                  <>
-                    {backgroundUpdating ? null : null}
-                    <EpisodeGrid
-                      items={uiEpisodes ?? []}
-                      onToggle={toggleEpisode}
-                      ready={episodesReady}
-                      closing={episodesClosing}
-                    />
-                  </>
-                )}
-              </div>
-
-              {/* Seasons */}
-              <div className="mt-auto -mx-5">
-                <div className="px-5 overflow-x-auto no-scrollbar">
-                  <div className="py-2">
-                    <SeasonTabs
-                      items={(seasons ?? []).map((s) => ({
-                        id: s.id,
-                        number: s.number,
-                        completed: completedBySeasonId[s.id] ?? Boolean(s.completed),
-                      }))}
-                      activeId={activeSeasonId}
-                      ready={seasonsReady}
-                      onChange={(id) => {
-                        if (id === activeSeasonId) return;
-                        setEpisodesReady(false);
-                        setUiEpisodes(null);
-                        setActiveSeasonId(id);
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              
+              <button
+                type="button"
+                onClick={() => hapticImpact("light")}
+                className="inline-flex h-[60px] w-[60px] items-center justify-center"
+                aria-label="Mark playlist"
+              >
+                <PlaylistCheckFill className="h-7 w-7 text-[#00A900]" />
+              </button>
             </div>
           </div>
         </div>

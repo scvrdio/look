@@ -48,6 +48,10 @@ export default function HomePage() {
     if (!effectiveSeriesId) return "";
     return (items ?? []).find((s) => s.id === effectiveSeriesId)?.title ?? "";
   }, [items, effectiveSeriesId]);
+  const activePosterUrl = useMemo(() => {
+    if (!effectiveSeriesId) return null;
+    return (items ?? []).find((s) => s.id === effectiveSeriesId)?.posterUrl ?? null;
+  }, [items, effectiveSeriesId]);
   const preferredSeasonNumber = useMemo(() => {
     if (!effectiveSeriesId) return null;
     return (items ?? []).find((s) => s.id === effectiveSeriesId)?.progress?.last?.season ?? null;
@@ -497,6 +501,7 @@ export default function HomePage() {
         }}
         seriesId={effectiveSeriesId}
         title={activeTitle}
+        posterUrl={activePosterUrl}
         preferredSeasonNumber={preferredSeasonNumber}
         preferredEpisodeNumber={preferredEpisodeNumber}
         onChanged={() => void mutateSeries()}
