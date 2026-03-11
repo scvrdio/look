@@ -599,8 +599,8 @@ export default function HomePage() {
       <div className="mx-auto flex h-dvh w-full max-w-[420px] flex-col overflow-hidden bg-black">
         <div
           className={[
-            "min-h-0 flex flex-1 flex-col overflow-y-auto overflow-x-visible overscroll-y-contain no-scrollbar bg-white px-4 pt-[calc(var(--tg-content-safe-top,0px)+64px)]",
-            bottomRounded ? "rounded-b-[32px]" : "",
+            "min-h-0 flex flex-1 flex-col overflow-y-auto overflow-x-visible overscroll-y-contain no-scrollbar bg-white px-4 pt-[calc(var(--tg-content-safe-top,0px)+64px)] transition-[border-bottom-left-radius,border-bottom-right-radius] duration-[560ms] ease-[cubic-bezier(0.4,0,0.2,1)]",
+            bottomRounded ? "rounded-b-[32px]" : "rounded-b-none",
           ].join(" ")}
         >
           {searchOpen ? (

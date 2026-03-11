@@ -10,11 +10,12 @@ import Lottie from "lottie-react";
 import { Sheet, SheetContent, SheetClose } from "@/components/ui/sheet";
 import { SeasonTabs } from "@/components/series/SeasonTabs";
 import { EpisodeGrid } from "@/components/series/EpisodeGrid";
+import { SeriesSheetFooterActions } from "@/components/series/SeriesSheetFooterActions";
 import { fetcher } from "@/lib/fetcher";
 import { getTelegramWebApp } from "@/types/telegram";
 import loadingAnimation from "../../../public/lottie.json";
 
-import { X, TrashFill, PauseFill, PlayFill, PlaylistCheckFill } from "@/icons";
+import { X } from "@/icons";
 import { hapticImpact } from "@/lib/haptics";
 import type { SeriesRow } from "@/types/bootstrap";
 
@@ -731,7 +732,7 @@ export function SeriesSheet({
           <Dialog.Title>{displayTitle}</Dialog.Title>
         </VisuallyHidden>
 
-        <div className="flex h-full flex-col">
+        <div className="relative flex h-full flex-col">
           {/* Header */}
           <div
             className="relative z-40 px-5 pb-0 pt-6"
@@ -773,7 +774,7 @@ export function SeriesSheet({
 
           {/* Seasons */}
           <div className="relative z-40 mt-8 overflow-visible">
-            <div className="overflow-x-auto no-scrollbar pr-5 pl-3 py-1">
+            <div className="overflow-x-auto no-scrollbar pr-5 pl-3 pt-1 pb-4">
               <SeasonTabs
                 items={(seasons ?? []).map((s) => ({
                   id: s.id,
@@ -795,7 +796,7 @@ export function SeriesSheet({
           {/* Episodes */}
           <div
             ref={scrollAreaRef}
-            className="min-h-0 flex-1 overflow-y-auto no-scrollbar px-5 pb-6 pt-6"
+            className="min-h-0 flex-1 overflow-y-auto no-scrollbar px-5 pb-[calc(var(--tg-content-safe-bottom,0px)+104px)] pt-4"
             onPointerDown={onSheetPointerDown}
             onPointerMove={onSheetPointerMove}
             onPointerUp={onSheetPointerEnd}
@@ -823,27 +824,21 @@ export function SeriesSheet({
           </div>
 
           {/* Footer actions */}
-          <div className="relative z-40 px-5 pb-[calc(var(--tg-content-safe-bottom,0px)+24px)] bg-[linear-gradient(180deg,rgba(255,255,255,0)_0%,#fff_50%,#fff_100%)]">
-            <div className="flex items-center justify-center gap-[32px]">
-              <button
-                type="button"
-                onClick={async () => {
+          <div className="absolute bottom-[calc(var(--tg-content-safe-bottom,0px)+24px)] left-1/2 z-40 -translate-x-1/2">
+            <SeriesSheetFooterActions
+              paused={paused}
+              onDelete={() => {
+                void (async () => {
                   if (deletingRef.current) return;
                   hapticImpact("light");
                   const confirmed = await confirmDeleteSeriesSystem();
                   if (!confirmed) return;
                   hapticImpact("heavy");
                   await deleteSeries();
-                }}
-                className="inline-flex h-[44px] w-[44px] items-center justify-center"
-                aria-label="Delete series"
-              >
-                <TrashFill className="h-7 w-7 text-[#FF0000]" />
-              </button>
-
-              <button
-                type="button"
-                onClick={async () => {
+                })();
+              }}
+              onPauseToggle={() => {
+                void (async () => {
                   hapticImpact("light");
                   if (paused) {
                     const resumed = await setSeriesPaused(false);
@@ -856,33 +851,19 @@ export function SeriesSheet({
                   const movedToPause = await setSeriesPaused(true);
                   if (!movedToPause) return;
                   hapticImpact("medium");
-                }}
-                className="inline-flex h-[60px] w-[60px] items-center justify-center"
-                aria-label={paused ? "Resume" : "Pause"}
-              >
-                {paused ? (
-                  <PlayFill className="h-7 w-7 text-[#000000]" />
-                ) : (
-                  <PauseFill className="h-7 w-7 text-[#000000]" />
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={async () => {
+                })();
+              }}
+              onComplete={() => {
+                void (async () => {
                   hapticImpact("light");
                   const confirmed = await confirmCompleteSeriesSystem();
                   if (!confirmed) return;
                   const completed = await completeSeries();
                   if (!completed) return;
                   hapticImpact("medium");
-                }}
-                className="inline-flex h-[60px] w-[60px] items-center justify-center"
-                aria-label="Mark playlist"
-              >
-                <PlaylistCheckFill className="h-7 w-7 text-[#00A900]" />
-              </button>
-            </div>
+                })();
+              }}
+            />
           </div>
         </div>
 
