@@ -36,6 +36,7 @@ export function SeriesFooterCarousel({
   const swipeUpArmedRef = useRef(false);
   const loopingAdjustRef = useRef(false);
   const initLoopPositionRef = useRef(false);
+  const loopSettleTimerRef = useRef<number | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [seasonProgressViewBySeriesId, setSeasonProgressViewBySeriesId] = useState<
     Record<string, SeasonProgressView>
@@ -140,31 +141,53 @@ export function SeriesFooterCarousel({
         }
       });
       if (inProgressItems.length > 1) {
-        if (best === 0) {
-          const target = cards[inProgressItems.length];
-          if (target) {
+        if (best === 0) setActiveIndex(inProgressItems.length - 1);
+        else if (best === cards.length - 1) setActiveIndex(0);
+        else setActiveIndex(best - 1);
+
+        if (loopSettleTimerRef.current !== null) {
+          window.clearTimeout(loopSettleTimerRef.current);
+        }
+        loopSettleTimerRef.current = window.setTimeout(() => {
+          if (loopingAdjustRef.current) return;
+          const latestCards = Array.from(
+            node.querySelectorAll<HTMLElement>('[data-carousel-card="true"]')
+          );
+          if (!latestCards.length) return;
+
+          const latestCenter = node.scrollLeft + node.clientWidth / 2;
+          let latestBest = 0;
+          let latestBestDistance = Number.POSITIVE_INFINITY;
+          latestCards.forEach((card, idx) => {
+            const cardCenter = card.offsetLeft + card.clientWidth / 2;
+            const distance = Math.abs(cardCenter - latestCenter);
+            if (distance < latestBestDistance) {
+              latestBest = idx;
+              latestBestDistance = distance;
+            }
+          });
+
+          if (latestBest === 0) {
+            const target = latestCards[inProgressItems.length];
+            if (!target) return;
             loopingAdjustRef.current = true;
             node.scrollTo({ left: target.offsetLeft, behavior: "auto" });
-            setActiveIndex(inProgressItems.length - 1);
+            requestAnimationFrame(() => {
+              loopingAdjustRef.current = false;
+            });
+            return;
+          }
+
+          if (latestBest === latestCards.length - 1) {
+            const target = latestCards[1];
+            if (!target) return;
+            loopingAdjustRef.current = true;
+            node.scrollTo({ left: target.offsetLeft, behavior: "auto" });
             requestAnimationFrame(() => {
               loopingAdjustRef.current = false;
             });
           }
-          return;
-        }
-        if (best === cards.length - 1) {
-          const target = cards[1];
-          if (target) {
-            loopingAdjustRef.current = true;
-            node.scrollTo({ left: target.offsetLeft, behavior: "auto" });
-            setActiveIndex(0);
-            requestAnimationFrame(() => {
-              loopingAdjustRef.current = false;
-            });
-          }
-          return;
-        }
-        setActiveIndex(best - 1);
+        }, 90);
         return;
       }
       setActiveIndex(best);
@@ -172,7 +195,12 @@ export function SeriesFooterCarousel({
 
     handleScroll();
     node.addEventListener("scroll", handleScroll, { passive: true });
-    return () => node.removeEventListener("scroll", handleScroll);
+    return () => {
+      node.removeEventListener("scroll", handleScroll);
+      if (loopSettleTimerRef.current !== null) {
+        window.clearTimeout(loopSettleTimerRef.current);
+      }
+    };
   }, [inProgressItems.length]);
 
   useEffect(() => {
