@@ -25,8 +25,11 @@ export default function HomePage() {
   const [listReady, setListReady] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [bottomRounded, setBottomRounded] = useState(false);
+  const [footerEnterReady, setFooterEnterReady] = useState(false);
   const bgPreloadRef = useRef(false);
   const bottomRadiusTimerRef = useRef<number | null>(null);
+  const footerEnterRaf1Ref = useRef<number | null>(null);
+  const footerEnterRaf2Ref = useRef<number | null>(null);
   const footerInnerRef = useRef<HTMLDivElement | null>(null);
   const [footerHeight, setFooterHeight] = useState(0);
 
@@ -156,6 +159,42 @@ export default function HomePage() {
   const footerShown = hasFooterItems && !searchOpen;
 
   useEffect(() => {
+    if (footerEnterRaf1Ref.current !== null) {
+      window.cancelAnimationFrame(footerEnterRaf1Ref.current);
+      footerEnterRaf1Ref.current = null;
+    }
+    if (footerEnterRaf2Ref.current !== null) {
+      window.cancelAnimationFrame(footerEnterRaf2Ref.current);
+      footerEnterRaf2Ref.current = null;
+    }
+
+    if (!footerShown) {
+      setFooterEnterReady(false);
+      return;
+    }
+
+    setFooterEnterReady(false);
+    footerEnterRaf1Ref.current = window.requestAnimationFrame(() => {
+      footerEnterRaf2Ref.current = window.requestAnimationFrame(() => {
+        setFooterEnterReady(true);
+        footerEnterRaf1Ref.current = null;
+        footerEnterRaf2Ref.current = null;
+      });
+    });
+
+    return () => {
+      if (footerEnterRaf1Ref.current !== null) {
+        window.cancelAnimationFrame(footerEnterRaf1Ref.current);
+        footerEnterRaf1Ref.current = null;
+      }
+      if (footerEnterRaf2Ref.current !== null) {
+        window.cancelAnimationFrame(footerEnterRaf2Ref.current);
+        footerEnterRaf2Ref.current = null;
+      }
+    };
+  }, [footerShown]);
+
+  useEffect(() => {
     const node = footerInnerRef.current;
     if (!node) return;
 
@@ -181,7 +220,7 @@ export default function HomePage() {
       bottomRadiusTimerRef.current = null;
     }
 
-    if (footerShown) {
+    if (footerEnterReady) {
       setBottomRounded(true);
       return;
     }
@@ -195,12 +234,18 @@ export default function HomePage() {
       setBottomRounded(false);
       bottomRadiusTimerRef.current = null;
     }, FOOTER_ANIMATION_MS);
-  }, [footerShown, hasFooterItems, FOOTER_ANIMATION_MS]);
+  }, [footerEnterReady, hasFooterItems, FOOTER_ANIMATION_MS]);
 
   useEffect(() => {
     return () => {
       if (bottomRadiusTimerRef.current !== null) {
         window.clearTimeout(bottomRadiusTimerRef.current);
+      }
+      if (footerEnterRaf1Ref.current !== null) {
+        window.cancelAnimationFrame(footerEnterRaf1Ref.current);
+      }
+      if (footerEnterRaf2Ref.current !== null) {
+        window.cancelAnimationFrame(footerEnterRaf2Ref.current);
       }
     };
   }, []);
@@ -455,10 +500,10 @@ export default function HomePage() {
         {hasFooterItems ? (
           <div
             className={[
-              "w-full shrink-0 overflow-hidden transition-[max-height,opacity] duration-[560ms] ease-[cubic-bezier(0.22,1,0.36,1)]",
-              footerShown ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none",
+              "w-full shrink-0 overflow-hidden transition-[max-height,opacity] duration-[560ms] ease-[cubic-bezier(0.4,0,0.2,1)]",
+              footerEnterReady ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none",
             ].join(" ")}
-            style={{ maxHeight: footerShown ? `${footerHeight}px` : "0px" }}
+            style={{ maxHeight: footerEnterReady ? `${footerHeight}px` : "0px" }}
           >
             <div ref={footerInnerRef}>
               <SeriesFooterCarousel
