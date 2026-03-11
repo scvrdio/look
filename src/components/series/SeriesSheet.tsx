@@ -587,6 +587,48 @@ export function SeriesSheet({
     return window.confirm("Удалить сериал?\n\nЭто действие нельзя отменить");
   }
 
+  async function confirmPauseSeriesSystem() {
+    const tg = getTelegramWebApp();
+    if (tg?.showPopup) {
+      return await new Promise<boolean>((resolve) => {
+        tg.showPopup?.(
+          {
+            title: "Поставить на паузу?",
+            message: "Сериал будет перемещён в архив",
+            buttons: [
+              { id: "cancel", type: "cancel", text: "Отмена" },
+              { id: "pause", type: "default", text: "Пауза" },
+            ],
+          },
+          (buttonId) => resolve(buttonId === "pause")
+        );
+      });
+    }
+
+    return window.confirm("Поставить на паузу?\n\nСериал будет перемещён в архив");
+  }
+
+  async function confirmCompleteSeriesSystem() {
+    const tg = getTelegramWebApp();
+    if (tg?.showPopup) {
+      return await new Promise<boolean>((resolve) => {
+        tg.showPopup?.(
+          {
+            title: "Завершить сериал?",
+            message: "Отметим сериал как завершённый",
+            buttons: [
+              { id: "cancel", type: "cancel", text: "Отмена" },
+              { id: "complete", type: "default", text: "Завершить" },
+            ],
+          },
+          (buttonId) => resolve(buttonId === "complete")
+        );
+      });
+    }
+
+    return window.confirm("Завершить сериал?\n\nОтметим сериал как завершённый");
+  }
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
@@ -689,8 +731,8 @@ export function SeriesSheet({
           </div>
 
           {/* Footer actions */}
-          <div className="px-5 pb-[calc(var(--tg-content-safe-bottom,0px)+12px)] pt-2">
-            <div className="flex items-center justify-center gap-[16px]">
+          <div className="px-5 pb-[calc(var(--tg-content-safe-bottom,0px)+16px)] pt-2">
+            <div className="flex items-center justify-center gap-[24px]">
               <button
                 type="button"
                 onClick={async () => {
@@ -709,7 +751,12 @@ export function SeriesSheet({
 
               <button
                 type="button"
-                onClick={() => hapticImpact("light")}
+                onClick={async () => {
+                  hapticImpact("light");
+                  const confirmed = await confirmPauseSeriesSystem();
+                  if (!confirmed) return;
+                  hapticImpact("medium");
+                }}
                 className="inline-flex h-[60px] w-[60px] items-center justify-center"
                 aria-label="Pause"
               >
@@ -718,7 +765,12 @@ export function SeriesSheet({
 
               <button
                 type="button"
-                onClick={() => hapticImpact("light")}
+                onClick={async () => {
+                  hapticImpact("light");
+                  const confirmed = await confirmCompleteSeriesSystem();
+                  if (!confirmed) return;
+                  hapticImpact("medium");
+                }}
                 className="inline-flex h-[60px] w-[60px] items-center justify-center"
                 aria-label="Mark playlist"
               >
