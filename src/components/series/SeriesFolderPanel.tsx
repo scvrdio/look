@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { X } from "@/icons";
+import { XCircleFill } from "@/icons";
 import { pluralRu } from "@/lib/plural";
 import { hapticImpact } from "@/lib/haptics";
 import { SeriesCard } from "@/components/series/SeriesCard";
@@ -48,7 +48,7 @@ export function SeriesFolderPanel({ title, items, onBack, onOpenSeries }: Series
             className="inline-flex h-8 w-8 shrink-0 items-center justify-center text-black transition-transform active:scale-95"
             aria-label="Закрыть папку"
           >
-            <X className="h-8 w-8" />
+            <XCircleFill className="h-8 w-8" />
           </button>
         </div>
       </div>

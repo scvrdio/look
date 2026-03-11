@@ -408,7 +408,7 @@ export function SeriesSearchPanel({ items, onBack, onOpenSeries, onAddedSeries }
             className="inline-flex h-7 w-7 shrink-0 items-center justify-center text-black transition-transform active:scale-95"
             aria-label="Закрыть поиск"
           >
-            <X className="h-8 w-8" />
+            <XCircleFill className="h-8 w-8" />
           </button>
         </div>
 
@@ -543,7 +543,7 @@ export function SeriesSearchPanel({ items, onBack, onOpenSeries, onAddedSeries }
                           </button>
                         ) : (
                           <AddSeriesActionButton
-                            label={already ? "В списке" : "Добавить"}
+                            inList={already}
                             loading={isAdding}
                             disabled={already || isAdding}
                             onClick={() => addFromCatalog(item.id)}

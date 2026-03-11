@@ -31,6 +31,7 @@ export function SeasonButtonNew({
     >
       <button
         type="button"
+        data-sheet-drag-start="true"
         onClick={() => {
           hapticSelection();
           onClick();

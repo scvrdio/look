@@ -15,7 +15,7 @@ import { fetcher } from "@/lib/fetcher";
 import { getTelegramWebApp } from "@/types/telegram";
 import loadingAnimation from "../../../public/lottie.json";
 
-import { X } from "@/icons";
+import { XCircleFill } from "@/icons";
 import { hapticImpact } from "@/lib/haptics";
 import type { SeriesRow } from "@/types/bootstrap";
 
@@ -242,11 +242,11 @@ export function SeriesSheet({
     if (!open) return;
     if (event.pointerType === "mouse" && event.button !== 0) return;
     const target = event.target as HTMLElement | null;
-    if (
-      target?.closest(
-        'button,a,input,textarea,select,label,[role="button"],[data-no-sheet-drag="true"]'
-      )
-    ) {
+    const inInteractive = target?.closest(
+      'button,a,input,textarea,select,label,[role="button"],[data-no-sheet-drag="true"]'
+    );
+    const allowDragStart = target?.closest('[data-sheet-drag-start="true"]');
+    if (inInteractive && !allowDragStart) {
       return;
     }
 
@@ -766,7 +766,7 @@ export function SeriesSheet({
                   className="inline-flex h-7 w-7 items-center justify-center text-black"
                   aria-label="Close"
                 >
-                  <X className="h-7 w-7 text-black" />
+                  <XCircleFill className="h-7 w-7 text-black" />
                 </button>
               </SheetClose>
             </div>

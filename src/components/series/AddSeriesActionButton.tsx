@@ -4,8 +4,9 @@ import { PlaylistPlusFill } from "@/icons";
 import { cn } from "@/lib/utils";
 
 type AddSeriesActionButtonProps = {
-  label: string;
+  label?: string;
   loadingLabel?: string;
+  inList?: boolean;
   loading?: boolean;
   disabled?: boolean;
   onClick: () => void;
@@ -15,12 +16,15 @@ type AddSeriesActionButtonProps = {
 export function AddSeriesActionButton({
   label,
   loadingLabel = "Сохраняю",
+  inList = false,
   loading = false,
   disabled = false,
   onClick,
   className,
 }: AddSeriesActionButtonProps) {
-  const reserveLabel = loading ? loadingLabel : label;
+  const baseLabel = label ?? (inList ? "В списке" : "Сохранить");
+  const effectiveLoadingLabel = loadingLabel ?? "Сохраняю";
+  const reserveLabel = loading ? effectiveLoadingLabel : baseLabel;
 
   return (
     <button
@@ -58,7 +62,7 @@ export function AddSeriesActionButton({
             loading ? "opacity-0 blur-[4px]" : "opacity-100 blur-0"
           )}
         >
-          {label}
+          {baseLabel}
         </span>
         <span
           className={cn(
@@ -66,7 +70,7 @@ export function AddSeriesActionButton({
             loading ? "animate-pulse [animation-duration:1.2s] opacity-100 blur-0 text-black/55" : "opacity-0 blur-[4px]"
           )}
         >
-          {loadingLabel}
+          {effectiveLoadingLabel}
         </span>
       </span>
 
