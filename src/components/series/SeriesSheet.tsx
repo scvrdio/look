@@ -13,7 +13,7 @@ import { fetcher } from "@/lib/fetcher";
 import { getTelegramWebApp } from "@/types/telegram";
 import loadingAnimation from "../../../public/lottie.json";
 
-import { X, TrashFill, PauseFill, PlaylistCheckFill } from "@/icons";
+import { X, TrashFill, PauseFill, PlayFill, PlaylistCheckFill } from "@/icons";
 import { hapticImpact } from "@/lib/haptics";
 
 type SeasonRow = {
@@ -43,6 +43,7 @@ type SeriesSheetProps = {
   seriesId: string | null;
   title: string;
   posterUrl?: string | null;
+  paused?: boolean;
   preferredSeasonNumber?: number | null;
   preferredEpisodeNumber?: number | null;
   onChanged?: () => void;
@@ -54,6 +55,7 @@ export function SeriesSheet({
   seriesId,
   title,
   posterUrl,
+  paused = false,
   preferredSeasonNumber,
   preferredEpisodeNumber,
   onChanged,
@@ -566,6 +568,38 @@ export function SeriesSheet({
     }
   }
 
+  async function setSeriesPaused(nextPaused: boolean) {
+    if (!seriesId) return false;
+
+    const res = await fetch(`/api/series/${seriesId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ paused: nextPaused }),
+    });
+
+    if (!res.ok) return false;
+    onOpenChange(false);
+    onChanged?.();
+    return true;
+  }
+
+  async function completeSeries() {
+    if (!seriesId) return false;
+
+    const res = await fetch(`/api/series/${seriesId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ completed: true }),
+    });
+
+    if (!res.ok) return false;
+    onOpenChange(false);
+    onChanged?.();
+    return true;
+  }
+
   async function confirmDeleteSeriesSystem() {
     const tg = getTelegramWebApp();
     if (tg?.showPopup) {
@@ -753,14 +787,26 @@ export function SeriesSheet({
                 type="button"
                 onClick={async () => {
                   hapticImpact("light");
+                  if (paused) {
+                    const resumed = await setSeriesPaused(false);
+                    if (!resumed) return;
+                    hapticImpact("medium");
+                    return;
+                  }
                   const confirmed = await confirmPauseSeriesSystem();
                   if (!confirmed) return;
+                  const movedToPause = await setSeriesPaused(true);
+                  if (!movedToPause) return;
                   hapticImpact("medium");
                 }}
                 className="inline-flex h-[60px] w-[60px] items-center justify-center"
-                aria-label="Pause"
+                aria-label={paused ? "Resume" : "Pause"}
               >
-                <PauseFill className="h-7 w-7 text-[#000000]" />
+                {paused ? (
+                  <PlayFill className="h-7 w-7 text-[#000000]" />
+                ) : (
+                  <PauseFill className="h-7 w-7 text-[#000000]" />
+                )}
               </button>
 
               <button
@@ -769,6 +815,8 @@ export function SeriesSheet({
                   hapticImpact("light");
                   const confirmed = await confirmCompleteSeriesSystem();
                   if (!confirmed) return;
+                  const completed = await completeSeries();
+                  if (!completed) return;
                   hapticImpact("medium");
                 }}
                 className="inline-flex h-[60px] w-[60px] items-center justify-center"

@@ -26,7 +26,7 @@ export default function HomePage() {
   const [activeSeriesId, setActiveSeriesId] = useState<string | null>(null);
   const [listReady, setListReady] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [folderOpen, setFolderOpen] = useState<"will-watch" | "completed" | null>(null);
+  const [folderOpen, setFolderOpen] = useState<"will-watch" | "completed" | "paused" | null>(null);
   const [bottomRounded, setBottomRounded] = useState(false);
   const [footerEnterReady, setFooterEnterReady] = useState(false);
   const bgPreloadRef = useRef(false);
@@ -59,6 +59,10 @@ export default function HomePage() {
     if (!effectiveSeriesId) return null;
     return (items ?? []).find((s) => s.id === effectiveSeriesId)?.posterUrl ?? null;
   }, [items, effectiveSeriesId]);
+  const activePaused = useMemo(() => {
+    if (!effectiveSeriesId) return false;
+    return Boolean((items ?? []).find((s) => s.id === effectiveSeriesId)?.paused);
+  }, [items, effectiveSeriesId]);
   const preferredSeasonNumber = useMemo(() => {
     if (!effectiveSeriesId) return null;
     return (items ?? []).find((s) => s.id === effectiveSeriesId)?.progress?.last?.season ?? null;
@@ -72,7 +76,7 @@ export default function HomePage() {
       (items ?? []).filter((series) => {
         const percent = series.progress?.percent ?? 0;
         const last = series.progress?.last;
-        return percent < 100 && last == null;
+        return percent < 100 && last == null && !series.paused;
       }),
     [items]
   );
@@ -81,7 +85,7 @@ export default function HomePage() {
       (items ?? []).filter((series) => {
         const percent = series.progress?.percent ?? 0;
         const last = series.progress?.last;
-        return percent < 100 && last != null;
+        return percent < 100 && last != null && !series.paused;
       }),
     [items]
   );
@@ -109,6 +113,14 @@ export default function HomePage() {
   );
   const activeFolderTitle = folderOpen === "completed" ? "Просмотрено" : "Буду смотреть";
   const activeFolderItems = folderOpen === "completed" ? completedItems : willWatchItems;
+
+  const pausedItems = useMemo(
+    () => (items ?? []).filter((series) => Boolean(series.paused) && (series.progress?.percent ?? 0) < 100),
+    [items]
+  );
+  const hasPausedItems = pausedItems.length > 0;
+  const resolvedFolderTitle = folderOpen === "paused" ? "На паузе" : activeFolderTitle;
+  const resolvedFolderItems = folderOpen === "paused" ? pausedItems : activeFolderItems;
 
   useEffect(() => {
     try {
@@ -306,7 +318,7 @@ export default function HomePage() {
     setSearchOpen(false);
   }
 
-  function openFolder(kind: "will-watch" | "completed") {
+  function openFolder(kind: "will-watch" | "completed" | "paused") {
     hapticImpact("light");
     setListReady(false);
     setSearchOpen(false);
@@ -490,8 +502,8 @@ export default function HomePage() {
             />
           ) : folderOpen ? (
             <SeriesFolderPanel
-              title={activeFolderTitle}
-              items={activeFolderItems}
+              title={resolvedFolderTitle}
+              items={resolvedFolderItems}
               onBack={closeFolder}
               onOpenSeries={(seriesId) => {
                 closeFolder();
@@ -520,7 +532,7 @@ export default function HomePage() {
                   aria-label="Открыть поиск"
                 >
                   <SearchCircleFill className="h-8 w-8" />
-                </button>
+                  </button>
               </div>
               <div
                 style={{ transitionDelay: "60ms" }}
@@ -549,7 +561,7 @@ export default function HomePage() {
               <div
                 style={{ transitionDelay: "120ms" }}
                 className={[
-                  "mt-8 flex items-center pl-1 transition-all duration-500 ease-out",
+                  "mt-8 flex items-center justify-between gap-3 pl-1 transition-all duration-500 ease-out",
                   listReady ? "opacity-100 translate-y-0 blur-0" : "opacity-0 translate-y-6 blur-[8px]",
                 ].join(" ")}
               >
@@ -559,6 +571,15 @@ export default function HomePage() {
                 >
                   Смотрю сейчас
                 </h2>
+                {hasPausedItems ? (
+                  <button
+                    type="button"
+                    onClick={() => openFolder("paused")}
+                    className="inline-flex h-8 shrink-0 items-center rounded-[8px] bg-[#F2F2F2] px-3 text-[13px] font-medium transition active:scale-[0.99]"
+                  >
+                  На паузе →
+                  </button>
+                ) : null}
               </div>
               <div className="mt-4 space-y-2 pb-4">
                 {nowWatchingItems.map((s, i) => {
@@ -645,6 +666,7 @@ export default function HomePage() {
         seriesId={effectiveSeriesId}
         title={activeTitle}
         posterUrl={activePosterUrl}
+        paused={activePaused}
         preferredSeasonNumber={preferredSeasonNumber}
         preferredEpisodeNumber={preferredEpisodeNumber}
         onChanged={() => void mutateSeries()}

@@ -10,6 +10,7 @@ export type SeriesRow = {
       percent: number;
       last: { season: number; episode: number } | null;
     };
+    paused?: boolean;
   };
   
   export type SeasonRow = { id: string; number: number; episodesCount: number; completed?: boolean };

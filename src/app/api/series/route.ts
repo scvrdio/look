@@ -112,6 +112,7 @@ export async function GET() {
         watchedEpisodes: watched,
         totalEpisodes: total,
       },
+      paused: total > 0 ? (s.links[0]?.watched ?? false) : false,
     };
 
   });

@@ -71,3 +71,85 @@ export async function DELETE(
 
   return NextResponse.json({ ok: true });
 }
+
+type UpdateSeriesBody = {
+  paused?: unknown;
+  completed?: unknown;
+};
+
+export async function PATCH(
+  req: Request,
+  context: { params: Promise<{ id: string }> }
+) {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+
+  const { id } = await context.params;
+
+  let body: UpdateSeriesBody;
+  try {
+    body = (await req.json()) as UpdateSeriesBody;
+  } catch {
+    return NextResponse.json({ error: "invalid json" }, { status: 400 });
+  }
+
+  const link = await prisma.userSeries.findUnique({
+    where: {
+      userId_seriesId: { userId: user.id, seriesId: id },
+    },
+    select: { userId: true, seriesId: true },
+  });
+
+  if (!link) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  if (typeof body.completed === "boolean" && body.completed) {
+    await prisma.$transaction(async (tx) => {
+      await tx.userSeries.update({
+        where: {
+          userId_seriesId: { userId: user.id, seriesId: id },
+        },
+        data: {
+          watched: false,
+        },
+      });
+
+      const episodes = await tx.episode.findMany({
+        where: {
+          season: {
+            seriesId: id,
+          },
+        },
+        select: { id: true },
+      });
+
+      if (episodes.length > 0) {
+        await tx.userEpisode.createMany({
+          data: episodes.map((episode) => ({
+            userId: user.id,
+            episodeId: episode.id,
+          })),
+          skipDuplicates: true,
+        });
+      }
+    });
+
+    return NextResponse.json({ ok: true, completed: true });
+  }
+
+  if (typeof body.paused !== "boolean") {
+    return NextResponse.json({ error: "paused must be boolean" }, { status: 400 });
+  }
+
+  await prisma.userSeries.update({
+    where: {
+      userId_seriesId: { userId: user.id, seriesId: id },
+    },
+    data: {
+      watched: body.paused,
+    },
+  });
+
+  return NextResponse.json({ ok: true, paused: body.paused });
+}
