@@ -98,7 +98,7 @@ export function SeriesCard({
                   r={radius}
                   fill="none"
                   stroke="#E7D8D2"
-                  strokeWidth="3"
+                  strokeWidth="2"
                 />
                 <circle
                   cx="8.5"
@@ -106,7 +106,7 @@ export function SeriesCard({
                   r={radius}
                   fill="none"
                   stroke="#FF4A00"
-                  strokeWidth="3"
+                  strokeWidth="2"
                   strokeDasharray={circumference}
                   strokeDashoffset={dashOffset}
                 />
