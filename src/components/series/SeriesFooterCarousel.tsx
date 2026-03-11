@@ -260,7 +260,7 @@ export function SeriesFooterCarousel({
                         className="absolute right-0 top-1/2 inline-flex h-13 w-13 -translate-y-1/2 items-center justify-center rounded-full bg-[#FF3D00]/15 text-[#FF3D00] transition active:scale-95"
                         aria-label={`Добавить серию для ${series.title}`}
                       >
-                        <PlusCircleFill className="h-5 w-5" />
+                        <PlusCircleFill className="h-7 w-7" />
                       </button>
                     </div>
                   </div>
@@ -269,18 +269,31 @@ export function SeriesFooterCarousel({
             </div>
 
             {inProgressItems.length > 1 ? (
-              <div className="mt-3 flex items-center justify-center gap-2">
-                {inProgressItems.map((_, idx) => (
+              <div className="mt-3 flex items-center justify-center gap-4">
+                {inProgressItems.map((series, idx) => (
                   <button
                     key={idx}
                     type="button"
                     className={[
-                      "h-1.5 rounded-full transition-all",
-                      idx === clampedActiveIndex ? "w-1.5 bg-white" : "w-1.5 bg-white/15",
+                      "h-4 w-4 overflow-hidden rounded-full transition-opacity",
+                      idx === clampedActiveIndex ? "opacity-100" : "opacity-30",
                     ].join(" ")}
                     onClick={() => scrollToIndex(idx)}
                     aria-label={`Слайд ${idx + 1}`}
-                  />
+                  >
+                    {series.posterUrl ? (
+                      <img
+                        src={series.posterUrl}
+                        alt={series.title}
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                        decoding="async"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <span className="block h-full w-full bg-white/30" />
+                    )}
+                  </button>
                 ))}
               </div>
             ) : null}

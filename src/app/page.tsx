@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import useSWR, { useSWRConfig } from "swr";
 
 import { pluralRu } from "@/lib/plural";
 import { fetcher } from "@/lib/fetcher";
 import { SeriesFooterCarousel } from "@/components/series/SeriesFooterCarousel";
+import { SeriesSearchPanel } from "@/components/series/SeriesSearchPanel";
 import { SeriesCard } from "../components/series/SeriesCard";
 import { SeriesSheet } from "../components/series/SeriesSheet";
 import { SearchCircleFill } from "@/icons";
@@ -23,6 +23,7 @@ export default function HomePage() {
   const [activeSeriesId, setActiveSeriesId] = useState<string | null>(null);
   const [listReady, setListReady] = useState(false);
   const [footerReady, setFooterReady] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const bgPreloadRef = useRef(false);
 
   // title всегда вычисляем из items, а не храним отдельно (иначе рассинхрон/"Загрузка…")
@@ -144,14 +145,23 @@ export default function HomePage() {
   }, [listReady, items, mutateGlobal, cache]);
 
   useEffect(() => {
-    if (!Array.isArray(items) || items.length === 0) {
+    if (!Array.isArray(items) || items.length === 0 || searchOpen) {
       setFooterReady(false);
       return;
     }
 
     const raf = window.requestAnimationFrame(() => setFooterReady(true));
     return () => window.cancelAnimationFrame(raf);
-  }, [items]);
+  }, [items, searchOpen]);
+
+  function openSearchPanel() {
+    hapticImpact("light");
+    setSearchOpen(true);
+  }
+
+  function closeSearchPanel() {
+    setSearchOpen(false);
+  }
 
   function getCachedData<T>(key: string): T | undefined {
     const cached = cache.get(key) as { data?: T } | T | undefined;
@@ -330,97 +340,111 @@ export default function HomePage() {
       `}</style>
 
       <div className="mx-auto flex h-dvh w-full max-w-[420px] flex-col overflow-visible bg-black">
-        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-visible no-scrollbar rounded-b-[32px] bg-white px-4 pt-[calc(var(--tg-content-safe-top,0px)+64px)] flex flex-col">
-          <div className="flex items-start justify-between gap-3">
-            <h1
-              className="pl-1 text-[32px] font-black leading-[0.92] text-black"
-              style={{ fontVariationSettings: '"wdth" 75', fontStretch: "75%" }}
-            >
-              Библиотека</h1>
-            <Link
-              href="/add"
-              onClick={() => hapticImpact("light")}
-              className="shrink-0 text-black transition-transform active:scale-95"
-              aria-label="Открыть поиск"
-            >
-              <SearchCircleFill className="h-8 w-8" />
-            </Link>
-          </div>
-          <div className="mt-6 space-y-2 pb-4">
-          {(items ?? []).map((s, i) => {
-            const rightTop = s.progress?.last
-              ? `S${s.progress.last.season} E${s.progress.last.episode}`
-              : "";
-
-            const rightBottom = `${s.progress?.percent ?? 0}%`;
-            const completed = (s.progress?.percent ?? 0) === 100;
-
-            return (
-              <div
-                key={s.id}
-                style={{ transitionDelay: `${i * 80}ms` }}
-                className={[
-                  "transition-all duration-500 ease-out",
-                  listReady
-                    ? "opacity-100 translate-y-0 blur-0"
-                    : "opacity-0 translate-y-12 blur-[8px]",
-                ].join(" ")}
-              >
-                <SeriesCard
-                  id={s.id}
-                  title={s.title}
-                  posterUrl={s.posterUrl ?? undefined}
-                  subtitle={`${s.seasonsCount} ${pluralRu(
-                    s.seasonsCount,
-                    "сезон",
-                    "сезона",
-                    "сезонов"
-                  )}, ${s.episodesCount} ${pluralRu(
-                    s.episodesCount,
-                    "серия",
-                    "серии",
-                    "серий"
-                  )}`}
-                  rightTop={rightTop}
-                  rightBottom={rightBottom}
-                  onClick={() => {
-                    hapticImpact("light");
-                    setActiveSeriesId(s.id);
-                    setSheetOpen(true);
-                  }}
-                  completed={completed}
-                />
-              </div>
-            );
-          })}
-          </div>
-      </div>
-
-      {Array.isArray(items) && items.length > 0 ? (
-        <div
-          className={[
-            "shrink-0 footer-shell",
-            footerReady ? "footer-shell--ready" : "",
-          ].join(" ")}
-        >
-          <div
-            className={[
-              "footer-shell__inner transition-all duration-500 ease-out",
-              footerReady ? "opacity-100 blur-0" : "opacity-0 blur-[8px]",
-            ].join(" ")}
-          >
-            <SeriesFooterCarousel
-              items={items}
+        <div className="min-h-0 flex flex-1 flex-col overflow-y-auto overflow-x-visible no-scrollbar rounded-b-[32px] bg-white px-4 pt-[calc(var(--tg-content-safe-top,0px)+64px)]">
+          {searchOpen ? (
+            <SeriesSearchPanel
+              items={items ?? []}
+              onBack={closeSearchPanel}
               onOpenSeries={(seriesId) => {
-                hapticImpact("light");
                 setActiveSeriesId(seriesId);
                 setSheetOpen(true);
               }}
-              onAddEpisode={(seriesId) => addEpisodeToProgress(seriesId)}
             />
-          </div>
+          ) : (
+            <>
+              <div className="flex items-start justify-between gap-3">
+                <h1
+                  className="pl-1 text-[32px] font-black leading-[0.92] text-black"
+                  style={{ fontVariationSettings: '"wdth" 75', fontStretch: "75%" }}
+                >
+                  Библиотека
+                </h1>
+                <button
+                  type="button"
+                  onClick={openSearchPanel}
+                  className="shrink-0 text-black transition-transform active:scale-95"
+                  aria-label="Открыть поиск"
+                >
+                  <SearchCircleFill className="h-8 w-8" />
+                </button>
+              </div>
+              <div className="mt-6 space-y-2 pb-4">
+                {(items ?? []).map((s, i) => {
+                  const rightTop = s.progress?.last
+                    ? `S${s.progress.last.season} E${s.progress.last.episode}`
+                    : "";
+
+                  const rightBottom = `${s.progress?.percent ?? 0}%`;
+                  const completed = (s.progress?.percent ?? 0) === 100;
+
+                  return (
+                    <div
+                      key={s.id}
+                      style={{ transitionDelay: `${i * 80}ms` }}
+                      className={[
+                        "transition-all duration-500 ease-out",
+                        listReady
+                          ? "opacity-100 translate-y-0 blur-0"
+                          : "opacity-0 translate-y-12 blur-[8px]",
+                      ].join(" ")}
+                    >
+                      <SeriesCard
+                        id={s.id}
+                        title={s.title}
+                        posterUrl={s.posterUrl ?? undefined}
+                        subtitle={`${s.seasonsCount} ${pluralRu(
+                          s.seasonsCount,
+                          "сезон",
+                          "сезона",
+                          "сезонов"
+                        )}, ${s.episodesCount} ${pluralRu(
+                          s.episodesCount,
+                          "серия",
+                          "серии",
+                          "серий"
+                        )}`}
+                        rightTop={rightTop}
+                        rightBottom={rightBottom}
+                        onClick={() => {
+                          hapticImpact("light");
+                          setActiveSeriesId(s.id);
+                          setSheetOpen(true);
+                        }}
+                        completed={completed}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </div>
-      ) : null}
+
+        {Array.isArray(items) && items.length > 0 ? (
+          <div
+            className={[
+              "shrink-0 footer-shell",
+              footerReady ? "footer-shell--ready" : "",
+            ].join(" ")}
+          >
+            <div
+              className={[
+                "footer-shell__inner transition-all duration-500 ease-out",
+                footerReady ? "opacity-100 blur-0" : "opacity-0 blur-[8px]",
+              ].join(" ")}
+            >
+              <SeriesFooterCarousel
+                items={items}
+                onOpenSeries={(seriesId) => {
+                  hapticImpact("light");
+                  setActiveSeriesId(seriesId);
+                  setSheetOpen(true);
+                }}
+                onAddEpisode={(seriesId) => addEpisodeToProgress(seriesId)}
+              />
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <SeriesSheet
