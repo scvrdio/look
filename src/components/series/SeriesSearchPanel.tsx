@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { mutate } from "swr";
 import Lottie from "lottie-react";
 
-import { PlaylistPlusFill, Search, XCircleFill } from "@/icons";
+import { PlaylistPlusFill, Search, X, XCircleFill } from "@/icons";
 import { hapticImpact, hapticNotify } from "@/lib/haptics";
 import { pluralRu } from "@/lib/plural";
 
@@ -384,12 +384,32 @@ export function SeriesSearchPanel({ items, onBack, onOpenSeries }: SeriesSearchP
     <div className="flex min-h-0 flex-1 flex-col">
       <div
         className={[
-          "flex items-center gap-3 transition-all duration-500 ease-out",
+          "transition-all duration-500 ease-out",
           headerReady ? "opacity-100 translate-y-0 blur-0" : "opacity-0 translate-y-6 blur-[8px]",
         ].join(" ")}
       >
+        <div className="flex items-center justify-between gap-3">
+          <h1
+            className="pl-1 text-[32px] font-black leading-[0.92] text-black"
+            style={{ fontVariationSettings: '"wdth" 75', fontStretch: "75%" }}
+          >
+            Поиск
+          </h1>
+          <button
+            type="button"
+            onClick={() => {
+              hapticImpact("light");
+              onBack();
+            }}
+            className="inline-flex h-7 w-7 shrink-0 items-center justify-center text-black transition-transform active:scale-95"
+            aria-label="Закрыть поиск"
+          >
+            <X className="h-8 w-8" />
+          </button>
+        </div>
+
         <form
-          className="relative flex-1"
+          className="relative mt-6"
           onSubmit={(e) => {
             e.preventDefault();
             const input = inputRef.current;
@@ -418,7 +438,7 @@ export function SeriesSearchPanel({ items, onBack, onOpenSeries }: SeriesSearchP
             onClick={() => {
               if (rightIcon === "clear") clear();
             }}
-            className="absolute right-1 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full"
+            className="absolute right-1 top-1/2 inline-flex h-8 w-8 pr-1 -translate-y-1/2 items-center justify-center rounded-full"
             aria-label={rightIcon === "clear" ? "Clear" : "Search icon"}
             disabled={rightIcon !== "clear"}
           >
@@ -436,7 +456,7 @@ export function SeriesSearchPanel({ items, onBack, onOpenSeries }: SeriesSearchP
             hapticImpact("light");
             onBack();
           }}
-          className="text-[16px] opacity-50"
+          className="hidden"
         >
           Назад
         </button>

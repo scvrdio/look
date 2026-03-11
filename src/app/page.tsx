@@ -7,6 +7,8 @@ import { pluralRu } from "@/lib/plural";
 import { fetcher } from "@/lib/fetcher";
 import { SeriesFooterCarousel } from "@/components/series/SeriesFooterCarousel";
 import { SeriesSearchPanel } from "@/components/series/SeriesSearchPanel";
+import { SeriesFolderCard } from "@/components/series/SeriesFolderCard";
+import { SeriesFolderPanel } from "@/components/series/SeriesFolderPanel";
 import { SeriesCard } from "../components/series/SeriesCard";
 import { SeriesSheet } from "../components/series/SeriesSheet";
 import { SearchCircleFill } from "@/icons";
@@ -24,6 +26,7 @@ export default function HomePage() {
   const [activeSeriesId, setActiveSeriesId] = useState<string | null>(null);
   const [listReady, setListReady] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [folderOpen, setFolderOpen] = useState<"will-watch" | "completed" | null>(null);
   const [bottomRounded, setBottomRounded] = useState(false);
   const [footerEnterReady, setFooterEnterReady] = useState(false);
   const bgPreloadRef = useRef(false);
@@ -64,6 +67,48 @@ export default function HomePage() {
     if (!effectiveSeriesId) return null;
     return (items ?? []).find((s) => s.id === effectiveSeriesId)?.progress?.last?.episode ?? null;
   }, [items, effectiveSeriesId]);
+  const willWatchItems = useMemo(
+    () =>
+      (items ?? []).filter((series) => {
+        const percent = series.progress?.percent ?? 0;
+        const last = series.progress?.last;
+        return percent < 100 && last == null;
+      }),
+    [items]
+  );
+  const nowWatchingItems = useMemo(
+    () =>
+      (items ?? []).filter((series) => {
+        const percent = series.progress?.percent ?? 0;
+        const last = series.progress?.last;
+        return percent < 100 && last != null;
+      }),
+    [items]
+  );
+  const willWatchPosters = useMemo(
+    () =>
+      willWatchItems.map((series) => ({
+        id: series.id,
+        title: series.title,
+        posterUrl: series.posterUrl,
+      })),
+    [willWatchItems]
+  );
+  const completedItems = useMemo(
+    () => (items ?? []).filter((series) => (series.progress?.percent ?? 0) >= 100),
+    [items]
+  );
+  const completedPosters = useMemo(
+    () =>
+      completedItems.map((series) => ({
+        id: series.id,
+        title: series.title,
+        posterUrl: series.posterUrl,
+      })),
+    [completedItems]
+  );
+  const activeFolderTitle = folderOpen === "completed" ? "Просмотрено" : "Буду смотреть";
+  const activeFolderItems = folderOpen === "completed" ? completedItems : willWatchItems;
 
   useEffect(() => {
     try {
@@ -89,8 +134,7 @@ export default function HomePage() {
   }, [items]);
 
   useEffect(() => {
-    if (!items || items.length === 0) return;
-    if (listReady) return;
+    if (searchOpen || folderOpen) return;
 
     let raf2 = 0;
     const raf1 = window.requestAnimationFrame(() => {
@@ -103,7 +147,7 @@ export default function HomePage() {
       window.cancelAnimationFrame(raf1);
       if (raf2) window.cancelAnimationFrame(raf2);
     };
-  }, [items, listReady]);
+  }, [searchOpen, folderOpen, items?.length]);
 
   useEffect(() => {
     if (!listReady) return;
@@ -155,8 +199,8 @@ export default function HomePage() {
     };
   }, [listReady, items, mutateGlobal, cache]);
 
-  const hasFooterItems = Array.isArray(items) && items.length > 0;
-  const footerShown = hasFooterItems && !searchOpen;
+  const hasFooterItems = nowWatchingItems.length > 0;
+  const footerShown = hasFooterItems && !searchOpen && !folderOpen;
 
   useEffect(() => {
     if (footerEnterRaf1Ref.current !== null) {
@@ -252,11 +296,26 @@ export default function HomePage() {
 
   function openSearchPanel() {
     hapticImpact("light");
+    setListReady(false);
+    setFolderOpen(null);
     setSearchOpen(true);
   }
 
   function closeSearchPanel() {
+    setListReady(false);
     setSearchOpen(false);
+  }
+
+  function openFolder(kind: "will-watch" | "completed") {
+    hapticImpact("light");
+    setListReady(false);
+    setSearchOpen(false);
+    setFolderOpen(kind);
+  }
+
+  function closeFolder() {
+    setListReady(false);
+    setFolderOpen(null);
   }
 
   function getCachedData<T>(key: string): T | undefined {
@@ -429,9 +488,25 @@ export default function HomePage() {
                 setSheetOpen(true);
               }}
             />
+          ) : folderOpen ? (
+            <SeriesFolderPanel
+              title={activeFolderTitle}
+              items={activeFolderItems}
+              onBack={closeFolder}
+              onOpenSeries={(seriesId) => {
+                closeFolder();
+                setActiveSeriesId(seriesId);
+                setSheetOpen(true);
+              }}
+            />
           ) : (
             <>
-              <div className="flex items-start justify-between gap-3">
+              <div
+                className={[
+                  "flex items-start justify-between gap-3 transition-all duration-500 ease-out",
+                  listReady ? "opacity-100 translate-y-0 blur-0" : "opacity-0 translate-y-6 blur-[8px]",
+                ].join(" ")}
+              >
                 <h1
                   className="pl-1 text-[32px] font-black leading-[0.92] text-black"
                   style={{ fontVariationSettings: '"wdth" 75', fontStretch: "75%" }}
@@ -447,8 +522,48 @@ export default function HomePage() {
                   <SearchCircleFill className="h-8 w-8" />
                 </button>
               </div>
-              <div className="mt-6 space-y-2 pb-4">
-                {(items ?? []).map((s, i) => {
+              <div
+                style={{ transitionDelay: "60ms" }}
+                className={[
+                  "mt-4 flex gap-2 transition-all duration-500 ease-out",
+                  listReady ? "opacity-100 translate-y-0 blur-0" : "opacity-0 translate-y-6 blur-[8px]",
+                ].join(" ")}
+              >
+                <div className="min-w-0 flex-1">
+                  <SeriesFolderCard
+                    title="Буду смотреть"
+                    count={willWatchItems.length}
+                    posters={willWatchPosters}
+                    tone="neutral"
+                    onClick={() => openFolder("will-watch")}
+                  />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <SeriesFolderCard
+                    title="Просмотрено"
+                    count={completedItems.length}
+                    posters={completedPosters}
+                    tone="accent"
+                    onClick={() => openFolder("completed")}
+                  />
+                </div>
+              </div>
+              <div
+                style={{ transitionDelay: "120ms" }}
+                className={[
+                  "mt-8 flex items-center pl-1 transition-all duration-500 ease-out",
+                  listReady ? "opacity-100 translate-y-0 blur-0" : "opacity-0 translate-y-6 blur-[8px]",
+                ].join(" ")}
+              >
+                <h2
+                  className="text-[20px] leading-[0.92] text"
+                  style={{ fontVariationSettings: '"wdth" 90, "wght" 600, "opsz" 20', fontStretch: "75%" }}
+                >
+                  Смотрю сейчас
+                </h2>
+              </div>
+              <div className="mt-4 space-y-2 pb-4">
+                {nowWatchingItems.map((s, i) => {
                   const rightTop = `S${s.progress?.last?.season ?? 1} E${s.progress?.last?.episode ?? 0}`;
 
                   const rightBottom = `${s.progress?.percent ?? 0}%`;
@@ -507,7 +622,7 @@ export default function HomePage() {
           >
             <div ref={footerInnerRef}>
               <SeriesFooterCarousel
-                items={items ?? []}
+                items={nowWatchingItems}
                 onOpenSeries={(seriesId) => {
                   hapticImpact("light");
                   setActiveSeriesId(seriesId);
