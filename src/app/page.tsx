@@ -18,13 +18,16 @@ type InProgress = { inProgressCount: number };
 
 export default function HomePage() {
   const SERIES_CACHE_KEY = "series_cache_v1";
+  const FOOTER_ANIMATION_MS = 760;
   const { mutate: mutateGlobal, cache } = useSWRConfig();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [activeSeriesId, setActiveSeriesId] = useState<string | null>(null);
   const [listReady, setListReady] = useState(false);
   const [footerReady, setFooterReady] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [bottomRounded, setBottomRounded] = useState(false);
   const bgPreloadRef = useRef(false);
+  const bottomRadiusTimerRef = useRef<number | null>(null);
 
   // title всегда вычисляем из items, а не храним отдельно (иначе рассинхрон/"Загрузка…")
   const [pendingOpenSeriesId, setPendingOpenSeriesId] = useState<string | null>(null);
@@ -41,7 +44,6 @@ export default function HomePage() {
 
   const effectiveSeriesId = activeSeriesId ?? autoOpenSeriesId;
   const effectiveSheetOpen = sheetOpen || Boolean(autoOpenSeriesId);
-  const isFooterVisible = Array.isArray(items) && items.length > 0 && footerReady;
   const activeTitle = useMemo(() => {
     if (!effectiveSeriesId) return "";
     return (items ?? []).find((s) => s.id === effectiveSeriesId)?.title ?? "";
@@ -154,6 +156,38 @@ export default function HomePage() {
     const raf = window.requestAnimationFrame(() => setFooterReady(true));
     return () => window.cancelAnimationFrame(raf);
   }, [items, searchOpen]);
+
+  useEffect(() => {
+    const hasFooter = Array.isArray(items) && items.length > 0;
+
+    if (bottomRadiusTimerRef.current !== null) {
+      window.clearTimeout(bottomRadiusTimerRef.current);
+      bottomRadiusTimerRef.current = null;
+    }
+
+    if (footerReady) {
+      setBottomRounded(true);
+      return;
+    }
+
+    if (!hasFooter) {
+      setBottomRounded(false);
+      return;
+    }
+
+    bottomRadiusTimerRef.current = window.setTimeout(() => {
+      setBottomRounded(false);
+      bottomRadiusTimerRef.current = null;
+    }, FOOTER_ANIMATION_MS);
+  }, [footerReady, items, FOOTER_ANIMATION_MS]);
+
+  useEffect(() => {
+    return () => {
+      if (bottomRadiusTimerRef.current !== null) {
+        window.clearTimeout(bottomRadiusTimerRef.current);
+      }
+    };
+  }, []);
 
   function openSearchPanel() {
     hapticImpact("light");
@@ -350,7 +384,7 @@ export default function HomePage() {
         <div
           className={[
             "min-h-0 flex flex-1 flex-col overflow-y-auto overflow-x-visible overscroll-y-contain no-scrollbar bg-white px-4 pt-[calc(var(--tg-content-safe-top,0px)+64px)]",
-            isFooterVisible ? "rounded-b-[32px]" : "",
+            bottomRounded ? "rounded-b-[32px]" : "",
           ].join(" ")}
         >
           {searchOpen ? (
