@@ -572,7 +572,7 @@ export function SeriesSheet({
       return await new Promise<boolean>((resolve) => {
         tg.showPopup?.(
           {
-            title: "Удалить сериал?",
+            title: "Удалить сериал",
             message: "Это действие нельзя отменить",
             buttons: [
               { id: "cancel", type: "cancel", text: "Отмена" },
@@ -584,7 +584,7 @@ export function SeriesSheet({
       });
     }
 
-    return window.confirm("Удалить сериал?\n\nЭто действие нельзя отменить");
+    return window.confirm("Удалить сериал\n\nЭто действие нельзя отменить");
   }
 
   async function confirmPauseSeriesSystem() {
@@ -593,7 +593,7 @@ export function SeriesSheet({
       return await new Promise<boolean>((resolve) => {
         tg.showPopup?.(
           {
-            title: "Поставить на паузу?",
+            title: "Поставить на паузу",
             message: "Сериал будет перемещён в архив",
             buttons: [
               { id: "cancel", type: "cancel", text: "Отмена" },
@@ -614,7 +614,7 @@ export function SeriesSheet({
       return await new Promise<boolean>((resolve) => {
         tg.showPopup?.(
           {
-            title: "Завершить сериал?",
+            title: "Завершить сериал",
             message: "Отметим сериал как завершённый",
             buttons: [
               { id: "cancel", type: "cancel", text: "Отмена" },
