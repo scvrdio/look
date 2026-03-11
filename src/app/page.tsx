@@ -18,16 +18,17 @@ type InProgress = { inProgressCount: number };
 
 export default function HomePage() {
   const SERIES_CACHE_KEY = "series_cache_v1";
-  const FOOTER_ANIMATION_MS = 760;
+  const FOOTER_ANIMATION_MS = 560;
   const { mutate: mutateGlobal, cache } = useSWRConfig();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [activeSeriesId, setActiveSeriesId] = useState<string | null>(null);
   const [listReady, setListReady] = useState(false);
-  const [footerReady, setFooterReady] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [bottomRounded, setBottomRounded] = useState(false);
   const bgPreloadRef = useRef(false);
   const bottomRadiusTimerRef = useRef<number | null>(null);
+  const footerInnerRef = useRef<HTMLDivElement | null>(null);
+  const [footerHeight, setFooterHeight] = useState(0);
 
   // title всегда вычисляем из items, а не храним отдельно (иначе рассинхрон/"Загрузка…")
   const [pendingOpenSeriesId, setPendingOpenSeriesId] = useState<string | null>(null);
@@ -151,30 +152,41 @@ export default function HomePage() {
     };
   }, [listReady, items, mutateGlobal, cache]);
 
-  useEffect(() => {
-    if (!Array.isArray(items) || items.length === 0 || searchOpen) {
-      setFooterReady(false);
-      return;
-    }
-
-    const raf = window.requestAnimationFrame(() => setFooterReady(true));
-    return () => window.cancelAnimationFrame(raf);
-  }, [items, searchOpen]);
+  const hasFooterItems = Array.isArray(items) && items.length > 0;
+  const footerShown = hasFooterItems && !searchOpen;
 
   useEffect(() => {
-    const hasFooter = Array.isArray(items) && items.length > 0;
+    const node = footerInnerRef.current;
+    if (!node) return;
 
+    const measure = () => {
+      setFooterHeight(node.scrollHeight);
+    };
+
+    measure();
+
+    const observer = new ResizeObserver(() => {
+      measure();
+    });
+    observer.observe(node);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [hasFooterItems, items]);
+
+  useEffect(() => {
     if (bottomRadiusTimerRef.current !== null) {
       window.clearTimeout(bottomRadiusTimerRef.current);
       bottomRadiusTimerRef.current = null;
     }
 
-    if (footerReady) {
+    if (footerShown) {
       setBottomRounded(true);
       return;
     }
 
-    if (!hasFooter) {
+    if (!hasFooterItems) {
       setBottomRounded(false);
       return;
     }
@@ -183,7 +195,7 @@ export default function HomePage() {
       setBottomRounded(false);
       bottomRadiusTimerRef.current = null;
     }, FOOTER_ANIMATION_MS);
-  }, [footerReady, items, FOOTER_ANIMATION_MS]);
+  }, [footerShown, hasFooterItems, FOOTER_ANIMATION_MS]);
 
   useEffect(() => {
     return () => {
@@ -356,34 +368,6 @@ export default function HomePage() {
 
   return (
     <main className="h-dvh overflow-hidden overscroll-none bg-black">
-      <style jsx>{`
-        .footer-shell {
-          display: grid;
-          width: 100%;
-          min-width: 0;
-          grid-template-rows: 0fr;
-          transform: translateY(100%);
-          pointer-events: none;
-          transition:
-            grid-template-rows 760ms cubic-bezier(0.22, 1, 0.36, 1),
-            transform 760ms cubic-bezier(0.22, 1, 0.36, 1);
-          will-change: grid-template-rows, transform;
-        }
-
-        .footer-shell--ready {
-          grid-template-rows: 1fr;
-          transform: translateY(0);
-          pointer-events: auto;
-        }
-
-        .footer-shell__inner {
-          width: 100%;
-          min-width: 0;
-          overflow: visible;
-          min-height: 0;
-        }
-      `}</style>
-
       <div className="mx-auto flex h-dvh w-full max-w-[420px] flex-col overflow-hidden bg-black">
         <div
           className={[
@@ -468,16 +452,17 @@ export default function HomePage() {
           )}
         </div>
 
-        {Array.isArray(items) && items.length > 0 ? (
+        {hasFooterItems ? (
           <div
             className={[
-              "w-full shrink-0 footer-shell",
-              footerReady ? "footer-shell--ready" : "",
+              "w-full shrink-0 overflow-hidden transition-[max-height,opacity] duration-[560ms] ease-[cubic-bezier(0.22,1,0.36,1)]",
+              footerShown ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none",
             ].join(" ")}
+            style={{ maxHeight: footerShown ? `${footerHeight}px` : "0px" }}
           >
-            <div className="footer-shell__inner">
+            <div ref={footerInnerRef}>
               <SeriesFooterCarousel
-                items={items}
+                items={items ?? []}
                 onOpenSeries={(seriesId) => {
                   hapticImpact("light");
                   setActiveSeriesId(seriesId);

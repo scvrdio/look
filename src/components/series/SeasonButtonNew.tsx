@@ -25,8 +25,8 @@ export function SeasonButtonNew({
     <div
       style={{ transitionDelay: `${index * 60}ms` }}
       className={cn(
-        "shrink-0 transition-all duration-500 ease-out",
-        ready ? "opacity-100 translate-y-0 blur-0" : "opacity-0 translate-y-3 blur-[6px]"
+        "shrink-0 transition-opacity duration-300 ease-out",
+        ready ? "opacity-100" : "opacity-0"
       )}
     >
       <button
@@ -37,7 +37,7 @@ export function SeasonButtonNew({
         }}
         className={cn(
           "shrink-0 h-12 px-4 rounded-full text-[16px] font-medium whitespace-nowrap inline-flex items-center gap-1",
-          "transition active:scale-[0.97]",
+          "transition-colors active:scale-[0.97]",
           completed
             ? active
               ? "bg-[#00A900] text-white"
@@ -50,8 +50,8 @@ export function SeasonButtonNew({
         <span
           aria-hidden
           className={cn(
-            "inline-flex items-center justify-center overflow-hidden transition-all duration-300 ease-out",
-            completed ? "w-[21px] opacity-100 translate-x-0 blur-0" : "w-0 opacity-0 -translate-x-1 blur-[6px]"
+            "inline-flex items-center justify-center overflow-hidden transition-[width,opacity] duration-300 ease-out",
+            completed ? "w-[21px] opacity-100" : "w-0 opacity-0"
           )}
         >
           <CheckCircleFill

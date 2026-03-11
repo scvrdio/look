@@ -633,7 +633,7 @@ export function SeriesSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="p-0 rounded-t-[32px] border-0 shadow-none h-[65dvh] overflow-hidden"
+        className="p-0 rounded-t-[32px] border-0 shadow-none h-[65dvh] overflow-visible"
       >
         <VisuallyHidden>
           <Dialog.Title>{displayTitle}</Dialog.Title>
@@ -680,8 +680,8 @@ export function SeriesSheet({
           </div>
 
           {/* Seasons */}
-          <div className="relative z-40 mt-8 pr-5 pl-3 overflow-x-auto overflow-y-visible no-scrollbar">
-            <div>
+          <div className="relative z-40 mt-8 overflow-visible">
+            <div className="overflow-x-auto no-scrollbar pr-5 pl-3 py-1">
               <SeasonTabs
                 items={(seasons ?? []).map((s) => ({
                   id: s.id,
