@@ -376,9 +376,7 @@ export default function HomePage() {
               </div>
               <div className="mt-6 space-y-2 pb-4">
                 {(items ?? []).map((s, i) => {
-                  const rightTop = s.progress?.last
-                    ? `S${s.progress.last.season} E${s.progress.last.episode}`
-                    : "";
+                  const rightTop = `S${s.progress?.last?.season ?? 1} E${s.progress?.last?.episode ?? 0}`;
 
                   const rightBottom = `${s.progress?.percent ?? 0}%`;
                   const completed = (s.progress?.percent ?? 0) === 100;
