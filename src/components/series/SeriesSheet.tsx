@@ -597,7 +597,7 @@ export function SeriesSheet({
             message: "Сериал будет перемещён в архив",
             buttons: [
               { id: "cancel", type: "cancel", text: "Отмена" },
-              { id: "pause", type: "default", text: "Пауза" },
+              { id: "pause", type: "ok", text: "Пауза" },
             ],
           },
           (buttonId) => resolve(buttonId === "pause")
@@ -618,7 +618,7 @@ export function SeriesSheet({
             message: "Отметим сериал как завершённый",
             buttons: [
               { id: "cancel", type: "cancel", text: "Отмена" },
-              { id: "complete", type: "default", text: "Завершить" },
+              { id: "complete", type: "ok", text: "Завершить" },
             ],
           },
           (buttonId) => resolve(buttonId === "complete")
