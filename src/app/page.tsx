@@ -21,6 +21,7 @@ type InProgress = { inProgressCount: number };
 export default function HomePage() {
   const SERIES_CACHE_KEY = "series_cache_v1";
   const FOOTER_ANIMATION_MS = 560;
+  const NOW_WATCHING_BASE_DELAY_MS = 220;
   const { mutate: mutateGlobal, cache } = useSWRConfig();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [activeSeriesId, setActiveSeriesId] = useState<string | null>(null);
@@ -687,6 +688,7 @@ export default function HomePage() {
                   const rightTop = `S${s.progress?.last?.season ?? 1} E${s.progress?.last?.episode ?? 0}`;
                   const isEntering = enteringNowWatchingIds.has(s.id);
                   const isExiting = exitingNowWatchingIds.has(s.id);
+                  const itemDelayMs = isEntering || isExiting ? 0 : NOW_WATCHING_BASE_DELAY_MS + i * 80;
 
                   const rightBottom = `${s.progress?.percent ?? 0}%`;
                   const completed = (s.progress?.percent ?? 0) === 100;
@@ -694,19 +696,16 @@ export default function HomePage() {
                   return (
                     <div
                       key={s.id}
-                      style={{ transitionDelay: `${i * 80}ms` }}
+                      style={{ transitionDelay: `${itemDelayMs}ms` }}
                       className={[
                         "overflow-hidden transition-[max-height,margin,opacity,transform,filter] duration-500 ease-out",
                         isExiting
                           ? "max-h-0 mb-0 opacity-0 -translate-y-2 blur-[6px] pointer-events-none"
                           : isEntering
                             ? "max-h-0 mb-0 opacity-0 translate-y-2 blur-[6px] pointer-events-none"
-                            : "max-h-[140px] mb-2 opacity-100 translate-y-0 blur-0",
-                        !isExiting && !isEntering && listReady
-                          ? "opacity-100 translate-y-0 blur-0"
-                          : !isExiting && !isEntering
-                            ? "opacity-0 translate-y-12 blur-[8px]"
-                            : "",
+                            : listReady
+                              ? "max-h-[140px] mb-2 opacity-100 translate-y-0 blur-0"
+                              : "max-h-[140px] mb-2 opacity-0 translate-y-12 blur-[8px]",
                       ].join(" ")}
                     >
                       <SeriesCard

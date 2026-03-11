@@ -126,6 +126,7 @@ export async function GET() {
     st.total = episodesCount;
     const movieWatched = s.links[0]?.watched ?? false;
     const percent = episodesCount > 0 ? Math.round((st.watched / st.total) * 100) : (movieWatched ? 100 : 0);
+    const paused = episodesCount > 0 ? movieWatched : false;
 
     return {
         id: s.id,
@@ -136,6 +137,7 @@ export async function GET() {
         seasonsCount,
         episodesCount,
         progress: { percent, last: st.last },
+        paused,
     };
   });
 
