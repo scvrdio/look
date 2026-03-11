@@ -358,7 +358,7 @@ export function SeriesFooterCarousel({
             </div>
 
             {inProgressItems.length > 1 ? (
-              <div className="mt-3 flex touch-none items-center justify-center gap-4">
+              <div className="mt-4 flex touch-none items-center justify-center gap-4">
                 {inProgressItems.map((series, idx) => (
                   <button
                     key={idx}

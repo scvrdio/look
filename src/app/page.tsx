@@ -29,11 +29,15 @@ export default function HomePage() {
   const [folderOpen, setFolderOpen] = useState<"will-watch" | "completed" | "paused" | null>(null);
   const [bottomRounded, setBottomRounded] = useState(false);
   const [footerEnterReady, setFooterEnterReady] = useState(false);
+  const [nowWatchingRenderItems, setNowWatchingRenderItems] = useState<SeriesRow[]>([]);
+  const [exitingNowWatchingIds, setExitingNowWatchingIds] = useState<Set<string>>(new Set());
   const bgPreloadRef = useRef(false);
   const bottomRadiusTimerRef = useRef<number | null>(null);
   const footerEnterRaf1Ref = useRef<number | null>(null);
   const footerEnterRaf2Ref = useRef<number | null>(null);
   const footerInnerRef = useRef<HTMLDivElement | null>(null);
+  const nowWatchingExitTimersRef = useRef<Map<string, number>>(new Map());
+  const nowWatchingRenderIdsRef = useRef<string[]>([]);
   const [footerHeight, setFooterHeight] = useState(0);
 
   // title всегда вычисляем из items, а не храним отдельно (иначе рассинхрон/"Загрузка…")
@@ -121,6 +125,63 @@ export default function HomePage() {
   const hasPausedItems = pausedItems.length > 0;
   const resolvedFolderTitle = folderOpen === "paused" ? "На паузе" : activeFolderTitle;
   const resolvedFolderItems = folderOpen === "paused" ? pausedItems : activeFolderItems;
+
+  useEffect(() => {
+    nowWatchingRenderIdsRef.current = nowWatchingRenderItems.map((s) => s.id);
+  }, [nowWatchingRenderItems]);
+
+  useEffect(() => {
+    const EXIT_MS = 500;
+    const nextIds = new Set(nowWatchingItems.map((s) => s.id));
+    const currentRenderIds = nowWatchingRenderIdsRef.current;
+
+    for (const id of nowWatchingItems.map((s) => s.id)) {
+      const timer = nowWatchingExitTimersRef.current.get(id);
+      if (!timer) continue;
+      window.clearTimeout(timer);
+      nowWatchingExitTimersRef.current.delete(id);
+      setExitingNowWatchingIds((prev) => {
+        if (!prev.has(id)) return prev;
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }
+
+    for (const id of currentRenderIds) {
+      if (nextIds.has(id)) continue;
+      if (nowWatchingExitTimersRef.current.has(id)) continue;
+
+      setExitingNowWatchingIds((prev) => {
+        const next = new Set(prev);
+        next.add(id);
+        return next;
+      });
+
+      const timer = window.setTimeout(() => {
+        nowWatchingExitTimersRef.current.delete(id);
+        setExitingNowWatchingIds((prev) => {
+          if (!prev.has(id)) return prev;
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+        setNowWatchingRenderItems((prev) => prev.filter((item) => item.id !== id));
+      }, EXIT_MS);
+
+      nowWatchingExitTimersRef.current.set(id, timer);
+    }
+
+    setNowWatchingRenderItems((prev) => {
+      const byId = new Map(nowWatchingItems.map((s) => [s.id, s]));
+      const prevIds = new Set(prev.map((s) => s.id));
+      const merged = prev.map((s) => byId.get(s.id) ?? s);
+      for (const s of nowWatchingItems) {
+        if (!prevIds.has(s.id)) merged.push(s);
+      }
+      return merged;
+    });
+  }, [nowWatchingItems]);
 
   useEffect(() => {
     try {
@@ -211,7 +272,7 @@ export default function HomePage() {
     };
   }, [listReady, items, mutateGlobal, cache]);
 
-  const hasFooterItems = nowWatchingItems.length > 0;
+  const hasFooterItems = nowWatchingRenderItems.length > 0;
   const footerShown = hasFooterItems && !searchOpen && !folderOpen;
 
   useEffect(() => {
@@ -293,6 +354,7 @@ export default function HomePage() {
   }, [footerEnterReady, hasFooterItems, FOOTER_ANIMATION_MS]);
 
   useEffect(() => {
+    const nowWatchingExitTimers = nowWatchingExitTimersRef.current;
     return () => {
       if (bottomRadiusTimerRef.current !== null) {
         window.clearTimeout(bottomRadiusTimerRef.current);
@@ -303,6 +365,10 @@ export default function HomePage() {
       if (footerEnterRaf2Ref.current !== null) {
         window.cancelAnimationFrame(footerEnterRaf2Ref.current);
       }
+      for (const timer of nowWatchingExitTimers.values()) {
+        window.clearTimeout(timer);
+      }
+      nowWatchingExitTimers.clear();
     };
   }, []);
 
@@ -581,9 +647,10 @@ export default function HomePage() {
                   </button>
                 ) : null}
               </div>
-              <div className="mt-4 space-y-2 pb-4">
-                {nowWatchingItems.map((s, i) => {
+              <div className="mt-4 pb-4">
+                {nowWatchingRenderItems.map((s, i) => {
                   const rightTop = `S${s.progress?.last?.season ?? 1} E${s.progress?.last?.episode ?? 0}`;
+                  const isExiting = exitingNowWatchingIds.has(s.id);
 
                   const rightBottom = `${s.progress?.percent ?? 0}%`;
                   const completed = (s.progress?.percent ?? 0) === 100;
@@ -593,7 +660,10 @@ export default function HomePage() {
                       key={s.id}
                       style={{ transitionDelay: `${i * 80}ms` }}
                       className={[
-                        "transition-all duration-500 ease-out",
+                        "overflow-hidden transition-[max-height,margin,opacity,transform,filter] duration-500 ease-out",
+                        isExiting
+                          ? "max-h-0 mb-0 opacity-0 -translate-y-2 blur-[6px] pointer-events-none"
+                          : "max-h-[140px] mb-2",
                         listReady
                           ? "opacity-100 translate-y-0 blur-0"
                           : "opacity-0 translate-y-12 blur-[8px]",
@@ -617,6 +687,7 @@ export default function HomePage() {
                         rightTop={rightTop}
                         rightBottom={rightBottom}
                         onClick={() => {
+                          if (isExiting) return;
                           hapticImpact("light");
                           setActiveSeriesId(s.id);
                           setSheetOpen(true);

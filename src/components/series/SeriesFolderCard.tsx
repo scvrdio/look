@@ -32,7 +32,7 @@ export function SeriesFolderCard({
 
       <div className="flex items-end justify-between">
         <div
-          className="text-[88px] leading-[0.78] text-black"
+          className="text-[96px] leading-[0.78] text-black"
           style={{ fontVariationSettings: '"wdth" 75, "wght" 400, "opsz" 56', fontStretch: "75%" }}
         >
           {count}
