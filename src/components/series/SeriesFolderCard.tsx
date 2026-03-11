@@ -4,7 +4,6 @@ type SeriesFolderCardProps = {
   title: string;
   count: number;
   posters?: Array<{ id: string; posterUrl: string | null; title: string }>;
-  tone: "neutral" | "accent";
   onClick?: () => void;
 };
 
@@ -12,15 +11,14 @@ export function SeriesFolderCard({
   title,
   count,
   posters = [],
-  tone,
   onClick,
 }: SeriesFolderCardProps) {
-  const visiblePosters = posters.filter((item) => item.posterUrl).slice(0, 4);
-  const isNeutral = tone === "neutral";
+  const visiblePosters = posters.filter((item) => item.posterUrl).slice(-3);
+  const remainingCount = Math.max(0, count - 3);
   const className = [
     "h-[144px] w-full rounded-[24px] pt-[14px] pb-[14px] pl-4 pr-[14px]",
     "flex flex-col justify-between",
-    isNeutral ? "bg-black/[0.05]" : "bg-[#FF3D00]/[0.05]",
+    "bg-black/[0.05]",
   ].join(" ");
 
   const content = (
@@ -45,8 +43,8 @@ export function SeriesFolderCard({
             <div
               key={item.id}
               className={[
-                "h-5 w-5 overflow-hidden rounded-full border-2 border-[#FFF5F2] bg-[#FFF5F2]",
-                index === 0 ? "" : "-ml-1",
+                "h-6 w-6 overflow-hidden rounded-full border-2 border-[#f2f2f2] bg-[#FFF5F2]",
+                index === 0 ? "" : "-ml-2",
               ].join(" ")}
             >
               <img
@@ -59,6 +57,18 @@ export function SeriesFolderCard({
               />
             </div>
           ))}
+          {remainingCount > 0 ? (
+            <div
+              className={[
+                "flex h-6 w-6 items-center justify-center rounded-full border-2 border-[#f2f2f2] bg-[#ffffff] text-black/50 pr-0.5",
+                "text-[12px] font-semibold",
+                visiblePosters.length > 0 ? "-ml-2" : "",
+              ].join(" ")}
+              style={{ letterSpacing: "-0.08em" }}
+            >
+              +{remainingCount}
+            </div>
+          ) : null}
         </div>
       </div>
     </>

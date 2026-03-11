@@ -534,7 +534,6 @@ export default function HomePage() {
                     title="Буду смотреть"
                     count={willWatchItems.length}
                     posters={willWatchPosters}
-                    tone="neutral"
                     onClick={() => openFolder("will-watch")}
                   />
                 </div>
@@ -543,7 +542,6 @@ export default function HomePage() {
                     title="Просмотрено"
                     count={completedItems.length}
                     posters={completedPosters}
-                    tone="accent"
                     onClick={() => openFolder("completed")}
                   />
                 </div>
