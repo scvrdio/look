@@ -41,6 +41,7 @@ export default function HomePage() {
 
   const effectiveSeriesId = activeSeriesId ?? autoOpenSeriesId;
   const effectiveSheetOpen = sheetOpen || Boolean(autoOpenSeriesId);
+  const isFooterVisible = Array.isArray(items) && items.length > 0 && footerReady;
   const activeTitle = useMemo(() => {
     if (!effectiveSeriesId) return "";
     return (items ?? []).find((s) => s.id === effectiveSeriesId)?.title ?? "";
@@ -346,7 +347,12 @@ export default function HomePage() {
       `}</style>
 
       <div className="mx-auto flex h-dvh w-full max-w-[420px] flex-col overflow-hidden bg-black">
-        <div className="min-h-0 flex flex-1 flex-col overflow-y-auto overflow-x-visible overscroll-y-contain no-scrollbar rounded-b-[32px] bg-white px-4 pt-[calc(var(--tg-content-safe-top,0px)+64px)]">
+        <div
+          className={[
+            "min-h-0 flex flex-1 flex-col overflow-y-auto overflow-x-visible overscroll-y-contain no-scrollbar bg-white px-4 pt-[calc(var(--tg-content-safe-top,0px)+64px)]",
+            isFooterVisible ? "rounded-b-[32px]" : "",
+          ].join(" ")}
+        >
           {searchOpen ? (
             <SeriesSearchPanel
               items={items ?? []}
