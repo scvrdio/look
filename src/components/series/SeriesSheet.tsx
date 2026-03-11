@@ -597,7 +597,7 @@ export function SeriesSheet({
             message: "Сериал будет перемещён в архив",
             buttons: [
               { id: "cancel", type: "cancel", text: "Отмена" },
-              { id: "pause", type: "ok", text: "Пауза" },
+              { id: "pause", type: "default", text: "Пауза" },
             ],
           },
           (buttonId) => resolve(buttonId === "pause")
@@ -618,7 +618,7 @@ export function SeriesSheet({
             message: "Отметим сериал как завершённый",
             buttons: [
               { id: "cancel", type: "cancel", text: "Отмена" },
-              { id: "complete", type: "ok", text: "Завершить" },
+              { id: "complete", type: "default", text: "Завершить" },
             ],
           },
           (buttonId) => resolve(buttonId === "complete")
@@ -731,7 +731,7 @@ export function SeriesSheet({
           </div>
 
           {/* Footer actions */}
-          <div className="px-5 pb-[calc(var(--tg-content-safe-bottom,0px)+16px)] pt-2">
+          <div className="px-5 pb-[calc(var(--tg-content-safe-bottom,0px)+16px)] pt-2 bg-[linear-gradient(180deg,rgba(255,255,255,0)_0%,#fff_50%,#fff_100%)]">
             <div className="flex items-center justify-center gap-[24px]">
               <button
                 type="button"
