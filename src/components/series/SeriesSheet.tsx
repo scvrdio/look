@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import useSWR from "swr";
+import { useSWRConfig } from "swr";
 import * as Dialog from "@radix-ui/react-dialog";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import Lottie from "lottie-react";
@@ -15,6 +16,7 @@ import loadingAnimation from "../../../public/lottie.json";
 
 import { X, TrashFill, PauseFill, PlayFill, PlaylistCheckFill } from "@/icons";
 import { hapticImpact } from "@/lib/haptics";
+import type { SeriesRow } from "@/types/bootstrap";
 
 type SeasonRow = {
   id: string;
@@ -60,6 +62,7 @@ export function SeriesSheet({
   preferredEpisodeNumber,
   onChanged,
 }: SeriesSheetProps) {
+  const { mutate: mutateGlobal } = useSWRConfig();
   const SWIPE_CLOSE_DISTANCE_PX = 36;
   const SWIPE_CLOSE_VELOCITY_PX_PER_MS = 0.25;
   const EPISODE_FLUSH_DEBOUNCE_MS = 160;
@@ -556,12 +559,22 @@ export function SeriesSheet({
     if (!seriesId) return;
     if (deletingRef.current) return;
     deletingRef.current = true;
+    const targetSeriesId = seriesId;
 
     try {
-      const res = await fetch(`/api/series/${seriesId}`, { method: "DELETE", credentials: "include" });
-      if (!res.ok) return;
-
+      await mutateGlobal(
+        "/api/series",
+        (current: SeriesRow[] | undefined) =>
+          (current ?? []).filter((series) => series.id !== targetSeriesId),
+        { revalidate: false }
+      );
       onOpenChange(false);
+
+      const res = await fetch(`/api/series/${seriesId}`, { method: "DELETE", credentials: "include" });
+      if (!res.ok) {
+        await mutateGlobal("/api/series");
+        return;
+      }
       onChanged?.();
     } finally {
       deletingRef.current = false;
@@ -570,6 +583,17 @@ export function SeriesSheet({
 
   async function setSeriesPaused(nextPaused: boolean) {
     if (!seriesId) return false;
+    const targetSeriesId = seriesId;
+
+    await mutateGlobal(
+      "/api/series",
+      (current: SeriesRow[] | undefined) =>
+        (current ?? []).map((series) =>
+          series.id === targetSeriesId ? { ...series, paused: nextPaused } : series
+        ),
+      { revalidate: false }
+    );
+    onOpenChange(false);
 
     const res = await fetch(`/api/series/${seriesId}`, {
       method: "PATCH",
@@ -578,14 +602,36 @@ export function SeriesSheet({
       body: JSON.stringify({ paused: nextPaused }),
     });
 
-    if (!res.ok) return false;
-    onOpenChange(false);
+    if (!res.ok) {
+      await mutateGlobal("/api/series");
+      return false;
+    }
     onChanged?.();
     return true;
   }
 
   async function completeSeries() {
     if (!seriesId) return false;
+    const targetSeriesId = seriesId;
+
+    await mutateGlobal(
+      "/api/series",
+      (current: SeriesRow[] | undefined) =>
+        (current ?? []).map((series) =>
+          series.id === targetSeriesId
+            ? {
+                ...series,
+                paused: false,
+                progress: {
+                  ...series.progress,
+                  percent: 100,
+                },
+              }
+            : series
+        ),
+      { revalidate: false }
+    );
+    onOpenChange(false);
 
     const res = await fetch(`/api/series/${seriesId}`, {
       method: "PATCH",
@@ -594,8 +640,10 @@ export function SeriesSheet({
       body: JSON.stringify({ completed: true }),
     });
 
-    if (!res.ok) return false;
-    onOpenChange(false);
+    if (!res.ok) {
+      await mutateGlobal("/api/series");
+      return false;
+    }
     onChanged?.();
     return true;
   }

@@ -30,12 +30,14 @@ export default function HomePage() {
   const [bottomRounded, setBottomRounded] = useState(false);
   const [footerEnterReady, setFooterEnterReady] = useState(false);
   const [nowWatchingRenderItems, setNowWatchingRenderItems] = useState<SeriesRow[]>([]);
+  const [enteringNowWatchingIds, setEnteringNowWatchingIds] = useState<Set<string>>(new Set());
   const [exitingNowWatchingIds, setExitingNowWatchingIds] = useState<Set<string>>(new Set());
   const bgPreloadRef = useRef(false);
   const bottomRadiusTimerRef = useRef<number | null>(null);
   const footerEnterRaf1Ref = useRef<number | null>(null);
   const footerEnterRaf2Ref = useRef<number | null>(null);
   const footerInnerRef = useRef<HTMLDivElement | null>(null);
+  const nowWatchingEnterTimersRef = useRef<Map<string, number>>(new Map());
   const nowWatchingExitTimersRef = useRef<Map<string, number>>(new Map());
   const nowWatchingRenderIdsRef = useRef<string[]>([]);
   const [footerHeight, setFooterHeight] = useState(0);
@@ -136,6 +138,11 @@ export default function HomePage() {
     const currentRenderIds = nowWatchingRenderIdsRef.current;
 
     for (const id of nowWatchingItems.map((s) => s.id)) {
+      const enterTimer = nowWatchingEnterTimersRef.current.get(id);
+      if (enterTimer) {
+        window.clearTimeout(enterTimer);
+        nowWatchingEnterTimersRef.current.delete(id);
+      }
       const timer = nowWatchingExitTimersRef.current.get(id);
       if (!timer) continue;
       window.clearTimeout(timer);
@@ -172,15 +179,39 @@ export default function HomePage() {
       nowWatchingExitTimersRef.current.set(id, timer);
     }
 
+    const addedIds: string[] = [];
     setNowWatchingRenderItems((prev) => {
       const byId = new Map(nowWatchingItems.map((s) => [s.id, s]));
       const prevIds = new Set(prev.map((s) => s.id));
       const merged = prev.map((s) => byId.get(s.id) ?? s);
       for (const s of nowWatchingItems) {
-        if (!prevIds.has(s.id)) merged.push(s);
+        if (!prevIds.has(s.id)) {
+          merged.push(s);
+          addedIds.push(s.id);
+        }
       }
       return merged;
     });
+
+    if (addedIds.length > 0) {
+      setEnteringNowWatchingIds((prev) => {
+        const next = new Set(prev);
+        for (const id of addedIds) next.add(id);
+        return next;
+      });
+      for (const id of addedIds) {
+        const timer = window.setTimeout(() => {
+          nowWatchingEnterTimersRef.current.delete(id);
+          setEnteringNowWatchingIds((prev) => {
+            if (!prev.has(id)) return prev;
+            const next = new Set(prev);
+            next.delete(id);
+            return next;
+          });
+        }, 40);
+        nowWatchingEnterTimersRef.current.set(id, timer);
+      }
+    }
   }, [nowWatchingItems]);
 
   useEffect(() => {
@@ -354,6 +385,7 @@ export default function HomePage() {
   }, [footerEnterReady, hasFooterItems, FOOTER_ANIMATION_MS]);
 
   useEffect(() => {
+    const nowWatchingEnterTimers = nowWatchingEnterTimersRef.current;
     const nowWatchingExitTimers = nowWatchingExitTimersRef.current;
     return () => {
       if (bottomRadiusTimerRef.current !== null) {
@@ -365,6 +397,10 @@ export default function HomePage() {
       if (footerEnterRaf2Ref.current !== null) {
         window.cancelAnimationFrame(footerEnterRaf2Ref.current);
       }
+      for (const timer of nowWatchingEnterTimers.values()) {
+        window.clearTimeout(timer);
+      }
+      nowWatchingEnterTimers.clear();
       for (const timer of nowWatchingExitTimers.values()) {
         window.clearTimeout(timer);
       }
@@ -572,7 +608,6 @@ export default function HomePage() {
               items={resolvedFolderItems}
               onBack={closeFolder}
               onOpenSeries={(seriesId) => {
-                closeFolder();
                 setActiveSeriesId(seriesId);
                 setSheetOpen(true);
               }}
@@ -650,6 +685,7 @@ export default function HomePage() {
               <div className="mt-4 pb-4">
                 {nowWatchingRenderItems.map((s, i) => {
                   const rightTop = `S${s.progress?.last?.season ?? 1} E${s.progress?.last?.episode ?? 0}`;
+                  const isEntering = enteringNowWatchingIds.has(s.id);
                   const isExiting = exitingNowWatchingIds.has(s.id);
 
                   const rightBottom = `${s.progress?.percent ?? 0}%`;
@@ -663,10 +699,14 @@ export default function HomePage() {
                         "overflow-hidden transition-[max-height,margin,opacity,transform,filter] duration-500 ease-out",
                         isExiting
                           ? "max-h-0 mb-0 opacity-0 -translate-y-2 blur-[6px] pointer-events-none"
-                          : "max-h-[140px] mb-2",
-                        listReady
+                          : isEntering
+                            ? "max-h-0 mb-0 opacity-0 translate-y-2 blur-[6px] pointer-events-none"
+                            : "max-h-[140px] mb-2 opacity-100 translate-y-0 blur-0",
+                        !isExiting && !isEntering && listReady
                           ? "opacity-100 translate-y-0 blur-0"
-                          : "opacity-0 translate-y-12 blur-[8px]",
+                          : !isExiting && !isEntering
+                            ? "opacity-0 translate-y-12 blur-[8px]"
+                            : "",
                       ].join(" ")}
                     >
                       <SeriesCard
