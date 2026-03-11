@@ -41,6 +41,8 @@ export default function HomePage() {
   const nowWatchingEnterTimersRef = useRef<Map<string, number>>(new Map());
   const nowWatchingExitTimersRef = useRef<Map<string, number>>(new Map());
   const nowWatchingRenderIdsRef = useRef<string[]>([]);
+  const resumeFromPausedRef = useRef(false);
+  const startedFromWillWatchRef = useRef(false);
   const [footerHeight, setFooterHeight] = useState(0);
 
   // title всегда вычисляем из items, а не храним отдельно (иначе рассинхрон/"Загрузка…")
@@ -433,6 +435,13 @@ export default function HomePage() {
     setFolderOpen(null);
   }
 
+  function openSeriesSheet(seriesId: string) {
+    resumeFromPausedRef.current = false;
+    startedFromWillWatchRef.current = false;
+    setActiveSeriesId(seriesId);
+    setSheetOpen(true);
+  }
+
   function getCachedData<T>(key: string): T | undefined {
     const cached = cache.get(key) as { data?: T } | T | undefined;
     if (!cached) return undefined;
@@ -598,9 +607,11 @@ export default function HomePage() {
             <SeriesSearchPanel
               items={items ?? []}
               onBack={closeSearchPanel}
-              onOpenSeries={(seriesId) => {
-                setActiveSeriesId(seriesId);
-                setSheetOpen(true);
+              onOpenSeries={openSeriesSheet}
+              onAddedSeries={() => {
+                setListReady(false);
+                setSearchOpen(false);
+                setFolderOpen("will-watch");
               }}
             />
           ) : folderOpen ? (
@@ -608,10 +619,7 @@ export default function HomePage() {
               title={resolvedFolderTitle}
               items={resolvedFolderItems}
               onBack={closeFolder}
-              onOpenSeries={(seriesId) => {
-                setActiveSeriesId(seriesId);
-                setSheetOpen(true);
-              }}
+              onOpenSeries={openSeriesSheet}
             />
           ) : (
             <>
@@ -728,8 +736,7 @@ export default function HomePage() {
                         onClick={() => {
                           if (isExiting) return;
                           hapticImpact("light");
-                          setActiveSeriesId(s.id);
-                          setSheetOpen(true);
+                          openSeriesSheet(s.id);
                         }}
                         completed={completed}
                       />
@@ -754,8 +761,7 @@ export default function HomePage() {
                 items={nowWatchingItems}
                 onOpenSeries={(seriesId) => {
                   hapticImpact("light");
-                  setActiveSeriesId(seriesId);
-                  setSheetOpen(true);
+                  openSeriesSheet(seriesId);
                 }}
                 onAddEpisode={(seriesId) => addEpisodeToProgress(seriesId)}
               />
@@ -767,10 +773,18 @@ export default function HomePage() {
       <SeriesSheet
         key={effectiveSeriesId}
         open={effectiveSheetOpen}
-        onOpenChange={(open) => {
+        onOpenChange={async (open) => {
           setSheetOpen(open);
           if (!open) {
             setPendingOpenSeriesId(null);
+            const shouldGoHomeFromPaused = folderOpen === "paused" && resumeFromPausedRef.current;
+            const shouldGoHomeFromWillWatch = folderOpen === "will-watch" && startedFromWillWatchRef.current;
+            if (shouldGoHomeFromPaused || shouldGoHomeFromWillWatch) {
+              setListReady(false);
+              setFolderOpen(null);
+            }
+            resumeFromPausedRef.current = false;
+            startedFromWillWatchRef.current = false;
           }
         }}
         seriesId={effectiveSeriesId}
@@ -779,6 +793,12 @@ export default function HomePage() {
         paused={activePaused}
         preferredSeasonNumber={preferredSeasonNumber}
         preferredEpisodeNumber={preferredEpisodeNumber}
+        onResumedFromPause={() => {
+          resumeFromPausedRef.current = true;
+        }}
+        onProgressStarted={() => {
+          startedFromWillWatchRef.current = true;
+        }}
         onChanged={() => void mutateSeries()}
       />
     </main>

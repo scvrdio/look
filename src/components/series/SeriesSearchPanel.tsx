@@ -40,6 +40,7 @@ type SeriesSearchPanelProps = {
   items: SeriesRow[];
   onBack: () => void;
   onOpenSeries: (seriesId: string) => void;
+  onAddedSeries?: () => void;
 };
 
 const SERIES_TYPES = new Set(["tv-series", "anime", "animated-series", "tv-show", "series"]);
@@ -90,7 +91,7 @@ async function readErrorMessage(res: Response) {
   }
 }
 
-export function SeriesSearchPanel({ items, onBack, onOpenSeries }: SeriesSearchPanelProps) {
+export function SeriesSearchPanel({ items, onBack, onOpenSeries, onAddedSeries }: SeriesSearchPanelProps) {
   const placeholders = useMemo(
     () => [
       "Тед Лассо",
@@ -270,6 +271,7 @@ export function SeriesSearchPanel({ items, onBack, onOpenSeries }: SeriesSearchP
         mutate("/api/series"),
         mutate("/api/series/in-progress-count"),
       ]);
+      onAddedSeries?.();
       onBack();
     } catch {
       hapticNotify("error");

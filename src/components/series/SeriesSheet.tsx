@@ -49,6 +49,8 @@ type SeriesSheetProps = {
   preferredSeasonNumber?: number | null;
   preferredEpisodeNumber?: number | null;
   onChanged?: () => void;
+  onResumedFromPause?: () => void;
+  onProgressStarted?: () => void;
 };
 
 export function SeriesSheet({
@@ -61,6 +63,8 @@ export function SeriesSheet({
   preferredSeasonNumber,
   preferredEpisodeNumber,
   onChanged,
+  onResumedFromPause,
+  onProgressStarted,
 }: SeriesSheetProps) {
   const { mutate: mutateGlobal } = useSWRConfig();
   const SWIPE_CLOSE_DISTANCE_PX = 36;
@@ -521,6 +525,9 @@ export function SeriesSheet({
 
     const nextWatched = toggleEpisodeLocal(seasonIdAtToggle, id);
     if (typeof nextWatched !== "boolean") return;
+    if (nextWatched) {
+      onProgressStarted?.();
+    }
 
     desiredWatchedByEpisodeIdRef.current.set(id, nextWatched);
     scheduleEpisodeFlush(seasonIdAtToggle, id);
@@ -605,6 +612,9 @@ export function SeriesSheet({
     if (!res.ok) {
       await mutateGlobal("/api/series");
       return false;
+    }
+    if (!nextPaused) {
+      onResumedFromPause?.();
     }
     onChanged?.();
     return true;
