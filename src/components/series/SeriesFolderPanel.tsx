@@ -75,6 +75,7 @@ export function SeriesFolderPanel({ title, items, onBack, onOpenSeries }: Series
                   id={s.id}
                   title={s.title}
                   posterUrl={s.posterUrl ?? undefined}
+                  progressPercent={s.progress?.percent ?? 0}
                   subtitle={`${s.seasonsCount} ${pluralRu(
                     s.seasonsCount,
                     "сезон",

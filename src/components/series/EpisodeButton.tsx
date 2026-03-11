@@ -13,7 +13,6 @@ export function EpisodeButton({ number, watched, onClick }: EpisodeButtonProps) 
   return (
     <button
       type="button"
-      data-sheet-drag-start="true"
       onClick={() => {
         hapticSelection();
         onClick();
