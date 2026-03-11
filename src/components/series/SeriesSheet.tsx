@@ -642,7 +642,7 @@ export function SeriesSheet({
         <div className="flex h-full flex-col">
           {/* Header */}
           <div
-            className="px-5 pb-0 pt-6"
+            className="relative z-40 px-5 pb-0 pt-6"
             onPointerDown={onSheetPointerDown}
             onPointerMove={onSheetPointerMove}
             onPointerUp={onSheetPointerEnd}
@@ -680,7 +680,7 @@ export function SeriesSheet({
           </div>
 
           {/* Seasons */}
-          <div className="mt-8 px-5 overflow-x-auto no-scrollbar">
+          <div className="relative z-40 mt-8 pr-5 pl-3 overflow-x-auto overflow-y-visible no-scrollbar">
             <div>
               <SeasonTabs
                 items={(seasons ?? []).map((s) => ({
@@ -703,7 +703,7 @@ export function SeriesSheet({
           {/* Episodes */}
           <div
             ref={scrollAreaRef}
-            className="min-h-0 flex-1 overflow-y-auto no-scrollbar px-5 pb-6 pt-8"
+            className="min-h-0 flex-1 overflow-y-auto no-scrollbar px-5 pb-6 pt-6"
             onPointerDown={onSheetPointerDown}
             onPointerMove={onSheetPointerMove}
             onPointerUp={onSheetPointerEnd}
@@ -731,8 +731,8 @@ export function SeriesSheet({
           </div>
 
           {/* Footer actions */}
-          <div className="px-5 pb-[calc(var(--tg-content-safe-bottom,0px)+24px)] pt-2 bg-[linear-gradient(180deg,rgba(255,255,255,0)_0%,#fff_50%,#fff_100%)]">
-            <div className="flex items-center justify-center gap-[24px]">
+          <div className="relative z-40 px-5 pb-[calc(var(--tg-content-safe-bottom,0px)+24px)] bg-[linear-gradient(180deg,rgba(255,255,255,0)_0%,#fff_50%,#fff_100%)]">
+            <div className="flex items-center justify-center gap-[32px]">
               <button
                 type="button"
                 onClick={async () => {
@@ -743,7 +743,7 @@ export function SeriesSheet({
                   hapticImpact("heavy");
                   await deleteSeries();
                 }}
-                className="inline-flex h-[60px] w-[60px] items-center justify-center"
+                className="inline-flex h-[44px] w-[44px] items-center justify-center"
                 aria-label="Delete series"
               >
                 <TrashFill className="h-7 w-7 text-[#FF0000]" />
