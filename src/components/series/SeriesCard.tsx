@@ -83,7 +83,7 @@ export function SeriesCard({
             </div>
           </div>
 
-          <div className="flex items-center gap-[4px] ty-meta text-black/40 min-w-0">
+          <div className="flex items-center gap-[4px] min-w-0">
             <div className="h-[21px] w-[21px] shrink-0 flex items-center justify-center">
               <svg
                 viewBox="0 0 21 21"
@@ -113,7 +113,7 @@ export function SeriesCard({
                 />
               </svg>
             </div>
-            <span className="truncate">{subtitle}</span>
+            <span className="ty-meta text-black/60 truncate">{subtitle}</span>
           </div>
         </div>
 

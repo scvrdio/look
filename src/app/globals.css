@@ -201,6 +201,7 @@ input[type="search"]::-ms-reveal {
   font-family: var(--font-numeric), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   font-variant-numeric: tabular-nums lining-nums;
   font-feature-settings: "tnum" 1, "lnum" 1;
+  font-variation-settings: "wdth" 90, "wght" 400, "opsz" 16;
 }
 
 .ty-h1-display {
