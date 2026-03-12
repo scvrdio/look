@@ -12,6 +12,7 @@ import type { SeriesRow } from "@/types/bootstrap";
 
 type SeriesFooterCarouselProps = {
   items: SeriesRow[];
+  initialSeriesId?: string | null;
   onOpenSeries: (seriesId: string) => void;
   onAddEpisode: (seriesId: string) => Promise<void> | void;
 };
@@ -24,6 +25,7 @@ type SeasonProgressView = {
 
 export function SeriesFooterCarousel({
   items,
+  initialSeriesId = null,
   onOpenSeries,
   onAddEpisode,
 }: SeriesFooterCarouselProps) {
@@ -52,7 +54,6 @@ export function SeriesFooterCarousel({
     const last = inProgressItems[inProgressItems.length - 1];
     return [last, ...inProgressItems, first];
   }, [inProgressItems]);
-
   useEffect(() => {
     initLoopPositionRef.current = false;
   }, [inProgressItems.length]);
@@ -206,21 +207,29 @@ export function SeriesFooterCarousel({
   useEffect(() => {
     const node = scrollRef.current;
     if (!node) return;
-    if (inProgressItems.length <= 1) {
-      initLoopPositionRef.current = false;
-      return;
-    }
     if (initLoopPositionRef.current) return;
 
+    const preferredIndex = initialSeriesId
+      ? Math.max(0, inProgressItems.findIndex((series) => series.id === initialSeriesId))
+      : 0;
     const cards = Array.from(
       node.querySelectorAll<HTMLElement>('[data-carousel-card="true"]')
     );
-    const firstRealCard = cards[1];
-    if (!firstRealCard) return;
 
-    node.scrollTo({ left: firstRealCard.offsetLeft, behavior: "auto" });
+    if (inProgressItems.length <= 1) {
+      const single = cards[preferredIndex];
+      if (single) {
+        node.scrollTo({ left: single.offsetLeft, behavior: "auto" });
+      }
+      initLoopPositionRef.current = true;
+      return;
+    }
+
+    const target = cards[preferredIndex + 1];
+    if (!target) return;
+    node.scrollTo({ left: target.offsetLeft, behavior: "auto" });
     initLoopPositionRef.current = true;
-  }, [inProgressItems.length, loopedItems.length]);
+  }, [inProgressItems, loopedItems.length, initialSeriesId]);
 
   function onPointerDown(event: React.PointerEvent<HTMLDivElement>) {
     if (event.pointerType === "mouse" && event.button !== 0) return;

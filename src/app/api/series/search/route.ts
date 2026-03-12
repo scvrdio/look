@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/server_auth/getCurrentUser";
 import { normalizeContentKind } from "@/lib/contentKind";
+import { excludeTrailingOneEpisodeSeason } from "@/lib/seasonRules";
 
 export const runtime = "nodejs";
 
@@ -32,16 +33,14 @@ export async function GET(req: Request) {
             kind: true,
             source: true,
             sourceId: true,
-
-            _count: { select: { seasons: true } },
-
-            // ВАЖНО: берём численное поле, а не _count episodes
-            seasons: { select: { episodesCount: true } },
+            seasons: { select: { number: true, episodesCount: true } },
         },
     });
 
     return NextResponse.json({
-        items: items.map((s) => ({
+        items: items.map((s) => {
+            const effectiveSeasons = excludeTrailingOneEpisodeSeason(s.seasons);
+            return ({
             id: s.id,
             title: s.title,
             year: s.year ?? null,
@@ -49,9 +48,10 @@ export async function GET(req: Request) {
             kind: normalizeContentKind(s.kind),
             source: s.source ?? null,
             sourceId: s.sourceId ?? null,
-            seasonsCount: s._count.seasons,
-            episodesCount: s.seasons.reduce((sum, season) => sum + (season.episodesCount ?? 0), 0),
-        })),
+            seasonsCount: effectiveSeasons.length,
+            episodesCount: effectiveSeasons.reduce((sum, season) => sum + (season.episodesCount ?? 0), 0),
+        });
+      }),
     });
     } catch (e: unknown) {
         const message = e instanceof Error ? e.message : String(e);

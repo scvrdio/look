@@ -98,7 +98,7 @@ export function SeriesCard({
                   r={radius}
                   fill="none"
                   stroke="#E7D8D2"
-                  strokeWidth="1"
+                  strokeWidth="1.5"
                 />
                 <circle
                   cx="10.5"
@@ -109,6 +109,7 @@ export function SeriesCard({
                   strokeWidth="3"
                   strokeDasharray={circumference}
                   strokeDashoffset={dashOffset}
+                  className="transition-[stroke-dashoffset] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
                 />
               </svg>
             </div>

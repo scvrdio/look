@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/server_auth/getCurrentUser";
 import type { BootstrapResponse, SeasonRow, EpisodeRow } from "@/types/bootstrap";
+import { excludeTrailingOneEpisodeSeason } from "@/lib/seasonRules";
 
 export async function GET() {
   const user = await getCurrentUser();
@@ -40,13 +41,27 @@ export async function GET() {
     orderBy: [{ seriesId: "asc" }, { number: "asc" }],
   });
 
-  const seasonsBySeries: Record<string, SeasonRow[]> = {};
+  const rawSeasonsBySeries: Record<string, SeasonRow[]> = {};
   for (const s of seasons) {
-    (seasonsBySeries[s.seriesId] ||= []).push({
+    (rawSeasonsBySeries[s.seriesId] ||= []).push({
       id: s.id,
       number: s.number,
       episodesCount: s.episodesCount,
     });
+  }
+
+  const seasonsBySeries: Record<string, SeasonRow[]> = {};
+  for (const sid of seriesIds) {
+    const raw = rawSeasonsBySeries[sid] ?? [];
+    seasonsBySeries[sid] = excludeTrailingOneEpisodeSeason(raw);
+  }
+
+  const effectiveSeasonIdsBySeries = new Map<string, Set<string>>();
+  for (const sid of seriesIds) {
+    effectiveSeasonIdsBySeries.set(
+      sid,
+      new Set((seasonsBySeries[sid] ?? []).map((season) => season.id))
+    );
   }
 
   // 3) эпизоды ТОЛЬКО первых сезонов (по одному сезону на сериал)
@@ -104,6 +119,10 @@ export async function GET() {
   for (const row of watchedAllRows) {
     const e = row.episode;
     const sid = e.season.seriesId;
+    const effectiveSeasonIds = effectiveSeasonIdsBySeries.get(sid);
+    if (effectiveSeasonIds && !effectiveSeasonIds.has(e.seasonId)) {
+      continue;
+    }
     watchedBySeasonId.set(e.seasonId, (watchedBySeasonId.get(e.seasonId) ?? 0) + 1);
     const st = (epStats[sid] ||= { total: 0, watched: 0, last: null });
     st.watched += 1;

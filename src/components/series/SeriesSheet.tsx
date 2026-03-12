@@ -727,6 +727,7 @@ export function SeriesSheet({
       <SheetContent
         side="bottom"
         className="p-0 rounded-t-[32px] border-0 shadow-none h-[65dvh] overflow-visible"
+        onOpenAutoFocus={(event) => event.preventDefault()}
       >
         <VisuallyHidden>
           <Dialog.Title>{displayTitle}</Dialog.Title>
@@ -763,7 +764,7 @@ export function SeriesSheet({
                 <button
                   type="button"
                   onClick={() => hapticImpact("light")}
-                  className="inline-flex h-7 w-7 items-center justify-center text-black"
+                  className="inline-flex h-7 w-7 items-center justify-center text-black outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0"
                   aria-label="Close"
                 >
                   <XCircleFill className="h-7 w-7 text-black" />

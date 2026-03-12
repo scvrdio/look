@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/server_auth/getCurrentUser";
 import { prisma } from "@/lib/db";
+import { excludeTrailingOneEpisodeSeason } from "@/lib/seasonRules";
 
 export async function POST(
     req: Request,
@@ -102,7 +103,9 @@ export async function GET(
       },
     });
 
-    if (seasons.length === 0) {
+    const effectiveSeasons = excludeTrailingOneEpisodeSeason(seasons);
+
+    if (effectiveSeasons.length === 0) {
       return NextResponse.json([]);
     }
 
@@ -131,7 +134,7 @@ export async function GET(
     }
 
     return NextResponse.json(
-      seasons.map((s) => {
+      effectiveSeasons.map((s) => {
         const watchedEpisodes = watchedBySeason.get(s.id) ?? 0;
         return {
           ...s,

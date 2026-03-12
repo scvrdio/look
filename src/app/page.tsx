@@ -20,7 +20,8 @@ import type { SeriesSearchPanelHandle } from "@/components/series/SeriesSearchPa
 type InProgress = { inProgressCount: number };
 
 export default function HomePage() {
-  const SERIES_CACHE_KEY = "series_cache_v1";
+  const SERIES_CACHE_KEY = "series_cache_v2";
+  const LAST_MARKED_SERIES_KEY = "last_marked_series_id";
   const FOOTER_ANIMATION_MS = 560;
   const NOW_WATCHING_BASE_DELAY_MS = 220;
   const { mutate: mutateGlobal, cache } = useSWRConfig();
@@ -31,6 +32,8 @@ export default function HomePage() {
   const [folderOpen, setFolderOpen] = useState<"will-watch" | "completed" | "paused" | null>(null);
   const [bottomRounded, setBottomRounded] = useState(false);
   const [footerEnterReady, setFooterEnterReady] = useState(false);
+  const [footerMounted, setFooterMounted] = useState(false);
+  const [initialFooterSeriesId, setInitialFooterSeriesId] = useState<string | null>(null);
   const [nowWatchingRenderItems, setNowWatchingRenderItems] = useState<SeriesRow[]>([]);
   const [enteringNowWatchingIds, setEnteringNowWatchingIds] = useState<Set<string>>(new Set());
   const [exitingNowWatchingIds, setExitingNowWatchingIds] = useState<Set<string>>(new Set());
@@ -57,6 +60,7 @@ export default function HomePage() {
   const bottomRadiusTimerRef = useRef<number | null>(null);
   const footerEnterRaf1Ref = useRef<number | null>(null);
   const footerEnterRaf2Ref = useRef<number | null>(null);
+  const footerUnmountTimerRef = useRef<number | null>(null);
   const footerInnerRef = useRef<HTMLDivElement | null>(null);
   const homeExitTimerRef = useRef<number | null>(null);
   const nowWatchingEnterTimersRef = useRef<Map<string, number>>(new Map());
@@ -73,6 +77,10 @@ export default function HomePage() {
     "/api/series",
     fetcher
   );
+
+  useEffect(() => {
+    void mutateSeries();
+  }, [mutateSeries]);
 
   const autoOpenSeriesId = useMemo(() => {
     if (!pendingOpenSeriesId || !items || items.length === 0) return null;
@@ -246,11 +254,16 @@ export default function HomePage() {
     } catch {}
 
     try {
+      const id = localStorage.getItem(LAST_MARKED_SERIES_KEY);
+      if (id) setInitialFooterSeriesId(id);
+    } catch {}
+
+    try {
       const raw = localStorage.getItem(SERIES_CACHE_KEY);
       if (!raw) return;
       const parsed = JSON.parse(raw) as SeriesRow[];
       if (!Array.isArray(parsed)) return;
-      void mutateGlobal("/api/series", parsed, { revalidate: false });
+      void mutateGlobal("/api/series", parsed, { revalidate: true });
     } catch {}
   }, [mutateGlobal]);
 
@@ -414,6 +427,36 @@ export default function HomePage() {
   }, [footerShown]);
 
   useEffect(() => {
+    if (footerUnmountTimerRef.current !== null) {
+      window.clearTimeout(footerUnmountTimerRef.current);
+      footerUnmountTimerRef.current = null;
+    }
+
+    if (footerShown) {
+      setFooterMounted(true);
+      return;
+    }
+
+    if (!hasFooterItems) {
+      setFooterMounted(false);
+      return;
+    }
+
+    const unmountDelayMs = Math.max(0, FOOTER_ANIMATION_MS - 80);
+    footerUnmountTimerRef.current = window.setTimeout(() => {
+      setFooterMounted(false);
+      footerUnmountTimerRef.current = null;
+    }, unmountDelayMs);
+
+    return () => {
+      if (footerUnmountTimerRef.current !== null) {
+        window.clearTimeout(footerUnmountTimerRef.current);
+        footerUnmountTimerRef.current = null;
+      }
+    };
+  }, [footerShown, hasFooterItems, FOOTER_ANIMATION_MS]);
+
+  useEffect(() => {
     const node = footerInnerRef.current;
     if (!node) return;
 
@@ -431,7 +474,7 @@ export default function HomePage() {
     return () => {
       observer.disconnect();
     };
-  }, [hasFooterItems, items]);
+  }, [hasFooterItems, items, footerShown]);
 
   useEffect(() => {
     if (bottomRadiusTimerRef.current !== null) {
@@ -471,6 +514,9 @@ export default function HomePage() {
       if (footerEnterRaf2Ref.current !== null) {
         window.cancelAnimationFrame(footerEnterRaf2Ref.current);
       }
+      if (footerUnmountTimerRef.current !== null) {
+        window.clearTimeout(footerUnmountTimerRef.current);
+      }
       for (const timer of nowWatchingEnterTimers.values()) {
         window.clearTimeout(timer);
       }
@@ -481,6 +527,12 @@ export default function HomePage() {
       nowWatchingExitTimers.clear();
     };
   }, []);
+
+  function rememberLastMarkedSeries(seriesId: string) {
+    try {
+      localStorage.setItem(LAST_MARKED_SERIES_KEY, seriesId);
+    } catch {}
+  }
 
   function openSearchPanel() {
     if (homeExitTimerRef.current !== null) {
@@ -637,6 +689,7 @@ export default function HomePage() {
     );
 
     if (!hasOptimisticUpdate) return;
+    rememberLastMarkedSeries(seriesId);
 
     const becameCompleted = optimisticPrevPercent < 100 && optimisticNextPercent >= 100;
     if (becameCompleted) {
@@ -735,17 +788,14 @@ export default function HomePage() {
           ) : (
             <>
               <div
-                className={[
-                  "transition-all duration-500 ease-out",
-                  searchOpen || listReady ? "opacity-100 translate-y-0 blur-0" : "opacity-0 translate-y-6 blur-[8px]",
-                ].join(" ")}
+                className="transition-all duration-500 ease-out opacity-100 translate-y-0 blur-0"
               >
                 <div className="flex items-center justify-between gap-3">
                   <div className="relative h-[34px] min-w-0 flex-1">
                     <h1
                       className={[
-                        "absolute inset-0 pl-1 text-[32px] font-black leading-[0.92] text-black transition-[filter,opacity] duration-200 ease-out",
-                        searchOpen ? "opacity-0 blur-[6px]" : "opacity-100 blur-0",
+                        "absolute inset-0 pl-1 text-[32px] font-black leading-[0.92] text-black transition-opacity duration-200 ease-out",
+                        searchOpen ? "opacity-0" : "opacity-100",
                       ].join(" ")}
                       style={{ fontVariationSettings: '"wdth" 75', fontStretch: "75%" }}
                     >
@@ -753,8 +803,8 @@ export default function HomePage() {
                     </h1>
                     <h1
                       className={[
-                        "absolute inset-0 pl-1 text-[32px] font-black leading-[0.92] text-black transition-[filter,opacity] duration-200 ease-out",
-                        searchOpen ? "opacity-100 blur-0" : "opacity-0 blur-[6px]",
+                        "absolute inset-0 pl-1 text-[32px] font-black leading-[0.92] text-black transition-opacity duration-200 ease-out",
+                        searchOpen ? "opacity-100" : "opacity-0",
                       ].join(" ")}
                       style={{ fontVariationSettings: '"wdth" 75', fontStretch: "75%" }}
                     >
@@ -942,7 +992,7 @@ export default function HomePage() {
           )}
         </div>
 
-        {hasFooterItems ? (
+        {hasFooterItems && (footerShown || footerMounted) ? (
           <div
             className={[
               "w-full shrink-0 overflow-hidden transition-[max-height,opacity] duration-[560ms] ease-[cubic-bezier(0.4,0,0.2,1)]",
@@ -953,6 +1003,7 @@ export default function HomePage() {
             <div ref={footerInnerRef}>
               <SeriesFooterCarousel
                 items={nowWatchingItems}
+                initialSeriesId={initialFooterSeriesId}
                 onOpenSeries={(seriesId) => {
                   hapticImpact("light");
                   openSeriesSheet(seriesId);
@@ -992,6 +1043,9 @@ export default function HomePage() {
         }}
         onProgressStarted={() => {
           startedFromWillWatchRef.current = true;
+          if (effectiveSeriesId) {
+            rememberLastMarkedSeries(effectiveSeriesId);
+          }
         }}
         onChanged={() => void mutateSeries()}
       />

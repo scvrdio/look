@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/server_auth/getCurrentUser";
 import { normalizeContentKind } from "@/lib/contentKind";
+import { excludeTrailingOneEpisodeSeason } from "@/lib/seasonRules";
 
 export async function GET() {
 
@@ -65,9 +66,19 @@ export async function GET() {
 
   const watchedCountMap = new Map<string, number>();
   const lastMap = new Map<string, { season: number; episode: number }>();
+  const effectiveSeasonIdsBySeries = new Map<string, Set<string>>();
+
+  for (const s of series) {
+    const effectiveSeasons = excludeTrailingOneEpisodeSeason(s.seasons);
+    effectiveSeasonIdsBySeries.set(s.id, new Set(effectiveSeasons.map((x) => x.id)));
+  }
 
   for (const row of watchedRows) {
     const ep = row.episode;
+    const effectiveSeasonIds = effectiveSeasonIdsBySeries.get(ep.season.seriesId);
+    if (effectiveSeasonIds && !effectiveSeasonIds.has(ep.seasonId)) {
+      continue;
+    }
     watchedCountMap.set(ep.seasonId, (watchedCountMap.get(ep.seasonId) ?? 0) + 1);
 
     const prev = lastMap.get(ep.season.seriesId);
@@ -84,10 +95,11 @@ export async function GET() {
   }
 
   const result = series.map((s) => {
+    const effectiveSeasons = excludeTrailingOneEpisodeSeason(s.seasons);
     let total = 0;
     let watched = 0;
 
-    for (const season of s.seasons) {
+    for (const season of effectiveSeasons) {
       total += season.episodesCount;
       const watchedInSeason = watchedCountMap.get(season.id) ?? 0;
       watched += watchedInSeason;
@@ -105,7 +117,7 @@ export async function GET() {
       source: s.source,
       sourceId: s.sourceId,
       posterUrl: s.posterUrl,
-      seasonsCount: s.seasons.length,
+      seasonsCount: effectiveSeasons.length,
       episodesCount: total,
       progress: {
         percent,
