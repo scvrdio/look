@@ -46,7 +46,6 @@ export function SeriesFooterCarousel({
   const initLoopPositionRef = useRef(false);
   const loopSettleTimerRef = useRef<number | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [shouldLoopTitles, setShouldLoopTitles] = useState(false);
   const [seasonProgressViewBySeriesId, setSeasonProgressViewBySeriesId] = useState<
     Record<string, SeasonProgressView>
   >({});
@@ -60,16 +59,11 @@ export function SeriesFooterCarousel({
     if (inProgressItems.length <= 1) return inProgressItems;
     return Array.from({ length: cardLoopCycles }, () => inProgressItems).flat();
   }, [inProgressItems, cardLoopCycles]);
-  const titleLoopCycles = shouldLoopTitles && inProgressItems.length > 2 ? 3 : 1;
-  const titleLoopedItems = useMemo(() => {
-    if (inProgressItems.length <= 1) return inProgressItems;
-    return Array.from({ length: titleLoopCycles }, () => inProgressItems).flat();
-  }, [inProgressItems, titleLoopCycles]);
   useEffect(() => {
     initLoopPositionRef.current = false;
     titleButtonRefs.current = [];
     activeCardGlobalIndexRef.current = 0;
-  }, [inProgressItems.length, cardLoopCycles, titleLoopCycles]);
+  }, [inProgressItems.length, cardLoopCycles]);
 
   useEffect(() => {
     return () => {
@@ -80,40 +74,9 @@ export function SeriesFooterCarousel({
     };
   }, []);
 
-  useEffect(() => {
-    const node = titlesScrollRef.current;
-    if (!node) return;
-
-    const computeShouldLoopTitles = () => {
-      if (inProgressItems.length <= 2) {
-        setShouldLoopTitles(false);
-        return;
-      }
-
-      const baseButtons = titleButtonRefs.current.slice(0, inProgressItems.length);
-      if (baseButtons.length < inProgressItems.length || baseButtons.some((button) => !button)) return;
-
-      const totalTitlesWidth = baseButtons.reduce((sum, button) => sum + (button?.offsetWidth ?? 0), 0);
-      const gapsWidth = Math.max(0, inProgressItems.length - 1) * 24; // gap-6
-      const contentWidth = totalTitlesWidth + gapsWidth;
-      const availableWidth = Math.max(0, node.clientWidth - 48); // px-6 left/right
-      const nextShouldLoop = contentWidth > availableWidth;
-
-      setShouldLoopTitles((prev) => (prev === nextShouldLoop ? prev : nextShouldLoop));
-    };
-
-    const rafId = window.requestAnimationFrame(computeShouldLoopTitles);
-    const ro = new ResizeObserver(computeShouldLoopTitles);
-    ro.observe(node);
-    return () => {
-      window.cancelAnimationFrame(rafId);
-      ro.disconnect();
-    };
-  }, [inProgressItems, titleLoopedItems.length]);
-
   const centerTitlesToGlobalIndex = useCallback((globalIndex: number, behavior: ScrollBehavior = "auto") => {
     const node = titlesScrollRef.current;
-    const resolvedIndex = titleLoopCycles === 1 && inProgressItems.length > 0
+    const resolvedIndex = inProgressItems.length > 0
       ? ((globalIndex % inProgressItems.length) + inProgressItems.length) % inProgressItems.length
       : globalIndex;
     const button = titleButtonRefs.current[resolvedIndex];
@@ -123,27 +86,7 @@ export function SeriesFooterCarousel({
     const maxLeft = Math.max(0, node.scrollWidth - node.clientWidth);
     const left = Math.max(0, Math.min(targetLeft, maxLeft));
     node.scrollTo({ left, behavior });
-  }, [inProgressItems.length, titleLoopCycles]);
-
-  const applyTitleVisuals = useCallback((focusIndex: number) => {
-    titleButtonRefs.current.forEach((button, idx) => {
-      if (!button) return;
-      const d = Math.abs(idx - focusIndex);
-
-      let fontSize = 12;
-      let alpha = 0.3;
-
-      if (d <= 1) {
-        // Active/incoming labels cross-fade through a shared midpoint style:
-        // at d=0 => 14px / 100%, at d=0.5 => 11px / 75%, at d=1 => 12px / 50%.
-        fontSize = d <= 0.5 ? 14 - 6 * d : 11 + 2 * (d - 0.5);
-        alpha = 1 - 0.5 * d;
-      }
-
-      button.style.fontSize = `${fontSize.toFixed(2)}px`;
-      button.style.color = `rgba(255,255,255,${alpha.toFixed(3)})`;
-    });
-  }, []);
+  }, [inProgressItems.length]);
 
   const syncTitlesToCardsPosition = useCallback((cards: HTMLElement[], cardsCenter: number) => {
     const titlesNode = titlesScrollRef.current;
@@ -160,7 +103,7 @@ export function SeriesFooterCarousel({
     const leftIndex = Math.max(0, rightIndex - 1);
 
     const resolveTitleIndex = (cardIndex: number) =>
-      titleLoopCycles === 1 && inProgressItems.length > 0
+      inProgressItems.length > 0
         ? ((cardIndex % inProgressItems.length) + inProgressItems.length) % inProgressItems.length
         : cardIndex;
 
@@ -172,9 +115,6 @@ export function SeriesFooterCarousel({
 
     const range = rightCardCenter - leftCardCenter;
     const t = range <= 0 ? 0 : (cardsCenter - leftCardCenter) / range;
-    const clampedT = Math.max(0, Math.min(1, t));
-    const focusIndex = leftIndex + clampedT;
-    applyTitleVisuals(focusIndex);
     const targetCenter = leftTitleCenter + (rightTitleCenter - leftTitleCenter) * Math.max(0, Math.min(1, t));
     const targetLeft = targetCenter - titlesNode.clientWidth / 2;
     const maxLeft = Math.max(0, titlesNode.scrollWidth - titlesNode.clientWidth);
@@ -207,7 +147,7 @@ export function SeriesFooterCarousel({
     };
 
     titleSyncRafRef.current = window.requestAnimationFrame(step);
-  }, [applyTitleVisuals, inProgressItems.length, titleLoopCycles]);
+  }, [inProgressItems.length]);
 
   useEffect(() => {
     let cancelled = false;
@@ -369,7 +309,6 @@ export function SeriesFooterCarousel({
       if (single) {
         node.scrollTo({ left: single.offsetLeft, behavior: "auto" });
         centerTitlesToGlobalIndex(preferredIndex, "auto");
-        applyTitleVisuals(preferredIndex);
       }
       initLoopPositionRef.current = true;
       return;
@@ -382,9 +321,8 @@ export function SeriesFooterCarousel({
     node.scrollTo({ left: target.offsetLeft, behavior: "auto" });
     activeCardGlobalIndexRef.current = targetIndex;
     centerTitlesToGlobalIndex(targetIndex, "auto");
-    applyTitleVisuals(targetIndex);
     initLoopPositionRef.current = true;
-  }, [applyTitleVisuals, inProgressItems, loopedItems.length, initialSeriesId, cardLoopCycles, centerTitlesToGlobalIndex]);
+  }, [inProgressItems, loopedItems.length, initialSeriesId, cardLoopCycles, centerTitlesToGlobalIndex]);
 
   function onPointerDown(event: React.PointerEvent<HTMLDivElement>) {
     if (event.pointerType === "mouse" && event.button !== 0) return;
@@ -562,18 +500,16 @@ export function SeriesFooterCarousel({
               className="mt-4 h-8 flex items-center gap-6 overflow-hidden px-6 no-scrollbar"
             >
               <div aria-hidden="true" className="shrink-0" style={{ width: "calc(50% - 24px)" }} />
-              {titleLoopedItems.map((series, idx) => {
+              {inProgressItems.map((series, idx) => {
                 const realIndex = inProgressItems.length > 0 ? idx % inProgressItems.length : 0;
                 const rawDistance = Math.abs(realIndex - clampedActiveIndex);
                 const distance = Math.min(rawDistance, inProgressItems.length - rawDistance);
                 const isActive = distance === 0;
                 const isSide = distance === 1;
-                const middleCycleIndex = Math.floor(titleLoopCycles / 2);
-                const centeredGlobalIndex = middleCycleIndex * inProgressItems.length + clampedActiveIndex;
                 const clickDirection =
-                  idx > centeredGlobalIndex
+                  idx > clampedActiveIndex
                     ? "right"
-                    : idx < centeredGlobalIndex
+                    : idx < clampedActiveIndex
                       ? "left"
                       : undefined;
 
@@ -585,13 +521,21 @@ export function SeriesFooterCarousel({
                     }}
                     type="button"
                     className={[
-                      "shrink-0 whitespace-nowrap text-center transition-[color,font-size] duration-150 ease-out",
+                      "shrink-0 whitespace-nowrap text-center",
                       isActive
                         ? "text-[14px] font-normal text-white"
                         : isSide
                           ? "text-[12px] font-normal text-white/50"
                           : "text-[12px] font-normal text-white/30",
                     ].join(" ")}
+                    style={{
+                      fontSize: isActive ? 14 : 12,
+                      color: isActive
+                        ? "rgba(255,255,255,1)"
+                        : isSide
+                          ? "rgba(255,255,255,0.5)"
+                          : "rgba(255,255,255,0.3)",
+                    }}
                     onClick={() => {
                       hapticImpact("light");
                       scrollToIndex(realIndex, clickDirection);
