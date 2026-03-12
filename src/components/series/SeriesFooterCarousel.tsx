@@ -273,7 +273,6 @@ export function SeriesFooterCarousel({
       if (cardLoopCycles > 1) {
         activeCardGlobalIndexRef.current = best;
         setActiveIndex(best % inProgressItems.length);
-        centerTitlesToGlobalIndex(best, "auto");
 
         if (loopSettleTimerRef.current !== null) {
           window.clearTimeout(loopSettleTimerRef.current);
@@ -313,13 +312,11 @@ export function SeriesFooterCarousel({
             });
             return;
           }
-          centerTitlesToGlobalIndex(latestBest, "auto");
         }, 90);
         return;
       }
       activeCardGlobalIndexRef.current = best;
       setActiveIndex(best);
-      centerTitlesToGlobalIndex(best, "auto");
     };
 
     handleScroll();
