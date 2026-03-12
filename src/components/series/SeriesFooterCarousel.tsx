@@ -125,6 +125,26 @@ export function SeriesFooterCarousel({
     node.scrollTo({ left, behavior });
   }, [inProgressItems.length, titleLoopCycles]);
 
+  const applyTitleVisuals = useCallback((focusIndex: number) => {
+    titleButtonRefs.current.forEach((button, idx) => {
+      if (!button) return;
+      const d = Math.abs(idx - focusIndex);
+
+      let fontSize = 12;
+      let alpha = 0.3;
+
+      if (d <= 1) {
+        // Active/incoming labels cross-fade through a shared midpoint style:
+        // at d=0 => 14px / 100%, at d=0.5 => 11px / 75%, at d=1 => 12px / 50%.
+        fontSize = d <= 0.5 ? 14 - 6 * d : 11 + 2 * (d - 0.5);
+        alpha = 1 - 0.5 * d;
+      }
+
+      button.style.fontSize = `${fontSize.toFixed(2)}px`;
+      button.style.color = `rgba(255,255,255,${alpha.toFixed(3)})`;
+    });
+  }, []);
+
   const syncTitlesToCardsPosition = useCallback((cards: HTMLElement[], cardsCenter: number) => {
     const titlesNode = titlesScrollRef.current;
     if (!titlesNode || !cards.length) return;
@@ -152,6 +172,9 @@ export function SeriesFooterCarousel({
 
     const range = rightCardCenter - leftCardCenter;
     const t = range <= 0 ? 0 : (cardsCenter - leftCardCenter) / range;
+    const clampedT = Math.max(0, Math.min(1, t));
+    const focusIndex = leftIndex + clampedT;
+    applyTitleVisuals(focusIndex);
     const targetCenter = leftTitleCenter + (rightTitleCenter - leftTitleCenter) * Math.max(0, Math.min(1, t));
     const targetLeft = targetCenter - titlesNode.clientWidth / 2;
     const maxLeft = Math.max(0, titlesNode.scrollWidth - titlesNode.clientWidth);
@@ -184,7 +207,7 @@ export function SeriesFooterCarousel({
     };
 
     titleSyncRafRef.current = window.requestAnimationFrame(step);
-  }, [inProgressItems.length, titleLoopCycles]);
+  }, [applyTitleVisuals, inProgressItems.length, titleLoopCycles]);
 
   useEffect(() => {
     let cancelled = false;
@@ -346,6 +369,7 @@ export function SeriesFooterCarousel({
       if (single) {
         node.scrollTo({ left: single.offsetLeft, behavior: "auto" });
         centerTitlesToGlobalIndex(preferredIndex, "auto");
+        applyTitleVisuals(preferredIndex);
       }
       initLoopPositionRef.current = true;
       return;
@@ -358,8 +382,9 @@ export function SeriesFooterCarousel({
     node.scrollTo({ left: target.offsetLeft, behavior: "auto" });
     activeCardGlobalIndexRef.current = targetIndex;
     centerTitlesToGlobalIndex(targetIndex, "auto");
+    applyTitleVisuals(targetIndex);
     initLoopPositionRef.current = true;
-  }, [inProgressItems, loopedItems.length, initialSeriesId, cardLoopCycles, centerTitlesToGlobalIndex]);
+  }, [applyTitleVisuals, inProgressItems, loopedItems.length, initialSeriesId, cardLoopCycles, centerTitlesToGlobalIndex]);
 
   function onPointerDown(event: React.PointerEvent<HTMLDivElement>) {
     if (event.pointerType === "mouse" && event.button !== 0) return;
@@ -534,7 +559,7 @@ export function SeriesFooterCarousel({
 
             <div
               ref={titlesScrollRef}
-              className="mt-4 flex items-center gap-6 overflow-hidden px-6 no-scrollbar"
+              className="mt-4 h-8 flex items-center gap-6 overflow-hidden px-6 no-scrollbar"
             >
               <div aria-hidden="true" className="shrink-0" style={{ width: "calc(50% - 24px)" }} />
               {titleLoopedItems.map((series, idx) => {
@@ -560,7 +585,7 @@ export function SeriesFooterCarousel({
                     }}
                     type="button"
                     className={[
-                      "shrink-0 whitespace-nowrap text-center transition-colors duration-200",
+                      "shrink-0 whitespace-nowrap text-center transition-[color,font-size] duration-150 ease-out",
                       isActive
                         ? "text-[14px] font-normal text-white"
                         : isSide
