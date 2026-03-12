@@ -54,13 +54,13 @@ export function SeriesCard({
       type="button"
       onClick={onClick}
       className={cn(
-        "w-full text-left rounded-3xl bg-black/5 pr-1 pl-4 py-3",
+        "w-full text-left rounded-3xl bg-black/5 pr-5 pl-3 py-3",
         "transition active:scale-[0.99]",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20",
         className
       )}
     >
-      <div className="grid grid-cols-[1fr_104px] gap-1 items-center">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-1 items-center">
         <div className="min-w-0 grid grid-rows-2 gap-y-1">
           <div className="flex items-center gap-1 min-w-0">
             <div className="h-[21px] w-[21px] rounded-full overflow-hidden bg-black/10 shrink-0 flex items-center justify-center">
@@ -98,7 +98,7 @@ export function SeriesCard({
                   r={radius}
                   fill="none"
                   stroke="#E7D8D2"
-                  strokeWidth="2"
+                  strokeWidth="1"
                 />
                 <circle
                   cx="8.5"
@@ -106,7 +106,7 @@ export function SeriesCard({
                   r={radius}
                   fill="none"
                   stroke="#FF4A00"
-                  strokeWidth="2"
+                  strokeWidth="3"
                   strokeDasharray={circumference}
                   strokeDashoffset={dashOffset}
                 />
@@ -116,7 +116,7 @@ export function SeriesCard({
           </div>
         </div>
 
-        <div className="shrink-0 w-[104px] px-3 py-3 flex items-center justify-center">
+        <div className="justify-self-end self-center inline-flex h-fit w-fit shrink-0 items-center px-[10px] py-[10px] bg-black/4 rounded-lg">
           {seasonNumber && episodeNumber ? (
             <div className="flex items-baseline gap-1">
               <span className="flex items-baseline gap-[1px]">

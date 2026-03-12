@@ -49,6 +49,8 @@ export default function HomePage() {
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [searchHint, setSearchHint] = useState("");
+  const [showHomeContent, setShowHomeContent] = useState(true);
+  const [homeExitAnimating, setHomeExitAnimating] = useState(false);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const searchPanelRef = useRef<SeriesSearchPanelHandle | null>(null);
   const bgPreloadRef = useRef(false);
@@ -56,6 +58,7 @@ export default function HomePage() {
   const footerEnterRaf1Ref = useRef<number | null>(null);
   const footerEnterRaf2Ref = useRef<number | null>(null);
   const footerInnerRef = useRef<HTMLDivElement | null>(null);
+  const homeExitTimerRef = useRef<number | null>(null);
   const nowWatchingEnterTimersRef = useRef<Map<string, number>>(new Map());
   const nowWatchingExitTimersRef = useRef<Map<string, number>>(new Map());
   const nowWatchingRenderIdsRef = useRef<string[]>([]);
@@ -456,6 +459,9 @@ export default function HomePage() {
     const nowWatchingEnterTimers = nowWatchingEnterTimersRef.current;
     const nowWatchingExitTimers = nowWatchingExitTimersRef.current;
     return () => {
+      if (homeExitTimerRef.current !== null) {
+        window.clearTimeout(homeExitTimerRef.current);
+      }
       if (bottomRadiusTimerRef.current !== null) {
         window.clearTimeout(bottomRadiusTimerRef.current);
       }
@@ -477,16 +483,35 @@ export default function HomePage() {
   }, []);
 
   function openSearchPanel() {
+    if (homeExitTimerRef.current !== null) {
+      window.clearTimeout(homeExitTimerRef.current);
+      homeExitTimerRef.current = null;
+    }
+
     if (!searchOpen) {
       hapticImpact("light");
     }
     setFolderOpen(null);
     setSearchOpen(true);
+    if (showHomeContent) {
+      setHomeExitAnimating(true);
+      homeExitTimerRef.current = window.setTimeout(() => {
+        setShowHomeContent(false);
+        setHomeExitAnimating(false);
+        homeExitTimerRef.current = null;
+      }, 220);
+    }
   }
 
   function closeSearchPanel() {
+    if (homeExitTimerRef.current !== null) {
+      window.clearTimeout(homeExitTimerRef.current);
+      homeExitTimerRef.current = null;
+    }
     setListReady(false);
     setSearchOpen(false);
+    setHomeExitAnimating(false);
+    setShowHomeContent(true);
     searchInputRef.current?.blur();
   }
 
@@ -767,7 +792,7 @@ export default function HomePage() {
                     onChange={(e) => handleSearchInputChange(e.target.value)}
                     inputMode="text"
                     enterKeyHint="search"
-                    placeholder={searchHint || "Найти сериал..."}
+                    placeholder={searchHint}
                     className="h-11 w-full rounded-full bg-black/2 px-4 pr-10 text-[16px] font-medium outline-[1px] outline-black/5 placeholder:text-black/30"
                   />
                   <button
@@ -792,15 +817,13 @@ export default function HomePage() {
                   </button>
                 </form>
               </div>
-              <div
-                className={[
-                  "overflow-hidden transition-[max-height,opacity,transform,filter,margin] duration-500 ease-out",
-                  searchOpen
-                    ? "pointer-events-none mt-0 max-h-0 translate-y-0 opacity-0 blur-[8px]"
-                    : "mt-0 max-h-[1800px] translate-y-0 opacity-100 blur-0",
-                ].join(" ")}
-              >
-                <>
+              {showHomeContent ? (
+                <div
+                  className={[
+                    "transition-[opacity,filter] duration-200 ease-out",
+                    searchOpen && homeExitAnimating ? "pointer-events-none opacity-0 blur-[8px]" : "opacity-100 blur-0",
+                  ].join(" ")}
+                >
                   <div
                     style={{ transitionDelay: "60ms" }}
                     className={[
@@ -902,9 +925,9 @@ export default function HomePage() {
                       );
                     })}
                   </div>
-                </>
-              </div>
-              {searchOpen ? (
+                </div>
+              ) : null}
+              {searchOpen && !showHomeContent ? (
                 <SeriesSearchPanel
                   ref={searchPanelRef}
                   hideHeader
