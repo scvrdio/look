@@ -43,7 +43,7 @@ export function SeriesCard({
 
   const posterUrl = posterUrlProp ?? data?.posterUrl ?? null;
   const normalizedPercent = Math.min(100, Math.max(0, progressPercent));
-  const radius = 6.5;
+  const radius = 8.5;
   const circumference = 2 * Math.PI * radius;
   const dashOffset = circumference * (1 - normalizedPercent / 100);
   const seasonEpisodeMatch = rightTop.match(/S\s*(\d+)\s*E\s*(\d+)/i);
@@ -61,7 +61,7 @@ export function SeriesCard({
       )}
     >
       <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-1 items-center">
-        <div className="min-w-0 grid grid-rows-2 gap-y-1">
+        <div className="min-w-0 grid grid-rows-2 gap-y-1.5">
           <div className="flex items-center gap-1 min-w-0">
             <div className="h-[21px] w-[21px] rounded-full overflow-hidden bg-black/10 shrink-0 flex items-center justify-center">
               {completed ? (
@@ -86,23 +86,23 @@ export function SeriesCard({
           <div className="flex items-center gap-[4px] text-[14px] leading-[1.15] text-black/40 min-w-0">
             <div className="h-[21px] w-[21px] shrink-0 flex items-center justify-center">
               <svg
-                viewBox="0 0 17 17"
-                width="17"
-                height="17"
+                viewBox="0 0 21 21"
+                width="21"
+                height="21"
                 aria-hidden="true"
                 className="-rotate-90"
               >
                 <circle
-                  cx="8.5"
-                  cy="8.5"
+                  cx="10.5"
+                  cy="10.5"
                   r={radius}
                   fill="none"
                   stroke="#E7D8D2"
                   strokeWidth="1"
                 />
                 <circle
-                  cx="8.5"
-                  cy="8.5"
+                  cx="10.5"
+                  cy="10.5"
                   r={radius}
                   fill="none"
                   stroke="#FF4A00"
