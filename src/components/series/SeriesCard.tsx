@@ -62,7 +62,7 @@ export function SeriesCard({
     >
       <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-1 items-center">
         <div className="min-w-0 grid grid-rows-2 gap-y-1.5">
-          <div className="flex items-center gap-1 min-w-0">
+          <div className="flex items-center gap-2 min-w-0">
             <div className="h-[21px] w-[21px] rounded-full overflow-hidden bg-black/10 shrink-0 flex items-center justify-center">
               {completed ? (
                 <CheckCircleFill className="h-[21px] w-[21px] text-[#13A600]" />
@@ -83,7 +83,7 @@ export function SeriesCard({
             </div>
           </div>
 
-          <div className="flex items-center gap-[4px] min-w-0">
+          <div className="flex items-center gap-2 min-w-0">
             <div className="h-[21px] w-[21px] shrink-0 flex items-center justify-center">
               <svg
                 viewBox="0 0 21 21"
