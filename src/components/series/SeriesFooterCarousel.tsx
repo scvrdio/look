@@ -31,12 +31,18 @@ export function SeriesFooterCarousel({
 }: SeriesFooterCarouselProps) {
   type SeasonRow = { id: string; number: number; episodesCount: number };
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const titlesScrollRef = useRef<HTMLDivElement | null>(null);
+  const titleButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const titleTargetScrollLeftRef = useRef(0);
+  const titleCurrentScrollLeftRef = useRef(0);
+  const titleSyncRafRef = useRef<number | null>(null);
   const { cache, mutate: mutateGlobal } = useSWRConfig();
   const pointerIdRef = useRef<number | null>(null);
   const dragStartXRef = useRef(0);
   const dragStartYRef = useRef(0);
   const swipeUpArmedRef = useRef(false);
   const loopingAdjustRef = useRef(false);
+  const activeCardGlobalIndexRef = useRef(0);
   const initLoopPositionRef = useRef(false);
   const loopSettleTimerRef = useRef<number | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -48,15 +54,95 @@ export function SeriesFooterCarousel({
     () => items.filter((s) => (s.progress?.percent ?? 0) < 100),
     [items]
   );
+  const cardLoopCycles = inProgressItems.length > 1 ? 3 : 1;
   const loopedItems = useMemo(() => {
     if (inProgressItems.length <= 1) return inProgressItems;
-    const first = inProgressItems[0];
-    const last = inProgressItems[inProgressItems.length - 1];
-    return [last, ...inProgressItems, first];
-  }, [inProgressItems]);
+    return Array.from({ length: cardLoopCycles }, () => inProgressItems).flat();
+  }, [inProgressItems, cardLoopCycles]);
+  const titleLoopCycles = cardLoopCycles;
+  const titleLoopedItems = useMemo(() => {
+    if (inProgressItems.length <= 1) return inProgressItems;
+    return Array.from({ length: titleLoopCycles }, () => inProgressItems).flat();
+  }, [inProgressItems, titleLoopCycles]);
   useEffect(() => {
     initLoopPositionRef.current = false;
-  }, [inProgressItems.length]);
+    titleButtonRefs.current = [];
+    activeCardGlobalIndexRef.current = 0;
+  }, [inProgressItems.length, cardLoopCycles]);
+
+  useEffect(() => {
+    return () => {
+      if (titleSyncRafRef.current !== null) {
+        window.cancelAnimationFrame(titleSyncRafRef.current);
+        titleSyncRafRef.current = null;
+      }
+    };
+  }, []);
+
+  function centerTitlesToGlobalIndex(globalIndex: number, behavior: ScrollBehavior = "auto") {
+    const node = titlesScrollRef.current;
+    const button = titleButtonRefs.current[globalIndex];
+    if (!node || !button) return;
+
+    const targetLeft = button.offsetLeft - (node.clientWidth - button.clientWidth) / 2;
+    const maxLeft = Math.max(0, node.scrollWidth - node.clientWidth);
+    const left = Math.max(0, Math.min(targetLeft, maxLeft));
+    node.scrollTo({ left, behavior });
+  }
+
+  function syncTitlesToCardsPosition(cards: HTMLElement[], cardsCenter: number) {
+    const titlesNode = titlesScrollRef.current;
+    if (!titlesNode || !cards.length) return;
+
+    const titleCenters = titleButtonRefs.current.map((button) =>
+      button ? button.offsetLeft + button.clientWidth / 2 : null
+    );
+    if (!titleCenters.length) return;
+
+    const cardCenters = cards.map((card) => card.offsetLeft + card.clientWidth / 2);
+    let rightIndex = cardCenters.findIndex((x) => x >= cardsCenter);
+    if (rightIndex < 0) rightIndex = cardCenters.length - 1;
+    const leftIndex = Math.max(0, rightIndex - 1);
+
+    const leftCardCenter = cardCenters[leftIndex];
+    const rightCardCenter = cardCenters[rightIndex];
+    const leftTitleCenter = titleCenters[leftIndex];
+    const rightTitleCenter = titleCenters[rightIndex];
+    if (leftTitleCenter == null || rightTitleCenter == null) return;
+
+    const range = rightCardCenter - leftCardCenter;
+    const t = range <= 0 ? 0 : (cardsCenter - leftCardCenter) / range;
+    const targetCenter = leftTitleCenter + (rightTitleCenter - leftTitleCenter) * Math.max(0, Math.min(1, t));
+    const targetLeft = targetCenter - titlesNode.clientWidth / 2;
+    const maxLeft = Math.max(0, titlesNode.scrollWidth - titlesNode.clientWidth);
+    titleTargetScrollLeftRef.current = Math.max(0, Math.min(targetLeft, maxLeft));
+
+    if (titleSyncRafRef.current !== null) return;
+    titleCurrentScrollLeftRef.current = titlesNode.scrollLeft;
+    const step = () => {
+      const node = titlesScrollRef.current;
+      if (!node) {
+        titleSyncRafRef.current = null;
+        return;
+      }
+
+      const target = titleTargetScrollLeftRef.current;
+      const current = titleCurrentScrollLeftRef.current;
+      const next = current + (target - current) * 0.24;
+      titleCurrentScrollLeftRef.current = next;
+      node.scrollLeft = next;
+
+      if (Math.abs(target - next) < 0.5) {
+        node.scrollLeft = target;
+        titleCurrentScrollLeftRef.current = target;
+        titleSyncRafRef.current = null;
+        return;
+      }
+      titleSyncRafRef.current = window.requestAnimationFrame(step);
+    };
+
+    titleSyncRafRef.current = window.requestAnimationFrame(step);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -131,6 +217,7 @@ export function SeriesFooterCarousel({
         return;
       }
       const center = node.scrollLeft + node.clientWidth / 2;
+      syncTitlesToCardsPosition(cards, center);
       let best = 0;
       let bestDistance = Number.POSITIVE_INFINITY;
       cards.forEach((card, idx) => {
@@ -142,9 +229,9 @@ export function SeriesFooterCarousel({
         }
       });
       if (inProgressItems.length > 1) {
-        if (best === 0) setActiveIndex(inProgressItems.length - 1);
-        else if (best === cards.length - 1) setActiveIndex(0);
-        else setActiveIndex(best - 1);
+        activeCardGlobalIndexRef.current = best;
+        setActiveIndex(best % inProgressItems.length);
+        centerTitlesToGlobalIndex(best, "auto");
 
         if (loopSettleTimerRef.current !== null) {
           window.clearTimeout(loopSettleTimerRef.current);
@@ -168,30 +255,29 @@ export function SeriesFooterCarousel({
             }
           });
 
-          if (latestBest === 0) {
-            const target = latestCards[inProgressItems.length];
+          const edge = inProgressItems.length;
+          if (latestBest < edge || latestBest >= latestCards.length - edge) {
+            const middleCycle = Math.floor(cardLoopCycles / 2);
+            const realIndex = latestBest % inProgressItems.length;
+            const targetIndex = middleCycle * inProgressItems.length + realIndex;
+            const target = latestCards[targetIndex];
             if (!target) return;
             loopingAdjustRef.current = true;
             node.scrollTo({ left: target.offsetLeft, behavior: "auto" });
+            activeCardGlobalIndexRef.current = targetIndex;
+            centerTitlesToGlobalIndex(targetIndex, "auto");
             requestAnimationFrame(() => {
               loopingAdjustRef.current = false;
             });
             return;
           }
-
-          if (latestBest === latestCards.length - 1) {
-            const target = latestCards[1];
-            if (!target) return;
-            loopingAdjustRef.current = true;
-            node.scrollTo({ left: target.offsetLeft, behavior: "auto" });
-            requestAnimationFrame(() => {
-              loopingAdjustRef.current = false;
-            });
-          }
+          centerTitlesToGlobalIndex(latestBest, "auto");
         }, 90);
         return;
       }
+      activeCardGlobalIndexRef.current = best;
       setActiveIndex(best);
+      centerTitlesToGlobalIndex(best, "auto");
     };
 
     handleScroll();
@@ -202,7 +288,7 @@ export function SeriesFooterCarousel({
         window.clearTimeout(loopSettleTimerRef.current);
       }
     };
-  }, [inProgressItems.length]);
+  }, [inProgressItems.length, cardLoopCycles]);
 
   useEffect(() => {
     const node = scrollRef.current;
@@ -220,16 +306,21 @@ export function SeriesFooterCarousel({
       const single = cards[preferredIndex];
       if (single) {
         node.scrollTo({ left: single.offsetLeft, behavior: "auto" });
+        centerTitlesToGlobalIndex(preferredIndex, "auto");
       }
       initLoopPositionRef.current = true;
       return;
     }
 
-    const target = cards[preferredIndex + 1];
+    const middleCycle = Math.floor(cardLoopCycles / 2);
+    const targetIndex = middleCycle * inProgressItems.length + preferredIndex;
+    const target = cards[targetIndex];
     if (!target) return;
     node.scrollTo({ left: target.offsetLeft, behavior: "auto" });
+    activeCardGlobalIndexRef.current = targetIndex;
+    centerTitlesToGlobalIndex(targetIndex, "auto");
     initLoopPositionRef.current = true;
-  }, [inProgressItems, loopedItems.length, initialSeriesId]);
+  }, [inProgressItems, loopedItems.length, initialSeriesId, cardLoopCycles]);
 
   function onPointerDown(event: React.PointerEvent<HTMLDivElement>) {
     if (event.pointerType === "mouse" && event.button !== 0) return;
@@ -256,21 +347,51 @@ export function SeriesFooterCarousel({
     swipeUpArmedRef.current = false;
   }
 
-  function scrollToIndex(index: number) {
+  function scrollToIndex(index: number, preferDirection?: "left" | "right") {
     const node = scrollRef.current;
     const cards = node
       ? Array.from(node.querySelectorAll<HTMLElement>('[data-carousel-card="true"]'))
       : [];
-    const targetIndex = inProgressItems.length > 1 ? index + 1 : index;
+    let targetIndex = index;
+    if (inProgressItems.length > 1) {
+      const n = inProgressItems.length;
+      const middleCycle = Math.floor(cardLoopCycles / 2);
+      const currentRealIndex = clampedActiveIndex;
+      const middleCurrentIndex = middleCycle * n + currentRealIndex;
+      const middleCurrentCard = cards[middleCurrentIndex];
+      if (node && middleCurrentCard) {
+        // Always re-anchor in the middle cycle first.
+        loopingAdjustRef.current = true;
+        node.scrollTo({ left: middleCurrentCard.offsetLeft, behavior: "auto" });
+        activeCardGlobalIndexRef.current = middleCurrentIndex;
+        requestAnimationFrame(() => {
+          loopingAdjustRef.current = false;
+        });
+      }
+
+      if (preferDirection === "right") {
+        const delta = (index - currentRealIndex + n) % n || n;
+        targetIndex = middleCurrentIndex + delta;
+      } else if (preferDirection === "left") {
+        const delta = (currentRealIndex - index + n) % n || n;
+        targetIndex = middleCurrentIndex - delta;
+      } else {
+        const forwardDelta = (index - currentRealIndex + n) % n;
+        const backwardDelta = (currentRealIndex - index + n) % n;
+        targetIndex = forwardDelta <= backwardDelta
+          ? middleCurrentIndex + forwardDelta
+          : middleCurrentIndex - backwardDelta;
+      }
+    }
     const card = cards[targetIndex];
     if (!node || !card) return;
     node.scrollTo({ left: card.offsetLeft, behavior: "smooth" });
+    centerTitlesToGlobalIndex(targetIndex, "smooth");
   }
 
-  const clampedActiveIndex = useMemo(() => {
-    if (!inProgressItems.length) return 0;
-    return Math.min(activeIndex, inProgressItems.length - 1);
-  }, [activeIndex, inProgressItems.length]);
+  const clampedActiveIndex = !inProgressItems.length
+    ? 0
+    : Math.min(activeIndex, inProgressItems.length - 1);
 
   return (
     <div className="w-full bg-black pb-[calc(var(--tg-content-safe-bottom,0px)+14px)] pt-3 text-white">
@@ -299,6 +420,11 @@ export function SeriesFooterCarousel({
                 const season = seasonView?.season ?? series.progress?.last?.season ?? null;
                 const displayEpisode = seasonView?.episode ?? (series.progress?.last?.episode ?? 0);
                 const episodesCount = seasonView?.episodesCount ?? series.episodesCount;
+                const middleCycle = Math.floor(cardLoopCycles / 2);
+                const centeredGlobalIndex =
+                  inProgressItems.length > 1
+                    ? middleCycle * inProgressItems.length + clampedActiveIndex
+                    : clampedActiveIndex;
                 return (
                   <div
                     key={`${series.id}-${idx}`}
@@ -312,7 +438,7 @@ export function SeriesFooterCarousel({
                             src={series.posterUrl}
                             alt={series.title}
                             className="h-full w-full rounded-sm object-cover"
-                            loading={idx === clampedActiveIndex ? "eager" : "lazy"}
+                            loading={idx === centeredGlobalIndex ? "eager" : "lazy"}
                             decoding="async"
                             referrerPolicy="no-referrer"
                           />
@@ -367,35 +493,51 @@ export function SeriesFooterCarousel({
               })}
             </div>
 
-            {inProgressItems.length > 1 ? (
-              <div className="mt-4 flex touch-none items-center justify-center gap-4">
-                {inProgressItems.map((series, idx) => (
+            <div
+              ref={titlesScrollRef}
+              className="mt-4 flex touch-pan-x items-center gap-6 overflow-x-auto px-6 no-scrollbar"
+            >
+              {titleLoopedItems.map((series, idx) => {
+                const realIndex = inProgressItems.length > 0 ? idx % inProgressItems.length : 0;
+                const rawDistance = Math.abs(realIndex - clampedActiveIndex);
+                const distance = Math.min(rawDistance, inProgressItems.length - rawDistance);
+                const isActive = distance === 0;
+                const isSide = distance === 1;
+                const middleCycleIndex = Math.floor(titleLoopCycles / 2);
+                const centeredGlobalIndex = middleCycleIndex * inProgressItems.length + clampedActiveIndex;
+                const clickDirection =
+                  idx > centeredGlobalIndex
+                    ? "right"
+                    : idx < centeredGlobalIndex
+                      ? "left"
+                      : undefined;
+
+                return (
                   <button
-                    key={idx}
+                    key={`${series.id}-title-${idx}`}
+                    ref={(el) => {
+                      titleButtonRefs.current[idx] = el;
+                    }}
                     type="button"
                     className={[
-                      "h-4 w-4 overflow-hidden rounded-full transition-opacity",
-                      idx === clampedActiveIndex ? "opacity-100" : "opacity-30",
+                      "shrink-0 whitespace-nowrap text-center transition-colors duration-200",
+                      isActive
+                        ? "text-[14px] font-normal text-white"
+                        : isSide
+                          ? "text-[12px] font-normal text-white/50"
+                          : "text-[12px] font-normal text-white/30",
                     ].join(" ")}
-                    onClick={() => scrollToIndex(idx)}
-                    aria-label={`Слайд ${idx + 1}`}
+                    onClick={() => {
+                      hapticImpact("light");
+                      scrollToIndex(realIndex, clickDirection);
+                    }}
+                    aria-label={`Открыть ${series.title}`}
                   >
-                    {series.posterUrl ? (
-                      <img
-                        src={series.posterUrl}
-                        alt={series.title}
-                        className="h-full w-full object-cover"
-                        loading="lazy"
-                        decoding="async"
-                        referrerPolicy="no-referrer"
-                      />
-                    ) : (
-                      <span className="block h-full w-full bg-white/30" />
-                    )}
+                    {series.title}
                   </button>
-                ))}
-              </div>
-            ) : null}
+                );
+              })}
+            </div>
           </>
         )}
       </div>
