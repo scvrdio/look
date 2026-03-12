@@ -5,7 +5,7 @@ import { mutate } from "swr";
 import Lottie from "lottie-react";
 
 import { Search, XCircleFill } from "@/icons";
-import { AddSeriesActionButton } from "@/components/series/AddSeriesActionButton";
+import { SeriesSearchActionButton, type SeriesSearchActionVariant } from "@/components/series/SeriesSearchActionButton";
 import { hapticImpact, hapticNotify } from "@/lib/haptics";
 import { pluralRu } from "@/lib/plural";
 
@@ -135,13 +135,18 @@ export const SeriesSearchPanel = forwardRef<SeriesSearchPanelHandle, SeriesSearc
   const searchLoaderEnterRaf2Ref = useRef<number | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  const existingIds = useMemo(() => {
-    return new Set(
-      (items ?? [])
-        .filter((s) => s.source === "poiskkino" && typeof s.sourceId === "number")
-        .map((s) => s.sourceId as number)
-    );
+  const existingBySourceId = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const series of items ?? []) {
+      if (series.source !== "poiskkino" || typeof series.sourceId !== "number") continue;
+      map.set(series.sourceId, series.id);
+    }
+    return map;
   }, [items]);
+
+  const existingIds = useMemo(() => {
+    return new Set(existingBySourceId.keys());
+  }, [existingBySourceId]);
 
   useEffect(() => {
     if (hideHeader) return;
@@ -282,6 +287,19 @@ export const SeriesSearchPanel = forwardRef<SeriesSearchPanelHandle, SeriesSearc
         hapticNotify("error");
         setError(await readErrorMessage(res));
         return;
+      }
+
+      const data = await res.json().catch(() => null);
+      const localSeriesId =
+        typeof data?.series?.id === "string" ? (data.series.id as string) : null;
+      if (localSeriesId) {
+        setResults((prev) =>
+          prev.map((item) =>
+            item.id === id
+              ? { ...item, _alreadyInDb: true, _localSeriesId: localSeriesId }
+              : item
+          )
+        );
       }
 
       hapticNotify("success");
@@ -501,8 +519,17 @@ export const SeriesSearchPanel = forwardRef<SeriesSearchPanelHandle, SeriesSearc
           ) : (
             results.map((item, i) => {
               const fromDb = !!item._alreadyInDb && !!item._localSeriesId;
-              const already = fromDb ? true : existingIds.has(item.id);
+              const linkedSeriesId =
+                item._localSeriesId ??
+                (typeof item.id === "number" ? (existingBySourceId.get(item.id) ?? null) : null);
               const isAdding = addingId === item.id;
+              const actionVariant: SeriesSearchActionVariant = linkedSeriesId
+                ? "open"
+                : isAdding
+                  ? "adding"
+                  : existingIds.has(item.id)
+                    ? "in-list"
+                    : "add";
               const typeLabel = metaTypeLabel(item.type);
               const countsLine = metaCountsLine(item.seasonsCount, item.episodesCount);
               const key = fromDb ? (item._localSeriesId as string) : String(item.id);
@@ -542,7 +569,7 @@ export const SeriesSearchPanel = forwardRef<SeriesSearchPanelHandle, SeriesSearc
                       </div>
 
                       <div className="pt-3">
-                        {fromDb ? (
+                        {false ? (
                           <button
                             type="button"
                             onClick={() => {
@@ -557,11 +584,19 @@ export const SeriesSearchPanel = forwardRef<SeriesSearchPanelHandle, SeriesSearc
                             <span>Открыть</span>
                           </button>
                         ) : (
-                          <AddSeriesActionButton
-                            inList={already}
-                            loading={isAdding}
-                            disabled={already || isAdding}
-                            onClick={() => addFromCatalog(item.id)}
+                          <SeriesSearchActionButton
+                            variant={actionVariant}
+                            onClick={() => {
+                              if (actionVariant === "open" && linkedSeriesId) {
+                                hapticImpact("light");
+                                onBack();
+                                onOpenSeries(linkedSeriesId);
+                                return;
+                              }
+                              if (actionVariant === "add") {
+                                void addFromCatalog(item.id);
+                              }
+                            }}
                           />
                         )}
                       </div>

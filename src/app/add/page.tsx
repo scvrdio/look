@@ -7,7 +7,8 @@ import Lottie from "lottie-react";
 import { fetcher } from "@/lib/fetcher";
 import { hapticImpact, hapticNotify } from "@/lib/haptics";
 import { pluralRu } from "@/lib/plural";
-import { PlaylistPlusFill, Search, XCircleFill } from "@/icons";
+import { Search, XCircleFill } from "@/icons";
+import { SeriesSearchActionButton, type SeriesSearchActionVariant } from "@/components/series/SeriesSearchActionButton";
 import type { SeriesRow } from "@/types/bootstrap";
 import loadingAnimation from "../../../public/lottie.json";
 
@@ -138,13 +139,18 @@ export default function AddPage() {
     revalidateOnFocus: false,
   });
 
-  const existingIds = useMemo(() => {
-    return new Set(
-      (mySeries ?? [])
-        .filter((s) => s.source === "poiskkino" && typeof s.sourceId === "number")
-        .map((s) => s.sourceId as number)
-    );
+  const existingBySourceId = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const series of mySeries ?? []) {
+      if (series.source !== "poiskkino" || typeof series.sourceId !== "number") continue;
+      map.set(series.sourceId, series.id);
+    }
+    return map;
   }, [mySeries]);
+
+  const existingIds = useMemo(() => {
+    return new Set(existingBySourceId.keys());
+  }, [existingBySourceId]);
 
   // header enter
   useEffect(() => {
@@ -299,6 +305,19 @@ export default function AddPage() {
         hapticNotify("error");
         setError(await readErrorMessage(res));
         return;
+      }
+
+      const data = await res.json().catch(() => null);
+      const localSeriesId =
+        typeof data?.series?.id === "string" ? (data.series.id as string) : null;
+      if (localSeriesId) {
+        setResults((prev) =>
+          prev.map((item) =>
+            item.id === id
+              ? { ...item, _alreadyInDb: true, _localSeriesId: localSeriesId }
+              : item
+          )
+        );
       }
 
       hapticNotify("success");
@@ -520,7 +539,16 @@ export default function AddPage() {
             ) : (
               results.map((item, i) => {
                 const fromDb = !!item._alreadyInDb && !!item._localSeriesId;
-                const already = fromDb ? true : existingIds.has(item.id);
+                const linkedSeriesId =
+                  item._localSeriesId ??
+                  (typeof item.id === "number" ? (existingBySourceId.get(item.id) ?? null) : null);
+                const actionVariant: SeriesSearchActionVariant = linkedSeriesId
+                  ? "open"
+                  : addingId === item.id
+                    ? "adding"
+                    : existingIds.has(item.id)
+                      ? "in-list"
+                      : "add";
 
                 const typeLabel = metaTypeLabel(item.type);
                 const countsLine = metaCountsLine(item.seasonsCount, item.episodesCount);
@@ -565,7 +593,7 @@ export default function AddPage() {
                         </div>
 
                         <div className="pt-3">
-                          {fromDb ? (
+                          {false ? (
                             <button
                               type="button"
                               onClick={() => {
@@ -580,15 +608,20 @@ export default function AddPage() {
                               <span>Открыть</span>
                             </button>
                           ) : (
-                            <button
-                              type="button"
-                              onClick={() => addFromCatalog(item.id)}
-                              disabled={already || addingId === item.id}
-                              className="inline-flex items-center gap-2 h-8 px-3 rounded-[8px] bg-[#F2F2F2] ty-caption-13-medium disabled:opacity-40"
-                            >
-                              <PlaylistPlusFill className="w-4 h-4 text-black" />
-                              <span>{already ? "В списке" : addingId === item.id ? "Добавление..." : "Добавить"}</span>
-                            </button>
+                            <SeriesSearchActionButton
+                              variant={actionVariant}
+                              onClick={() => {
+                                if (actionVariant === "open" && linkedSeriesId) {
+                                  hapticImpact("light");
+                                  sessionStorage.setItem("openSeriesId", linkedSeriesId);
+                                  router.push("/");
+                                  return;
+                                }
+                                if (actionVariant === "add") {
+                                  void addFromCatalog(item.id);
+                                }
+                              }}
+                            />
                           )}
                         </div>
                       </div>

@@ -726,7 +726,7 @@ export function SeriesSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="p-0 rounded-t-[32px] border-0 shadow-none h-[65dvh] overflow-visible"
+        className="pb-3 rounded-t-[32px] border-0 shadow-none h-[65dvh] overflow-visible"
         onOpenAutoFocus={(event) => event.preventDefault()}
       >
         <VisuallyHidden>

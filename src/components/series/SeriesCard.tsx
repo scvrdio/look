@@ -54,7 +54,7 @@ export function SeriesCard({
       type="button"
       onClick={onClick}
       className={cn(
-        "w-full text-left rounded-3xl bg-black/5 pr-5 pl-3 py-3",
+        "w-full text-left rounded-3xl bg-black/5 pr-4.5 pl-3 py-3",
         "transition active:scale-[0.99]",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20",
         className

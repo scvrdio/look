@@ -16,14 +16,14 @@ export function SeriesSheetFooterActions({
   onComplete,
 }: SeriesSheetFooterActionsProps) {
   return (
-    <div className="mx-auto inline-flex w-fit items-center gap-[40px] rounded-full border-[4px] border-white bg-[#F5F5F5] px-4 py-1">
+    <div className="mx-auto inline-flex w-fit items-center gap-[32px] rounded-full border-[4px] border-white bg-[#F5F5F5] px-3 py-1">
       <button
         type="button"
         onClick={onDelete}
         className="inline-flex h-[44px] w-[44px] items-center justify-center"
         aria-label="Delete series"
       >
-        <TrashFill className="h-7 w-7 text-[#FF0000]" />
+        <TrashFill className="h-6 w-6 text-[#FF0000]" />
       </button>
 
       <button
@@ -33,9 +33,9 @@ export function SeriesSheetFooterActions({
         aria-label={paused ? "Resume" : "Pause"}
       >
         {paused ? (
-          <PlayFill className="h-7 w-7 text-black" />
+          <PlayFill className="h-6 w-6 text-black" />
         ) : (
-          <PauseFill className="h-7 w-7 text-black" />
+          <PauseFill className="h-6 w-6 text-black" />
         )}
       </button>
 
@@ -45,7 +45,7 @@ export function SeriesSheetFooterActions({
         className="inline-flex h-[44px] w-[44px] items-center justify-center"
         aria-label="Mark playlist"
       >
-        <PlaylistCheckFill className="h-7 w-7 text-[#00A900]" />
+        <PlaylistCheckFill className="h-6 w-6 text-[#00A900]" />
       </button>
     </div>
   );
