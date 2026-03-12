@@ -917,7 +917,7 @@ export default function HomePage() {
                       </button>
                     ) : null}
                   </div>
-                  <div className="mt-4 pb-4">
+                  <div className="mt-4 pb-3">
                     {nowWatchingRenderItems.map((s, i) => {
                       const rightTop = `S${s.progress?.last?.season ?? 1} E${s.progress?.last?.episode ?? 0}`;
                       const isEntering = enteringNowWatchingIds.has(s.id);
