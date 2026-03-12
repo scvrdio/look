@@ -492,6 +492,7 @@ export default function HomePage() {
       hapticImpact("light");
     }
     setFolderOpen(null);
+    setBottomRounded(false);
     setSearchOpen(true);
     if (showHomeContent) {
       setHomeExitAnimating(true);
@@ -721,7 +722,7 @@ export default function HomePage() {
             searchOpen
               ? "transition-none"
               : "transition-[border-bottom-left-radius,border-bottom-right-radius] duration-[560ms] ease-[cubic-bezier(0.4,0,0.2,1)]",
-            bottomRounded ? "rounded-b-[32px]" : "rounded-b-none",
+            searchOpen ? "rounded-b-none" : bottomRounded ? "rounded-b-[32px]" : "rounded-b-none",
           ].join(" ")}
         >
           {folderOpen ? (
