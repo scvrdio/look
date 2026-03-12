@@ -45,7 +45,7 @@ type SeriesSheetProps = {
   onOpenChange: (v: boolean) => void;
   seriesId: string | null;
   title: string;
-  posterUrl?: string | null;
+  progressPercent?: number;
   paused?: boolean;
   preferredSeasonNumber?: number | null;
   preferredEpisodeNumber?: number | null;
@@ -59,7 +59,7 @@ export function SeriesSheet({
   onOpenChange,
   seriesId,
   title,
-  posterUrl,
+  progressPercent = 0,
   paused = false,
   preferredSeasonNumber,
   preferredEpisodeNumber,
@@ -72,6 +72,10 @@ export function SeriesSheet({
   const SWIPE_CLOSE_VELOCITY_PX_PER_MS = 0.25;
   const EPISODE_FLUSH_DEBOUNCE_MS = 160;
   const CHANGED_NOTIFY_DEBOUNCE_MS = 320;
+  const normalizedProgress = Math.max(0, Math.min(100, progressPercent));
+  const progressRadius = 9;
+  const progressCircumference = 2 * Math.PI * progressRadius;
+  const progressDashOffset = progressCircumference * (1 - normalizedProgress / 100);
 
   const [activeSeasonId, setActiveSeasonId] = React.useState<string | null>(null);
   const [uiEpisodes, setUiEpisodes] = React.useState<EpisodeRow[] | null>(null);
@@ -726,7 +730,7 @@ export function SeriesSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="pb-3 rounded-t-[32px] border-0 shadow-none h-[65dvh] overflow-visible"
+        className="pb-5 rounded-t-[32px] border-0 shadow-none h-[65dvh] overflow-visible"
         onOpenAutoFocus={(event) => event.preventDefault()}
       >
         <VisuallyHidden>
@@ -743,17 +747,41 @@ export function SeriesSheet({
             onPointerCancel={onSheetPointerEnd}
           >
             <div className="grid grid-cols-[28px_1fr_28px] items-center gap-3">
-              <div className="h-7 w-7 overflow-hidden rounded-full bg-black/10">
-                {posterUrl ? (
-                  <img
-                    src={posterUrl}
-                    alt={displayTitle}
-                    className="h-full w-full object-cover"
-                    loading="eager"
-                    decoding="async"
-                    referrerPolicy="no-referrer"
+              <div
+                className="inline-flex h-7 w-7 items-center justify-center"
+                role="progressbar"
+                aria-label="Прогресс сериала"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(normalizedProgress)}
+              >
+                <svg
+                  viewBox="0 0 21 21"
+                  width="21"
+                  height="21"
+                  aria-hidden="true"
+                  className="-rotate-90"
+                >
+                  <circle
+                    cx="10.5"
+                    cy="10.5"
+                    r={progressRadius}
+                    fill="none"
+                    stroke="#E7D8D2"
+                    strokeWidth="1.5"
                   />
-                ) : null}
+                  <circle
+                    cx="10.5"
+                    cy="10.5"
+                    r={progressRadius}
+                    fill="none"
+                    stroke="#FF4A00"
+                    strokeWidth="3"
+                    strokeDasharray={progressCircumference}
+                    strokeDashoffset={progressDashOffset}
+                    className="transition-[stroke-dashoffset] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
+                  />
+                </svg>
               </div>
 
               <div className="min-w-0 text-center ty-h1-sheet truncate">

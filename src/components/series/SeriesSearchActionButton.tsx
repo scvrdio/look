@@ -64,7 +64,7 @@ export function SeriesSearchActionButton({
           </span>
         </span>
       ) : isOpen ? (
-        <span aria-hidden className="h-4 w-4 ty-glyph-16 mb-0.5">↗</span>
+        <span aria-hidden className="h-4 w-4 ty-glyph-17 mb-0.5">↗</span>
       ) : null}
 
       <span className="relative inline-grid items-center">

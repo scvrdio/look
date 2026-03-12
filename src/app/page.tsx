@@ -93,9 +93,9 @@ export default function HomePage() {
     if (!effectiveSeriesId) return "";
     return (items ?? []).find((s) => s.id === effectiveSeriesId)?.title ?? "";
   }, [items, effectiveSeriesId]);
-  const activePosterUrl = useMemo(() => {
-    if (!effectiveSeriesId) return null;
-    return (items ?? []).find((s) => s.id === effectiveSeriesId)?.posterUrl ?? null;
+  const activeProgressPercent = useMemo(() => {
+    if (!effectiveSeriesId) return 0;
+    return (items ?? []).find((s) => s.id === effectiveSeriesId)?.progress?.percent ?? 0;
   }, [items, effectiveSeriesId]);
   const activePaused = useMemo(() => {
     if (!effectiveSeriesId) return false;
@@ -1029,7 +1029,7 @@ export default function HomePage() {
         }}
         seriesId={effectiveSeriesId}
         title={activeTitle}
-        posterUrl={activePosterUrl}
+        progressPercent={activeProgressPercent}
         paused={activePaused}
         preferredSeasonNumber={preferredSeasonNumber}
         preferredEpisodeNumber={preferredEpisodeNumber}

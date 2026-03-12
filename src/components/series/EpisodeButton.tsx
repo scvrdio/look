@@ -20,12 +20,12 @@ export function EpisodeButton({ number, watched, onClick }: EpisodeButtonProps) 
       className={cn(
         "w-full aspect-square rounded-full",
         "flex items-center justify-center",
-        "ty-body-16-medium",
+        "ty-body-16-semibold",
         "transition-none",
         watched ? "bg-black text-white" : "bg-black/4 text-black"
       )}
     >
-      <span className="ty-numeric">{number}</span>
+      <span className="ty-numeric-season-tab">{number}</span>
     </button>
   );
 }

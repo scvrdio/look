@@ -51,7 +51,7 @@ export function SeasonButton({
             ✓
           </span>
         ) : null}
-        <span className="ty-numeric">{number}</span> сезон
+        <span className="ty-numeric-season-tab">{number}</span> сезон
       </button>
     </div>
   );

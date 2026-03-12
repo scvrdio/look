@@ -253,6 +253,13 @@ input[type="search"]::-ms-reveal {
   font-variation-settings: "wdth" 100, "wght" 500, "opsz" 16;
 }
 
+.ty-numeric-season-tab {
+  font-family: var(--font-numeric);
+  font-variant-numeric: proportional-nums lining-nums;
+  font-feature-settings: "pnum" 1, "lnum" 1;
+  font-variation-settings: "wght" 500, "opsz" 16;
+}
+
 .ty-title-18 {
   font-size: 18px;
   font-weight: 600;
@@ -313,7 +320,7 @@ input[type="search"]::-ms-reveal {
   font-weight: 400;
 }
 
-.ty-glyph-16 {
+.ty-glyph-17 {
   font-size: 17px;
   line-height: 1;
   font-weight: 600;
