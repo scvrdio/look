@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { mutate } from "swr";
 import Lottie from "lottie-react";
 
-import { Search, X, XCircleFill } from "@/icons";
+import { Search, XCircleFill } from "@/icons";
 import { AddSeriesActionButton } from "@/components/series/AddSeriesActionButton";
 import { hapticImpact, hapticNotify } from "@/lib/haptics";
 import { pluralRu } from "@/lib/plural";
@@ -42,6 +42,13 @@ type SeriesSearchPanelProps = {
   onBack: () => void;
   onOpenSeries: (seriesId: string) => void;
   onAddedSeries?: () => void;
+  hideHeader?: boolean;
+};
+
+export type SeriesSearchPanelHandle = {
+  setQuery: (value: string) => void;
+  search: (raw?: string) => void;
+  clear: () => void;
 };
 
 const SERIES_TYPES = new Set(["tv-series", "anime", "animated-series", "tv-show", "series"]);
@@ -92,7 +99,10 @@ async function readErrorMessage(res: Response) {
   }
 }
 
-export function SeriesSearchPanel({ items, onBack, onOpenSeries, onAddedSeries }: SeriesSearchPanelProps) {
+export const SeriesSearchPanel = forwardRef<SeriesSearchPanelHandle, SeriesSearchPanelProps>(function SeriesSearchPanel(
+  { items, onBack, onOpenSeries, onAddedSeries, hideHeader = false },
+  ref
+) {
   const placeholders = useMemo(
     () => [
       "Тед Лассо",
@@ -134,14 +144,19 @@ export function SeriesSearchPanel({ items, onBack, onOpenSeries, onAddedSeries }
   }, [items]);
 
   useEffect(() => {
+    if (hideHeader) return;
     const t = setTimeout(() => inputRef.current?.focus(), 120);
     return () => clearTimeout(t);
-  }, []);
+  }, [hideHeader]);
 
   useEffect(() => {
+    if (hideHeader) {
+      setHeaderReady(true);
+      return;
+    }
     const raf = requestAnimationFrame(() => setHeaderReady(true));
     return () => cancelAnimationFrame(raf);
-  }, []);
+  }, [hideHeader]);
 
   useEffect(() => {
     if (step !== "results" || showSearchLoader || results.length === 0) return;
@@ -243,7 +258,9 @@ export function SeriesSearchPanel({ items, onBack, onOpenSeries, onAddedSeries }
     setError(null);
     setSearching(false);
     setStep("idle");
-    inputRef.current?.focus({ preventScroll: true });
+    if (!hideHeader) {
+      inputRef.current?.focus({ preventScroll: true });
+    }
   }
 
   async function addFromCatalog(id: number) {
@@ -384,90 +401,89 @@ export function SeriesSearchPanel({ items, onBack, onOpenSeries, onAddedSeries }
 
   const rightIcon = query.trim().length > 0 ? "clear" : "search";
 
+  useImperativeHandle(ref, () => ({
+    setQuery: (value: string) => onChange(value),
+    search: (raw?: string) => {
+      void runSearch(raw);
+    },
+    clear,
+  }));
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div
-        className={[
-          "transition-all duration-500 ease-out",
-          headerReady ? "opacity-100 translate-y-0 blur-0" : "opacity-0 translate-y-6 blur-[8px]",
-        ].join(" ")}
-      >
-        <div className="flex items-center justify-between gap-3">
-          <h1
-            className="pl-1 text-[32px] font-black leading-[0.92] text-black"
-            style={{ fontVariationSettings: '"wdth" 75', fontStretch: "75%" }}
-          >
-            Поиск
-          </h1>
-          <button
-            type="button"
-            onClick={() => {
-              hapticImpact("light");
-              onBack();
-            }}
-            className="inline-flex h-7 w-7 shrink-0 items-center justify-center text-black transition-transform active:scale-95"
-            aria-label="Закрыть поиск"
-          >
-            <XCircleFill className="h-8 w-8" />
-          </button>
-        </div>
-
-        <form
-          className="relative mt-6"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const input = inputRef.current;
-            const raw = input?.value ?? query;
-            void runSearch(raw);
-            input?.blur();
-          }}
+      {!hideHeader ? (
+        <div
+          className={[
+            "transition-all duration-500 ease-out",
+            headerReady ? "opacity-100 translate-y-0 blur-0" : "opacity-0 translate-y-6 blur-[8px]",
+          ].join(" ")}
         >
-          <input
-            ref={inputRef}
-            value={query}
-            type="text"
-            onChange={(e) => onChange(e.target.value)}
-            inputMode="text"
-            enterKeyHint="search"
-            placeholder={placeholder}
-            className="h-11 w-full rounded-full bg-black/2 px-4 pr-10 text-[16px] font-medium outline-[1px] outline-black/5 placeholder:text-black/30"
-          />
+          <div className="flex items-center justify-between gap-3">
+            <h1
+              className="pl-1 text-[32px] font-black leading-[0.92] text-black"
+              style={{ fontVariationSettings: '"wdth" 75', fontStretch: "75%" }}
+            >
+              Поиск
+            </h1>
+            <button
+              type="button"
+              onClick={() => {
+                hapticImpact("light");
+                onBack();
+              }}
+              className="inline-flex h-7 w-7 shrink-0 items-center justify-center text-black transition-transform active:scale-95"
+              aria-label="Закрыть поиск"
+            >
+              <XCircleFill className="h-8 w-8" />
+            </button>
+          </div>
 
-          <button
-            type="button"
-            onPointerDown={(e) => {
-              if (rightIcon !== "clear") return;
+          <form
+            className="relative mt-6"
+            onSubmit={(e) => {
               e.preventDefault();
+              const input = inputRef.current;
+              const raw = input?.value ?? query;
+              void runSearch(raw);
+              input?.blur();
             }}
-            onClick={() => {
-              if (rightIcon === "clear") clear();
-            }}
-            className="absolute right-1 top-1/2 inline-flex h-8 w-8 pr-1 -translate-y-1/2 items-center justify-center rounded-full"
-            aria-label={rightIcon === "clear" ? "Clear" : "Search icon"}
-            disabled={rightIcon !== "clear"}
           >
-            {rightIcon === "clear" ? (
-              <XCircleFill className="h-5 w-5 text-black/30" />
-            ) : (
-              <Search className="h-6 w-6 text-black/30" />
-            )}
-          </button>
-        </form>
+            <input
+              ref={inputRef}
+              value={query}
+              type="text"
+              onChange={(e) => onChange(e.target.value)}
+              inputMode="text"
+              enterKeyHint="search"
+              placeholder={placeholder}
+              className="h-11 w-full rounded-full bg-black/2 px-4 pr-10 text-[16px] font-medium outline-[1px] outline-black/5 placeholder:text-black/30"
+            />
 
-        <button
-          type="button"
-          onClick={() => {
-            hapticImpact("light");
-            onBack();
-          }}
-          className="hidden"
-        >
-          Назад
-        </button>
-      </div>
+            <button
+              type="button"
+              onPointerDown={(e) => {
+                if (rightIcon !== "clear") return;
+                e.preventDefault();
+              }}
+              onClick={() => {
+                if (rightIcon === "clear") clear();
+              }}
+              className="absolute right-1 top-1/2 inline-flex h-8 w-8 pr-1 -translate-y-1/2 items-center justify-center rounded-full"
+              aria-label={rightIcon === "clear" ? "Clear" : "Search icon"}
+              disabled={rightIcon !== "clear"}
+            >
+              {rightIcon === "clear" ? (
+                <XCircleFill className="h-5 w-5 text-black/30" />
+              ) : (
+                <Search className="h-6 w-6 text-black/30" />
+              )}
+            </button>
+          </form>
+        </div>
+      ) : null}
 
       {step === "results" ? (
-        <div className="mt-6 space-y-3 pb-4">
+        <div className={`${hideHeader ? "mt-4" : "mt-6"} space-y-3 pb-4`}>
           {showSearchLoader ? (
             <div
               className={[
@@ -562,4 +578,4 @@ export function SeriesSearchPanel({ items, onBack, onOpenSeries, onAddedSeries }
       {error ? <div className="mt-3 text-[12px] text-red-500">{error}</div> : null}
     </div>
   );
-}
+});

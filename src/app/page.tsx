@@ -11,10 +11,11 @@ import { SeriesFolderCard } from "@/components/series/SeriesFolderCard";
 import { SeriesFolderPanel } from "@/components/series/SeriesFolderPanel";
 import { SeriesCard } from "../components/series/SeriesCard";
 import { SeriesSheet } from "../components/series/SeriesSheet";
-import { Search } from "@/icons";
+import { X, Search, XCircleFill } from "@/icons";
 import { hapticImpact } from "@/lib/haptics";
 
 import type { EpisodeRow, SeasonRow, SeriesRow } from "@/types/bootstrap";
+import type { SeriesSearchPanelHandle } from "@/components/series/SeriesSearchPanel";
 
 type InProgress = { inProgressCount: number };
 
@@ -46,7 +47,10 @@ export default function HomePage() {
     ],
     []
   );
+  const [searchQuery, setSearchQuery] = useState("");
   const [searchHint, setSearchHint] = useState("");
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const searchPanelRef = useRef<SeriesSearchPanelHandle | null>(null);
   const bgPreloadRef = useRef(false);
   const bottomRadiusTimerRef = useRef<number | null>(null);
   const footerEnterRaf1Ref = useRef<number | null>(null);
@@ -255,6 +259,8 @@ export default function HomePage() {
   }, [items]);
 
   useEffect(() => {
+    if (searchQuery.trim().length > 0) return;
+
     let phraseIndex = 0;
     let charIndex = 0;
     let typing = true;
@@ -291,7 +297,12 @@ export default function HomePage() {
     return () => {
       if (timeout) clearTimeout(timeout);
     };
-  }, [searchPlaceholders]);
+  }, [searchQuery, searchPlaceholders]);
+
+  useEffect(() => {
+    if (!searchOpen) return;
+    searchPanelRef.current?.setQuery(searchQuery);
+  }, [searchOpen, searchQuery]);
 
   useEffect(() => {
     if (searchOpen || folderOpen) return;
@@ -361,6 +372,7 @@ export default function HomePage() {
 
   const hasFooterItems = nowWatchingRenderItems.length > 0;
   const footerShown = hasFooterItems && !searchOpen && !folderOpen;
+  const headerSearchHasValue = searchQuery.trim().length > 0;
 
   useEffect(() => {
     if (footerEnterRaf1Ref.current !== null) {
@@ -465,8 +477,9 @@ export default function HomePage() {
   }, []);
 
   function openSearchPanel() {
-    hapticImpact("light");
-    setListReady(false);
+    if (!searchOpen) {
+      hapticImpact("light");
+    }
     setFolderOpen(null);
     setSearchOpen(true);
   }
@@ -474,6 +487,33 @@ export default function HomePage() {
   function closeSearchPanel() {
     setListReady(false);
     setSearchOpen(false);
+    searchInputRef.current?.blur();
+  }
+
+  function handleSearchInputChange(value: string) {
+    if (!searchOpen) {
+      openSearchPanel();
+    }
+    setSearchQuery(value);
+    searchPanelRef.current?.setQuery(value);
+  }
+
+  function clearSearchInput() {
+    hapticImpact("light");
+    setSearchQuery("");
+    searchPanelRef.current?.clear();
+    searchInputRef.current?.focus({ preventScroll: true });
+  }
+
+  function submitSearchFromHeader() {
+    if (!searchOpen) {
+      openSearchPanel();
+      requestAnimationFrame(() => {
+        searchPanelRef.current?.search(searchQuery);
+      });
+      return;
+    }
+    searchPanelRef.current?.search(searchQuery);
   }
 
   function openFolder(kind: "will-watch" | "completed" | "paused") {
@@ -656,18 +696,7 @@ export default function HomePage() {
             bottomRounded ? "rounded-b-[32px]" : "rounded-b-none",
           ].join(" ")}
         >
-          {searchOpen ? (
-            <SeriesSearchPanel
-              items={items ?? []}
-              onBack={closeSearchPanel}
-              onOpenSeries={openSeriesSheet}
-              onAddedSeries={() => {
-                setListReady(false);
-                setSearchOpen(false);
-                setFolderOpen("will-watch");
-              }}
-            />
-          ) : folderOpen ? (
+          {folderOpen ? (
             <SeriesFolderPanel
               title={resolvedFolderTitle}
               items={resolvedFolderItems}
@@ -679,126 +708,214 @@ export default function HomePage() {
               <div
                 className={[
                   "transition-all duration-500 ease-out",
-                  listReady ? "opacity-100 translate-y-0 blur-0" : "opacity-0 translate-y-6 blur-[8px]",
+                  searchOpen || listReady ? "opacity-100 translate-y-0 blur-0" : "opacity-0 translate-y-6 blur-[8px]",
                 ].join(" ")}
               >
-                <h1
-                  className="pl-1 text-[32px] font-black leading-[0.92] text-black"
-                  style={{ fontVariationSettings: '"wdth" 75', fontStretch: "75%" }}
-                >
-                  Библиотека
-                </h1>
-                <button
-                  type="button"
-                  onClick={openSearchPanel}
-                  className="relative mt-6 flex h-11 w-full items-center rounded-full bg-black/2 px-4 pr-10 text-left text-[16px] font-medium text-black/30 outline-[1px] outline-black/5 transition-transform active:scale-[0.995]"
-                  aria-label="Открыть поиск"
-                >
-                  {searchHint || "Найти сериал..."}
-                  <Search className="absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-black/30" />
-                </button>
-              </div>
-              <div
-                style={{ transitionDelay: "60ms" }}
-                className={[
-                  "mt-4 flex gap-2 transition-all duration-500 ease-out",
-                  listReady ? "opacity-100 translate-y-0 blur-0" : "opacity-0 translate-y-6 blur-[8px]",
-                ].join(" ")}
-              >
-                <div className="min-w-0 flex-1">
-                  <SeriesFolderCard
-                    title="Буду смотреть"
-                    count={willWatchItems.length}
-                    posters={willWatchPosters}
-                    onClick={() => openFolder("will-watch")}
-                  />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <SeriesFolderCard
-                    title="Просмотрено"
-                    count={completedItems.length}
-                    posters={completedPosters}
-                    onClick={() => openFolder("completed")}
-                  />
-                </div>
-              </div>
-              <div
-                style={{ transitionDelay: "120ms" }}
-                className={[
-                  "mt-8 flex items-center justify-between gap-3 pl-1 transition-all duration-500 ease-out",
-                  listReady ? "opacity-100 translate-y-0 blur-0" : "opacity-0 translate-y-6 blur-[8px]",
-                ].join(" ")}
-              >
-                <h2
-                  className="text-[20px] leading-[0.92] text"
-                  style={{ fontVariationSettings: '"wdth" 90, "wght" 600, "opsz" 20', fontStretch: "75%" }}
-                >
-                  Смотрю сейчас
-                </h2>
-                {hasPausedItems ? (
+                <div className="flex items-center justify-between gap-3">
+                  <div className="relative h-[34px] min-w-0 flex-1">
+                    <h1
+                      className={[
+                        "absolute inset-0 pl-1 text-[32px] font-black leading-[0.92] text-black transition-all duration-300 ease-out",
+                        searchOpen ? "opacity-0 -translate-y-2 blur-[4px]" : "opacity-100 translate-y-0 blur-0",
+                      ].join(" ")}
+                      style={{ fontVariationSettings: '"wdth" 75', fontStretch: "75%" }}
+                    >
+                      Библиотека
+                    </h1>
+                    <h1
+                      className={[
+                        "absolute inset-0 pl-1 text-[32px] font-black leading-[0.92] text-black transition-all duration-300 ease-out",
+                        searchOpen ? "opacity-100 translate-y-0 blur-0" : "opacity-0 translate-y-2 blur-[4px]",
+                      ].join(" ")}
+                      style={{ fontVariationSettings: '"wdth" 75', fontStretch: "75%" }}
+                    >
+                      Поиск
+                    </h1>
+                  </div>
                   <button
                     type="button"
-                    onClick={() => openFolder("paused")}
-                    className="inline-flex h-8 shrink-0 items-center rounded-[8px] bg-[#F2F2F2] px-3 text-[13px] font-medium transition active:scale-[0.99]"
+                    onClick={closeSearchPanel}
+                    disabled={!searchOpen}
+                    className={[
+                      "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/70 text-black backdrop-blur-[6px] transition-all duration-250 ease-out active:scale-95",
+                      searchOpen
+                        ? "opacity-100 scale-100 blur-0"
+                        : "pointer-events-none opacity-0 scale-90 blur-[6px]",
+                    ].join(" ")}
+                    aria-label="Закрыть поиск"
                   >
-                  На паузе
+                    <XCircleFill className="h-8 w-8" />
                   </button>
-                ) : null}
+                </div>
+
+                <form
+                  className="relative mt-6"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    submitSearchFromHeader();
+                    searchInputRef.current?.blur();
+                  }}
+                >
+                  <input
+                    ref={searchInputRef}
+                    value={searchQuery}
+                    type="text"
+                    onFocus={openSearchPanel}
+                    onChange={(e) => handleSearchInputChange(e.target.value)}
+                    inputMode="text"
+                    enterKeyHint="search"
+                    placeholder={searchHint || "Найти сериал..."}
+                    className="h-11 w-full rounded-full bg-black/2 px-4 pr-10 text-[16px] font-medium outline-[1px] outline-black/5 placeholder:text-black/30"
+                  />
+                  <button
+                    type="button"
+                    onPointerDown={(e) => {
+                      if (!headerSearchHasValue) return;
+                      e.preventDefault();
+                    }}
+                    onClick={() => {
+                      if (!headerSearchHasValue) return;
+                      clearSearchInput();
+                    }}
+                    className="absolute right-1 top-1/2 inline-flex h-8 w-8 pr-1 -translate-y-1/2 items-center justify-center rounded-full"
+                    aria-label={headerSearchHasValue ? "Очистить поиск" : "Иконка поиска"}
+                    disabled={!headerSearchHasValue}
+                  >
+                    {headerSearchHasValue ? (
+                      <X className="h-5 w-5 text-black/30" />
+                    ) : (
+                      <Search className="h-6 w-6 text-black/30" />
+                    )}
+                  </button>
+                </form>
               </div>
-              <div className="mt-4 pb-4">
-                {nowWatchingRenderItems.map((s, i) => {
-                  const rightTop = `S${s.progress?.last?.season ?? 1} E${s.progress?.last?.episode ?? 0}`;
-                  const isEntering = enteringNowWatchingIds.has(s.id);
-                  const isExiting = exitingNowWatchingIds.has(s.id);
-                  const itemDelayMs = isEntering || isExiting ? 0 : NOW_WATCHING_BASE_DELAY_MS + i * 80;
-
-                  const rightBottom = `${s.progress?.percent ?? 0}%`;
-                  const completed = (s.progress?.percent ?? 0) === 100;
-
-                  return (
-                    <div
-                      key={s.id}
-                      style={{ transitionDelay: `${itemDelayMs}ms` }}
-                      className={[
-                        "overflow-hidden transition-[max-height,margin,opacity,transform,filter] duration-500 ease-out",
-                        isExiting
-                          ? "max-h-0 mb-0 opacity-0 -translate-y-2 blur-[6px] pointer-events-none"
-                          : isEntering
-                            ? "max-h-0 mb-0 opacity-0 translate-y-2 blur-[6px] pointer-events-none"
-                            : listReady
-                              ? "max-h-[140px] mb-2 opacity-100 translate-y-0 blur-0"
-                              : "max-h-[140px] mb-2 opacity-0 translate-y-12 blur-[8px]",
-                      ].join(" ")}
-                    >
-                      <SeriesCard
-                        id={s.id}
-                        title={s.title}
-                        posterUrl={s.posterUrl ?? undefined}
-                        progressPercent={s.progress?.percent ?? 0}
-                        subtitle={`${s.seasonsCount} ${pluralRu(
-                          s.seasonsCount,
-                          "сезон",
-                          "сезона",
-                          "сезонов"
-                        )}, ${s.episodesCount} ${pluralRu(
-                          s.episodesCount,
-                          "серия",
-                          "серии",
-                          "серий"
-                        )}`}
-                        rightTop={rightTop}
-                        rightBottom={rightBottom}
-                        onClick={() => {
-                          if (isExiting) return;
-                          hapticImpact("light");
-                          openSeriesSheet(s.id);
-                        }}
-                        completed={completed}
+              <div
+                className={[
+                  "overflow-hidden transition-[max-height,opacity,transform,filter,margin] duration-500 ease-out",
+                  searchOpen
+                    ? "pointer-events-none mt-0 max-h-0 translate-y-0 opacity-0 blur-[8px]"
+                    : "mt-0 max-h-[1800px] translate-y-0 opacity-100 blur-0",
+                ].join(" ")}
+              >
+                <>
+                  <div
+                    style={{ transitionDelay: "60ms" }}
+                    className={[
+                      "mt-4 flex gap-2 transition-all duration-500 ease-out",
+                      listReady ? "opacity-100 translate-y-0 blur-0" : "opacity-0 translate-y-6 blur-[8px]",
+                    ].join(" ")}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <SeriesFolderCard
+                        title="Буду смотреть"
+                        count={willWatchItems.length}
+                        posters={willWatchPosters}
+                        onClick={() => openFolder("will-watch")}
                       />
                     </div>
-                  );
-                })}
+                    <div className="min-w-0 flex-1">
+                      <SeriesFolderCard
+                        title="Просмотрено"
+                        count={completedItems.length}
+                        posters={completedPosters}
+                        onClick={() => openFolder("completed")}
+                      />
+                    </div>
+                  </div>
+                  <div
+                    style={{ transitionDelay: "120ms" }}
+                    className={[
+                      "mt-8 flex items-center justify-between gap-3 pl-1 transition-all duration-500 ease-out",
+                      listReady ? "opacity-100 translate-y-0 blur-0" : "opacity-0 translate-y-6 blur-[8px]",
+                    ].join(" ")}
+                  >
+                    <h2
+                      className="text-[20px] leading-[0.92] text"
+                      style={{ fontVariationSettings: '"wdth" 90, "wght" 600, "opsz" 20', fontStretch: "75%" }}
+                    >
+                      Смотрю сейчас
+                    </h2>
+                    {hasPausedItems ? (
+                      <button
+                        type="button"
+                        onClick={() => openFolder("paused")}
+                        className="inline-flex h-8 shrink-0 items-center rounded-[8px] bg-[#F2F2F2] px-3 text-[13px] font-medium transition active:scale-[0.99]"
+                      >
+                        На паузе
+                      </button>
+                    ) : null}
+                  </div>
+                  <div className="mt-4 pb-4">
+                    {nowWatchingRenderItems.map((s, i) => {
+                      const rightTop = `S${s.progress?.last?.season ?? 1} E${s.progress?.last?.episode ?? 0}`;
+                      const isEntering = enteringNowWatchingIds.has(s.id);
+                      const isExiting = exitingNowWatchingIds.has(s.id);
+                      const itemDelayMs = isEntering || isExiting ? 0 : NOW_WATCHING_BASE_DELAY_MS + i * 80;
+
+                      const rightBottom = `${s.progress?.percent ?? 0}%`;
+                      const completed = (s.progress?.percent ?? 0) === 100;
+
+                      return (
+                        <div
+                          key={s.id}
+                          style={{ transitionDelay: `${itemDelayMs}ms` }}
+                          className={[
+                            "overflow-hidden transition-[max-height,margin,opacity,transform,filter] duration-500 ease-out",
+                            isExiting
+                              ? "max-h-0 mb-0 opacity-0 -translate-y-2 blur-[6px] pointer-events-none"
+                              : isEntering
+                                ? "max-h-0 mb-0 opacity-0 translate-y-2 blur-[6px] pointer-events-none"
+                                : listReady
+                                  ? "max-h-[140px] mb-2 opacity-100 translate-y-0 blur-0"
+                                  : "max-h-[140px] mb-2 opacity-0 translate-y-12 blur-[8px]",
+                          ].join(" ")}
+                        >
+                          <SeriesCard
+                            id={s.id}
+                            title={s.title}
+                            posterUrl={s.posterUrl ?? undefined}
+                            progressPercent={s.progress?.percent ?? 0}
+                            subtitle={`${s.seasonsCount} ${pluralRu(
+                              s.seasonsCount,
+                              "сезон",
+                              "сезона",
+                              "сезонов"
+                            )}, ${s.episodesCount} ${pluralRu(
+                              s.episodesCount,
+                              "серия",
+                              "серии",
+                              "серий"
+                            )}`}
+                            rightTop={rightTop}
+                            rightBottom={rightBottom}
+                            onClick={() => {
+                              if (isExiting) return;
+                              hapticImpact("light");
+                              openSeriesSheet(s.id);
+                            }}
+                            completed={completed}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
               </div>
+              {searchOpen ? (
+                <SeriesSearchPanel
+                  ref={searchPanelRef}
+                  hideHeader
+                  items={items ?? []}
+                  onBack={closeSearchPanel}
+                  onOpenSeries={openSeriesSheet}
+                  onAddedSeries={() => {
+                    setListReady(false);
+                    setSearchOpen(false);
+                    setSearchQuery("");
+                    setFolderOpen("will-watch");
+                  }}
+                />
+              ) : null}
             </>
           )}
         </div>
