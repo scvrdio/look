@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSWRConfig } from "swr";
 
-import { PlusCircleFill } from "@/icons";
+import { ChevronDownCircleFill, PlusCircleFill } from "@/icons";
 import { fetcher } from "@/lib/fetcher";
 import { pluralRu } from "@/lib/plural";
 import { hapticImpact } from "@/lib/haptics";
@@ -413,9 +413,25 @@ export function SeriesFooterCarousel({
           <div className="pt-5 text-center text-white/70">Добавьте первый сериал</div>
         ) : (
           <>
+            {inProgressItems.length > 1 ? (
+              <div className="mt-1 flex justify-center px-6">
+                <button
+                  type="button"
+                  className="inline-flex h-8 items-center gap-1.5 rounded-full bg-white/7 pl-3 pr-2 ty-body-14 text-white/50 transition active:scale-[0.99]"
+                  aria-label="Смотрю сейчас"
+                  onClick={() => {
+                    hapticImpact("light");
+                  }}
+                >
+                  <span>Смотрю сейчас</span>
+                  <ChevronDownCircleFill className="h-[18px] w-[18px] shrink-0 text-white/50" />
+                </button>
+              </div>
+            ) : null}
+
             <div
               ref={scrollRef}
-              className="mt-4 flex w-full snap-x snap-mandatory overflow-x-auto overflow-y-visible pb-1 no-scrollbar touch-pan-x"
+              className="mt-5 flex w-full snap-x snap-mandatory overflow-x-auto overflow-y-visible pb-1 no-scrollbar touch-pan-x"
             >
               {loopedItems.map((series, idx) => {
                 const seasonView = seasonProgressViewBySeriesId[series.id];
