@@ -482,6 +482,11 @@ export default function HomePage() {
       bottomRadiusTimerRef.current = null;
     }
 
+    // Do not alter bottom rounding while search is open.
+    if (searchOpen) {
+      return;
+    }
+
     if (footerEnterReady) {
       setBottomRounded(true);
       return;
@@ -496,7 +501,7 @@ export default function HomePage() {
       setBottomRounded(false);
       bottomRadiusTimerRef.current = null;
     }, FOOTER_ANIMATION_MS);
-  }, [footerEnterReady, hasFooterItems, FOOTER_ANIMATION_MS]);
+  }, [footerEnterReady, hasFooterItems, FOOTER_ANIMATION_MS, searchOpen]);
 
   useEffect(() => {
     const nowWatchingEnterTimers = nowWatchingEnterTimersRef.current;
@@ -544,7 +549,6 @@ export default function HomePage() {
       hapticImpact("light");
     }
     setFolderOpen(null);
-    setBottomRounded(false);
     setSearchOpen(true);
     if (showHomeContent) {
       setHomeExitAnimating(true);
@@ -775,7 +779,7 @@ export default function HomePage() {
             searchOpen
               ? "transition-none"
               : "transition-[border-bottom-left-radius,border-bottom-right-radius] duration-[560ms] ease-[cubic-bezier(0.4,0,0.2,1)]",
-            searchOpen ? "rounded-b-none" : bottomRounded ? "rounded-b-[32px]" : "rounded-b-none",
+            bottomRounded ? "rounded-b-[32px]" : "rounded-b-none",
           ].join(" ")}
         >
           {folderOpen ? (
