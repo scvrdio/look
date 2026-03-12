@@ -54,7 +54,7 @@ export function SeriesCard({
       type="button"
       onClick={onClick}
       className={cn(
-        "w-full text-left rounded-3xl bg-black/5 pr-4.5 pl-3 py-3",
+        "w-full text-left rounded-3xl bg-black/5 pr-5 pl-3 py-3",
         "transition active:scale-[0.99]",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20",
         className
@@ -117,7 +117,7 @@ export function SeriesCard({
           </div>
         </div>
 
-        <div className="justify-self-end self-center inline-flex h-fit w-fit shrink-0 items-center px-[10px] py-[10px] bg-black/4 rounded-lg">
+        <div className="justify-self-end self-center inline-flex h-fit w-fit shrink-0 items-center px-[10px] py-[8px] bg-black/4 rounded-lg">
           {seasonNumber && episodeNumber ? (
             <div className="flex items-baseline gap-1">
               <span className="flex items-baseline gap-[1px]">
