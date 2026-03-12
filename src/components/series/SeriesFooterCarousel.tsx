@@ -459,6 +459,7 @@ export function SeriesFooterCarousel({
               ref={titlesScrollRef}
               className="mt-4 flex items-center gap-6 overflow-hidden px-6 no-scrollbar"
             >
+              <div aria-hidden="true" className="shrink-0" style={{ width: "calc(50% - 24px)" }} />
               {titleLoopedItems.map((series, idx) => {
                 const realIndex = inProgressItems.length > 0 ? idx % inProgressItems.length : 0;
                 const rawDistance = Math.abs(realIndex - clampedActiveIndex);
@@ -499,6 +500,7 @@ export function SeriesFooterCarousel({
                   </button>
                 );
               })}
+              <div aria-hidden="true" className="shrink-0" style={{ width: "calc(50% - 24px)" }} />
             </div>
           </>
         )}
