@@ -18,8 +18,8 @@ type SeriesSearchActionButtonProps = {
 
 export function SeriesSearchActionButton({
   variant,
-  addLabel = "Добавить",
-  addingLabel = "Добавление...",
+  addLabel = "Сохранить",
+  addingLabel = "Сохраняю",
   openLabel = "Открыть",
   inListLabel = "В списке",
   disabled = false,
@@ -64,7 +64,7 @@ export function SeriesSearchActionButton({
           </span>
         </span>
       ) : isOpen ? (
-        <span aria-hidden className="ty-glyph-16">↗</span>
+        <span aria-hidden className="h-4 w-4 ty-glyph-16 mb-0.5">↗</span>
       ) : null}
 
       <span className="relative inline-grid items-center">
