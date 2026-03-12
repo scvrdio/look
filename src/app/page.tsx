@@ -692,7 +692,10 @@ export default function HomePage() {
       <div className="mx-auto flex h-dvh w-full max-w-[420px] flex-col overflow-hidden bg-black">
         <div
           className={[
-            "min-h-0 flex flex-1 flex-col overflow-y-auto overflow-x-visible overscroll-y-contain no-scrollbar bg-white px-4 pt-[calc(var(--tg-content-safe-top,0px)+64px)] transition-[border-bottom-left-radius,border-bottom-right-radius] duration-[560ms] ease-[cubic-bezier(0.4,0,0.2,1)]",
+            "min-h-0 flex flex-1 flex-col overflow-y-auto overflow-x-visible overscroll-y-contain no-scrollbar bg-white px-4 pt-[calc(var(--tg-content-safe-top,0px)+64px)]",
+            searchOpen
+              ? "transition-none"
+              : "transition-[border-bottom-left-radius,border-bottom-right-radius] duration-[560ms] ease-[cubic-bezier(0.4,0,0.2,1)]",
             bottomRounded ? "rounded-b-[32px]" : "rounded-b-none",
           ].join(" ")}
         >
@@ -715,8 +718,8 @@ export default function HomePage() {
                   <div className="relative h-[34px] min-w-0 flex-1">
                     <h1
                       className={[
-                        "absolute inset-0 pl-1 text-[32px] font-black leading-[0.92] text-black transition-all duration-300 ease-out",
-                        searchOpen ? "opacity-0 -translate-y-2 blur-[4px]" : "opacity-100 translate-y-0 blur-0",
+                        "absolute inset-0 pl-1 text-[32px] font-black leading-[0.92] text-black transition-[filter,opacity] duration-200 ease-out",
+                        searchOpen ? "opacity-0 blur-[6px]" : "opacity-100 blur-0",
                       ].join(" ")}
                       style={{ fontVariationSettings: '"wdth" 75', fontStretch: "75%" }}
                     >
@@ -724,8 +727,8 @@ export default function HomePage() {
                     </h1>
                     <h1
                       className={[
-                        "absolute inset-0 pl-1 text-[32px] font-black leading-[0.92] text-black transition-all duration-300 ease-out",
-                        searchOpen ? "opacity-100 translate-y-0 blur-0" : "opacity-0 translate-y-2 blur-[4px]",
+                        "absolute inset-0 pl-1 text-[32px] font-black leading-[0.92] text-black transition-[filter,opacity] duration-200 ease-out",
+                        searchOpen ? "opacity-100 blur-0" : "opacity-0 blur-[6px]",
                       ].join(" ")}
                       style={{ fontVariationSettings: '"wdth" 75', fontStretch: "75%" }}
                     >
@@ -908,12 +911,7 @@ export default function HomePage() {
                   items={items ?? []}
                   onBack={closeSearchPanel}
                   onOpenSeries={openSeriesSheet}
-                  onAddedSeries={() => {
-                    setListReady(false);
-                    setSearchOpen(false);
-                    setSearchQuery("");
-                    setFolderOpen("will-watch");
-                  }}
+                  onAddedSeries={() => {}}
                 />
               ) : null}
             </>

@@ -290,7 +290,9 @@ export const SeriesSearchPanel = forwardRef<SeriesSearchPanelHandle, SeriesSearc
         mutate("/api/series/in-progress-count"),
       ]);
       onAddedSeries?.();
-      onBack();
+      if (!onAddedSeries) {
+        onBack();
+      }
     } catch {
       hapticNotify("error");
       setError("Ошибка сети. Попробуйте еще раз.");
