@@ -482,11 +482,6 @@ export default function HomePage() {
       bottomRadiusTimerRef.current = null;
     }
 
-    // Do not alter bottom rounding while search is open.
-    if (searchOpen) {
-      return;
-    }
-
     if (footerEnterReady) {
       setBottomRounded(true);
       return;
@@ -497,11 +492,12 @@ export default function HomePage() {
       return;
     }
 
+    const roundNearHiddenMs = Math.max(0, FOOTER_ANIMATION_MS - 80);
     bottomRadiusTimerRef.current = window.setTimeout(() => {
       setBottomRounded(false);
       bottomRadiusTimerRef.current = null;
-    }, FOOTER_ANIMATION_MS);
-  }, [footerEnterReady, hasFooterItems, FOOTER_ANIMATION_MS, searchOpen]);
+    }, roundNearHiddenMs);
+  }, [footerEnterReady, hasFooterItems, FOOTER_ANIMATION_MS]);
 
   useEffect(() => {
     const nowWatchingEnterTimers = nowWatchingEnterTimersRef.current;
@@ -798,19 +794,17 @@ export default function HomePage() {
                   <div className="relative h-[34px] min-w-0 flex-1">
                     <h1
                       className={[
-                        "absolute inset-0 pl-1 text-[32px] font-black leading-[0.92] text-black transition-opacity duration-200 ease-out",
+                        "absolute inset-0 pl-1 ty-h1-display text-black transition-opacity duration-200 ease-out",
                         searchOpen ? "opacity-0" : "opacity-100",
                       ].join(" ")}
-                      style={{ fontVariationSettings: '"wdth" 75', fontStretch: "75%" }}
                     >
                       Библиотека
                     </h1>
                     <h1
                       className={[
-                        "absolute inset-0 pl-1 text-[32px] font-black leading-[0.92] text-black transition-opacity duration-200 ease-out",
+                        "absolute inset-0 pl-1 ty-h1-display text-black transition-opacity duration-200 ease-out",
                         searchOpen ? "opacity-100" : "opacity-0",
                       ].join(" ")}
-                      style={{ fontVariationSettings: '"wdth" 75', fontStretch: "75%" }}
                     >
                       Поиск
                     </h1>
@@ -848,7 +842,7 @@ export default function HomePage() {
                     inputMode="text"
                     enterKeyHint="search"
                     placeholder={searchHint}
-                    className="h-11 w-full rounded-full bg-black/2 px-4 pr-10 text-[16px] font-medium outline-[1px] outline-black/5 placeholder:text-black/30"
+                    className="h-11 w-full rounded-full bg-black/2 px-4 pr-10 ty-body-16-medium outline-[1px] outline-black/5 placeholder:text-black/30"
                   />
                   <button
                     type="button"
@@ -910,17 +904,14 @@ export default function HomePage() {
                       listReady ? "opacity-100 translate-y-0 blur-0" : "opacity-0 translate-y-6 blur-[8px]",
                     ].join(" ")}
                   >
-                    <h2
-                      className="text-[20px] leading-[0.92] text"
-                      style={{ fontVariationSettings: '"wdth" 90, "wght" 600, "opsz" 20', fontStretch: "75%" }}
-                    >
+                    <h2 className="ty-h2 text">
                       Смотрю сейчас
                     </h2>
                     {hasPausedItems ? (
                       <button
                         type="button"
                         onClick={() => openFolder("paused")}
-                        className="inline-flex h-8 shrink-0 items-center rounded-[8px] bg-[#F2F2F2] px-3 text-[13px] font-medium transition active:scale-[0.99]"
+                        className="inline-flex h-8 shrink-0 items-center rounded-[8px] bg-[#F2F2F2] px-3 ty-caption-13-medium transition active:scale-[0.99]"
                       >
                         На паузе
                       </button>

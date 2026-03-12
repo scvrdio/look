@@ -168,7 +168,7 @@ export function ManualAddForm({ onBack, onDone }: Props) {
           hapticImpact("light");
           onBack();
         }}
-        className="text-[14px] opacity-60 px-1"
+        className="ty-body-14 opacity-60 px-1"
       >
         ← Назад к поиску
       </button>
@@ -200,7 +200,7 @@ export function ManualAddForm({ onBack, onDone }: Props) {
                 <button
                   type="button"
                   onClick={() => removeSeason(idx)}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#F2F2F2] text-[24px] font-regular opacity-30 leading-none"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#F2F2F2] ty-glyph-24 opacity-30"
                   aria-label="Удалить сезон"
                 >
                   ×
@@ -227,7 +227,7 @@ export function ManualAddForm({ onBack, onDone }: Props) {
           type="button"
           onClick={addSeason}
           disabled={!canAddSeason || submitting}
-          className="h-11 w-full rounded-full bg-[#F2F2F2] text-[14px] font-medium disabled:opacity-40"
+          className="h-11 w-full rounded-full bg-[#F2F2F2] ty-body-14-medium disabled:opacity-40"
         >
           Добавить сезон
         </button>
@@ -240,7 +240,7 @@ export function ManualAddForm({ onBack, onDone }: Props) {
             {submitting ? "Сохранение..." : "Сохранить"}
           </Button>
 
-          {formError && <div className="mt-2 text-[12px] text-red-500">{formError}</div>}
+          {formError && <div className="mt-2 ty-caption-12-semibold text-red-500">{formError}</div>}
         </div>
       </div>
     </div>

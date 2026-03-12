@@ -334,18 +334,19 @@ export function SeriesFooterCarousel({
                           onOpenSeries(series.id);
                         }}
                       >
-                        <div className="text-[16px] leading-[1.2] pb-1 break-words font-semibold whitespace-normal">{series.title}</div>
-                        <div className="text-[14px] leading-[1.2] text-white/60 break-words whitespace-normal">
-                          {season ? `S${season}, ` : ""}
-                          {episodesCount}{" "}
+                        <div className="ty-body-16-semibold pb-1 break-words whitespace-normal">{series.title}</div>
+                        <div className="ty-body-14 text-white/60 break-words whitespace-normal">
+                          {season ? (
+                            <>
+                              S<span className="ty-numeric">{season}</span>,{" "}
+                            </>
+                          ) : null}
+                          <span className="ty-numeric">{episodesCount}</span>{" "}
                           {pluralRu(episodesCount, "серия", "серии", "серий")}
                         </div>
                       </div>
 
-                      <div
-                        className="absolute right-[64px] top-1/2 w-[58px] -translate-y-1/2 text-center text-[48px] font-black text-[#FF3D00] leading-[0.8] tabular-nums"
-                        style={{ fontVariationSettings: '"wdth" 75', fontStretch: "75%" }}
-                      >
+                      <div className="absolute right-[64px] top-1/2 w-[58px] -translate-y-1/2 text-center ty-accent-counter ty-numeric text-[#FF3D00] tabular-nums -mr-2">
                         {String(displayEpisode).padStart(2, "0")}
                       </div>
 

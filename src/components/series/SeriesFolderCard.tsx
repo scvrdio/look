@@ -23,18 +23,12 @@ export function SeriesFolderCard({
 
   const content = (
     <>
-      <div
-        className="text-[16px] leading-[1.04] text-black"
-        style={{ fontVariationSettings: '"wdth" 90, "wght" 500, "opsz" 22' }}
-      >
+      <div className="ty-card-title text-black">
         {title}
       </div>
 
       <div className="flex items-end justify-between">
-        <div
-          className="text-[88px] leading-[0.78] text-black"
-          style={{ fontVariationSettings: '"wdth" 75, "wght" 400, "opsz" 56', fontStretch: "75%" }}
-        >
+        <div className="ty-folder-count ty-numeric text-black">
           {count}
         </div>
 
@@ -61,7 +55,7 @@ export function SeriesFolderCard({
             <div
               className={[
                 "flex h-6 w-6 items-center justify-center rounded-full border-2 border-[#f2f2f2] bg-[#ffffff] text-black/50 pr-0.5",
-                "text-[12px] font-semibold",
+                "ty-caption-12-semibold ty-numeric",
                 visiblePosters.length > 0 ? "-ml-2" : "",
               ].join(" ")}
               style={{ letterSpacing: "-0.08em" }}

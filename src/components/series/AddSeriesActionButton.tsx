@@ -32,7 +32,7 @@ export function AddSeriesActionButton({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "relative inline-flex h-8 items-center rounded-[8px] bg-[#F2F2F2] px-3 text-[13px] font-medium transition-[gap,transform] active:scale-[0.99] disabled:opacity-40",
+        "relative inline-flex h-8 items-center rounded-[8px] bg-[#F2F2F2] px-3 ty-caption-13-medium transition-[gap,transform] active:scale-[0.99] disabled:opacity-40",
         loading ? "gap-0" : "gap-2",
         className
       )}

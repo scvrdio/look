@@ -20,12 +20,12 @@ export function EpisodeButton({ number, watched, onClick }: EpisodeButtonProps) 
       className={cn(
         "w-full aspect-square rounded-full",
         "flex items-center justify-center",
-        "text-[16px] font-medium",
+        "ty-body-16-medium",
         "transition-none",
         watched ? "bg-black text-white" : "bg-black/4 text-black"
       )}
     >
-      {number}
+      <span className="ty-numeric">{number}</span>
     </button>
   );
 }

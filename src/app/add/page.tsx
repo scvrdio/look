@@ -460,7 +460,7 @@ export default function AddPage() {
               inputMode="text"
               enterKeyHint="search"
               placeholder={placeholder}
-              className="w-full h-11 rounded-full bg-black/2 px-4 pr-10 text-[16px] font-medium outline-[1px] outline-black/5 placeholder:text-black/30"
+              className="w-full h-11 rounded-full bg-black/2 px-4 pr-10 ty-body-16-medium outline-[1px] outline-black/5 placeholder:text-black/30"
             />
 
             <button
@@ -491,7 +491,7 @@ export default function AddPage() {
               hapticImpact("light");
               router.push("/");
             }}
-            className="text-[16px] opacity-50"
+            className="ty-body-16 opacity-50"
           >
             Назад
           </button>
@@ -514,7 +514,7 @@ export default function AddPage() {
                 </div>
               </div>
             ) : results.length === 0 ? (
-              <div className="text-[14px] opacity-60 px-1">
+              <div className="ty-body-14 opacity-60 px-1">
                 {searching ? "Поиск..." : committedQuery ? `Ничего не найдено по "${committedQuery}"` : "Ничего не найдено"}
               </div>
             ) : (
@@ -545,22 +545,22 @@ export default function AddPage() {
 
                       <div className="flex-1 min-w-0 pt-1 flex flex-col justify-between h-[120px]">
                         <div className="min-w-0">
-                          <div className="text-[16px] font-medium leading-[20px] truncate">{item.name}</div>
+                          <div className="ty-body-16-medium leading-[20px] truncate">{item.name}</div>
 
-                          <div className="text-[14px] leading-[18px] text-black/50 mt-1">
+                          <div className="ty-body-14 leading-[18px] text-black/50 mt-1">
                             {item.year ?? ""}
                             {typeLabel ? ` · ${typeLabel}` : ""}
                           </div>
 
                           {item.genres?.length ? (
-                            <div className="text-[14px] text-black/50 mt-1">
+                            <div className="ty-body-14 text-black/50 mt-1">
                               {item.genres.join(" · ")}
                             </div>
                           ) : null}
 
 
                           {countsLine ? (
-                            <div className="text-[14px] leading-[18px] text-black/50 mt-1">{countsLine}</div>
+                            <div className="ty-body-14 leading-[18px] text-black/50 mt-1">{countsLine}</div>
                           ) : null}
                         </div>
 
@@ -574,9 +574,9 @@ export default function AddPage() {
                                 sessionStorage.setItem("openSeriesId", item._localSeriesId);
                                 router.push("/");
                               }}
-                              className="inline-flex items-center gap-2 h-8 px-3 rounded-[8px] bg-[#F2F2F2] text-[13px] font-medium"
+                              className="inline-flex items-center gap-2 h-8 px-3 rounded-[8px] bg-[#F2F2F2] ty-caption-13-medium"
                             >
-                              <span className="text-[16px] leading-none">↗</span>
+                              <span className="ty-glyph-16">↗</span>
                               <span>Открыть</span>
                             </button>
                           ) : (
@@ -584,7 +584,7 @@ export default function AddPage() {
                               type="button"
                               onClick={() => addFromCatalog(item.id)}
                               disabled={already || addingId === item.id}
-                              className="inline-flex items-center gap-2 h-8 px-3 rounded-[8px] bg-[#F2F2F2] text-[13px] font-medium disabled:opacity-40"
+                              className="inline-flex items-center gap-2 h-8 px-3 rounded-[8px] bg-[#F2F2F2] ty-caption-13-medium disabled:opacity-40"
                             >
                               <PlaylistPlusFill className="w-4 h-4 text-black" />
                               <span>{already ? "В списке" : addingId === item.id ? "Добавление..." : "Добавить"}</span>
@@ -600,7 +600,7 @@ export default function AddPage() {
           </div>
         )}
 
-        {error && <div className="mt-3 text-[12px] text-red-500">{error}</div>}
+        {error && <div className="mt-3 ty-caption-12-semibold text-red-500">{error}</div>}
       </div>
     </main>
   );

@@ -14,6 +14,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           type="font/ttf"
           crossOrigin="anonymous"
         />
+        <link
+          rel="preload"
+          href="/fonts/GoogleSansFlex-Variable.ttf"
+          as="font"
+          type="font/ttf"
+          crossOrigin="anonymous"
+        />
       </head>
       <body>
         <Script

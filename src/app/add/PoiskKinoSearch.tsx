@@ -100,14 +100,14 @@ export function PoiskKinoSearch(props: {
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Поиск по каталогу"
-        className="w-full h-11 rounded-full bg-[#F2F2F2] px-4 text-[14px] outline-none"
+        className="w-full h-11 rounded-full bg-[#F2F2F2] px-4 ty-body-14 outline-none"
       />
 
-      {isLoading && <div className="text-[14px] opacity-60 px-1">Поиск…</div>}
+      {isLoading && <div className="ty-body-14 opacity-60 px-1">Поиск…</div>}
 
       {showEmpty && (
         <div className="space-y-3 px-1">
-          <div className="text-[14px] opacity-60">Ничего не найдено</div>
+          <div className="ty-body-14 opacity-60">Ничего не найдено</div>
           <Button type="button" onClick={props.onManual}>
             Добавить вручную
           </Button>
@@ -131,8 +131,8 @@ export function PoiskKinoSearch(props: {
               )}
 
               <div className="flex-1 min-w-0">
-                <div className="text-[14px] font-medium truncate">{item.name}</div>
-                <div className="text-[12px] opacity-60">
+                <div className="ty-body-14-medium truncate">{item.name}</div>
+                <div className="ty-caption-12-semibold opacity-60">
                   {item.year ?? ""} {item.type ? `· ${item.type}` : ""}
                 </div>
               </div>
@@ -149,7 +149,7 @@ export function PoiskKinoSearch(props: {
         })}
       </div>
 
-      {error && <div className="text-[12px] text-red-500">{error}</div>}
+      {error && <div className="ty-caption-12-semibold text-red-500">{error}</div>}
     </div>
   );
 }

@@ -33,10 +33,7 @@ export function SeriesFolderPanel({ title, items, onBack, onOpenSeries }: Series
         ].join(" ")}
       >
         <div className="flex items-center justify-between gap-3">
-          <h1
-            className="pl-1 text-[32px] font-black leading-[0.92] text-black"
-            style={{ fontVariationSettings: '"wdth" 75', fontStretch: "75%" }}
-          >
+          <h1 className="pl-1 ty-h1-display text-black">
             {title}
           </h1>
           <button
@@ -55,7 +52,7 @@ export function SeriesFolderPanel({ title, items, onBack, onOpenSeries }: Series
 
       <div className="mt-6 space-y-2 pb-4">
         {items.length === 0 ? (
-          <div className="px-1 text-[14px] opacity-60">Пока пусто</div>
+          <div className="px-1 ty-body-14 opacity-60">Пока пусто</div>
         ) : (
           items.map((s, i) => {
             const rightTop = `S${s.progress?.last?.season ?? 1} E${s.progress?.last?.episode ?? 0}`;

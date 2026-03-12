@@ -31,7 +31,7 @@ export function FormField({
 }: FormFieldProps) {
   return (
     <div className="space-y-1">
-      <div className="text-[16px] font-[400] text-black/50 px-1">{label}</div>
+      <div className="ty-body-16 text-black/50 px-1">{label}</div>
       <div className="relative">
         <input
           type={type}
@@ -41,7 +41,7 @@ export function FormField({
           placeholder={placeholder}
           disabled={disabled}
           className={`
-      h-12 w-full rounded-2xl px-4 text-[16px] font-medium outline-[1px] outline-black/5
+      h-12 w-full rounded-2xl px-4 ty-body-16-medium outline-[1px] outline-black/5
       placeholder:text-black/30
       ${error ? "bg-red-50" : "bg-[#F5F5F5]"}
       disabled:opacity-60
@@ -62,7 +62,7 @@ export function FormField({
 
 
       {error && (
-        <div className="text-[12px] text-red-500">{error}</div>
+        <div className="ty-caption-12-semibold text-red-500">{error}</div>
       )}
     </div>
   );

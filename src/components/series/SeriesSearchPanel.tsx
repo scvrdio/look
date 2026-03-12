@@ -421,10 +421,7 @@ export const SeriesSearchPanel = forwardRef<SeriesSearchPanelHandle, SeriesSearc
           ].join(" ")}
         >
           <div className="flex items-center justify-between gap-3">
-            <h1
-              className="pl-1 text-[32px] font-black leading-[0.92] text-black"
-              style={{ fontVariationSettings: '"wdth" 75', fontStretch: "75%" }}
-            >
+            <h1 className="pl-1 ty-h1-display text-black">
               Поиск
             </h1>
             <button
@@ -458,7 +455,7 @@ export const SeriesSearchPanel = forwardRef<SeriesSearchPanelHandle, SeriesSearc
               inputMode="text"
               enterKeyHint="search"
               placeholder={placeholder}
-              className="h-11 w-full rounded-full bg-black/2 px-4 pr-10 text-[16px] font-medium outline-[1px] outline-black/5 placeholder:text-black/30"
+              className="h-11 w-full rounded-full bg-black/2 px-4 pr-10 ty-body-16-medium outline-[1px] outline-black/5 placeholder:text-black/30"
             />
 
             <button
@@ -498,7 +495,7 @@ export const SeriesSearchPanel = forwardRef<SeriesSearchPanelHandle, SeriesSearc
               </div>
             </div>
           ) : results.length === 0 ? (
-            <div className="px-1 text-[14px] opacity-60">
+            <div className="px-1 ty-body-14 opacity-60">
               {searching ? "Поиск..." : committedQuery ? `Ничего не найдено по "${committedQuery}"` : "Ничего не найдено"}
             </div>
           ) : (
@@ -528,19 +525,19 @@ export const SeriesSearchPanel = forwardRef<SeriesSearchPanelHandle, SeriesSearc
 
                     <div className="flex h-[120px] min-w-0 flex-1 flex-col justify-between pt-1">
                       <div className="min-w-0">
-                        <div className="truncate text-[16px] font-medium leading-[20px]">{item.name}</div>
+                        <div className="truncate ty-body-16-medium leading-[20px]">{item.name}</div>
 
-                        <div className="mt-1 text-[14px] leading-[18px] text-black/50">
+                        <div className="mt-1 ty-body-14 leading-[18px] text-black/50">
                           {item.year ?? ""}
                           {typeLabel ? ` · ${typeLabel}` : ""}
                         </div>
 
                         {item.genres?.length ? (
-                          <div className="mt-1 text-[14px] text-black/50">{item.genres.join(" · ")}</div>
+                          <div className="mt-1 ty-body-14 text-black/50">{item.genres.join(" · ")}</div>
                         ) : null}
 
                         {countsLine ? (
-                          <div className="mt-1 text-[14px] leading-[18px] text-black/50">{countsLine}</div>
+                          <div className="mt-1 ty-body-14 leading-[18px] text-black/50">{countsLine}</div>
                         ) : null}
                       </div>
 
@@ -554,9 +551,9 @@ export const SeriesSearchPanel = forwardRef<SeriesSearchPanelHandle, SeriesSearc
                               onBack();
                               onOpenSeries(item._localSeriesId);
                             }}
-                            className="inline-flex h-8 items-center gap-2 rounded-[8px] bg-[#F2F2F2] px-3 text-[13px] font-medium"
+                            className="inline-flex h-8 items-center gap-2 rounded-[8px] bg-[#F2F2F2] px-3 ty-caption-13-medium"
                           >
-                            <span className="text-[16px] leading-none">↗</span>
+                            <span className="ty-glyph-16">↗</span>
                             <span>Открыть</span>
                           </button>
                         ) : (
@@ -577,7 +574,7 @@ export const SeriesSearchPanel = forwardRef<SeriesSearchPanelHandle, SeriesSearc
         </div>
       ) : null}
 
-      {error ? <div className="mt-3 text-[12px] text-red-500">{error}</div> : null}
+      {error ? <div className="mt-3 ty-caption-12-semibold text-red-500">{error}</div> : null}
     </div>
   );
 });

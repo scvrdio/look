@@ -756,7 +756,7 @@ export function SeriesSheet({
                 ) : null}
               </div>
 
-              <div className="min-w-0 text-center ty-h1 text-[24px] leading-[1.1] truncate">
+              <div className="min-w-0 text-center ty-h1-sheet truncate">
                 {displayTitle}
               </div>
 
@@ -871,14 +871,14 @@ export function SeriesSheet({
         {confirmDeleteOpen && (
           <div className="absolute inset-0 z-50 flex items-end bg-black/40">
             <div className="w-full rounded-t-[24px] bg-white px-5 pb-[calc(var(--tg-content-safe-bottom,0px)+20px)] pt-5">
-              <div className="text-[18px] font-semibold">Удалить сериал?</div>
-              <div className="mt-1 text-[14px] text-black/60">Это действие нельзя отменить.</div>
+              <div className="ty-title-18">Удалить сериал?</div>
+              <div className="mt-1 ty-body-14 text-black/60">Это действие нельзя отменить.</div>
 
               <div className="mt-5 flex gap-3">
                 <button
                   type="button"
                   onClick={() => setConfirmDeleteOpen(false)}
-                  className="flex-1 h-12 rounded-full bg-black/5 font-medium"
+                  className="flex-1 h-12 rounded-full bg-black/5 ty-body-16-medium"
                 >
                   Отмена
                 </button>
@@ -891,7 +891,7 @@ export function SeriesSheet({
                     await deleteSeries();
                     setConfirmDeleteOpen(false);
                   }}
-                  className="flex-1 h-12 rounded-full bg-red-500 text-white font-medium disabled:opacity-50"
+                  className="flex-1 h-12 rounded-full bg-red-500 text-white ty-body-16-medium disabled:opacity-50"
                 >
                   Удалить
                 </button>

@@ -10,6 +10,14 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: "Google Sans Flex";
+  src: url("/fonts/GoogleSansFlex-Variable.ttf") format("truetype");
+  font-weight: 300 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 :root {
@@ -24,6 +32,7 @@
   --color-foreground: var(--foreground);
   --font-geist-sans: "TikTok Sans", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-sans: var(--font-geist-sans);
+  --font-numeric: "Google Sans Flex", var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -188,16 +197,143 @@ input[type="search"]::-ms-reveal {
   letter-spacing: -0.01em;
 }
 
+.ty-numeric {
+  font-family: var(--font-numeric), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+}
+
+.ty-h1-display {
+  font-size: 32px;
+  line-height: 0.92;
+  font-variation-settings: "wdth" 75, "wght" 800, "opsz" 32;
+  font-stretch: 75%;
+  letter-spacing: -0.01em;
+}
+
+.ty-h1-sheet {
+  font-size: 24px;
+  line-height: 1.1;
+  font-variation-settings: "wdth" 75, "wght" 800, "opsz" 24;
+  letter-spacing: -0.01em;
+}
+
+.ty-h2 {
+  font-size: 20px;
+  line-height: 0.92;
+  font-variation-settings: "wdth" 90, "wght" 600, "opsz" 20;
+  font-stretch: 75%;
+}
+
 .ty-card-title {
+  font-size: 16px;
+  line-height: 1.04;
   font-variation-settings: "wdth" 100, "wght" 500, "opsz" 18;
 }
 
+.ty-folder-count {
+  font-size: 88px;
+  line-height: 0.78;
+  font-variation-settings: "wdth" 75, "wght" 400, "opsz" 56;
+  font-stretch: 75%;
+}
+
+.ty-accent-counter {
+  font-size: 52px;
+  line-height: 0.8;
+  font-variation-settings: "wdth" 25, "wght" 750, "opsz" 48;
+  font-stretch: 75%;
+}
+
+.ty-numeric-card-season-episode {
+  font-family: var(--font-numeric);
+  font-variant-numeric: proportional-nums lining-nums;
+  font-feature-settings: "pnum" 1, "lnum" 1;
+  font-variation-settings: "wdth" 100, "wght" 500, "opsz" 16;
+}
+
+.ty-title-18 {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.ty-stat-28 {
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.ty-body-16 {
+  font-size: 16px;
+  line-height: 1.2;
+  font-weight: 400;
+}
+
+.ty-body-16-medium {
+  font-size: 16px;
+  line-height: 1.2;
+  font-weight: 500;
+}
+
+.ty-body-16-semibold {
+  font-size: 16px;
+  line-height: 1.15;
+  font-weight: 600;
+}
+
+.ty-body-14 {
+  font-size: 14px;
+  line-height: 1.2;
+  font-weight: 400;
+}
+
+.ty-body-14-medium {
+  font-size: 14px;
+  line-height: 1.2;
+  font-weight: 500;
+}
+
+.ty-caption-13-medium {
+  font-size: 13px;
+  line-height: 1.2;
+  font-weight: 500;
+}
+
+.ty-caption-12-semibold {
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 600;
+}
+
+.ty-glyph-24 {
+  font-size: 24px;
+  line-height: 1;
+  font-weight: 400;
+}
+
+.ty-glyph-16 {
+  font-size: 16px;
+  line-height: 1;
+  font-weight: 400;
+}
+
+.ty-glyph-15 {
+  font-size: 15px;
+  line-height: 1;
+  font-weight: 400;
+}
+
 .ty-meta {
+  font-size: 14px;
+  line-height: 1.15;
   font-variation-settings: "wdth" 100, "wght" 430, "opsz" 14;
   opacity: 0.6;
 }
 
 .ty-btn {
+  font-size: 16px;
+  line-height: 1.2;
   font-variation-settings: "wdth" 75, "wght" 700, "opsz" 16;
   letter-spacing: 0.02em;
 }

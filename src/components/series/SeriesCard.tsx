@@ -78,12 +78,12 @@ export function SeriesCard({
               ) : null}
             </div>
 
-            <div className="text-[16px] font-semibold leading-[1.15] min-w-0 truncate">
+            <div className="ty-body-16-semibold min-w-0 truncate">
               {title}
             </div>
           </div>
 
-          <div className="flex items-center gap-[4px] text-[14px] leading-[1.15] text-black/40 min-w-0">
+          <div className="flex items-center gap-[4px] ty-meta text-black/40 min-w-0">
             <div className="h-[21px] w-[21px] shrink-0 flex items-center justify-center">
               <svg
                 viewBox="0 0 21 21"
@@ -121,16 +121,16 @@ export function SeriesCard({
           {seasonNumber && episodeNumber ? (
             <div className="flex items-baseline gap-1">
               <span className="flex items-baseline gap-[1px]">
-                <span className="text-[12px] leading-none font-semibold text-black/40">S</span>
-                <span className="text-[16px] leading-[0.9] font-medium text-black">{seasonNumber}</span>
+                <span className="ty-caption-12-semibold text-black/40">S</span>
+                <span className="ty-body-16-medium ty-numeric-card-season-episode leading-[0.9] text-black">{seasonNumber}</span>
               </span>
               <span className="flex items-baseline gap-[1px]">
-                <span className="text-[12px] leading-none font-semibold text-black/40">E</span>
-                <span className="text-[16px] leading-[0.9] font-medium text-black">{episodeNumber}</span>
+                <span className="ty-caption-12-semibold text-black/40">E</span>
+                <span className="ty-body-16-medium ty-numeric-card-season-episode leading-[0.9] text-black">{episodeNumber}</span>
               </span>
             </div>
           ) : (
-            <div className="text-[28px] leading-[1] font-semibold text-black">{rightTop}</div>
+            <div className="ty-stat-28 ty-numeric text-black">{rightTop}</div>
           )}
           <span className="sr-only">{rightBottom}</span>
         </div>

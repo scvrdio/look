@@ -37,7 +37,7 @@ export function SeasonButtonNew({
           onClick();
         }}
         className={cn(
-          "shrink-0 h-12 px-4 rounded-full text-[16px] font-medium whitespace-nowrap inline-flex items-center gap-1",
+          "shrink-0 h-12 px-4 rounded-full ty-body-16-medium whitespace-nowrap inline-flex items-center gap-1",
           "transition-colors active:scale-[0.97]",
           completed
             ? active
@@ -68,7 +68,7 @@ export function SeasonButtonNew({
             />
           </span>
         </span>
-        {number} сезон
+        <span className="ty-numeric">{number}</span> сезон
       </button>
     </div>
   );

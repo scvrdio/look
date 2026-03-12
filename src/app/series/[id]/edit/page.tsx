@@ -237,7 +237,7 @@ export default function EditSeriesPage() {
                     <button
                       type="button"
                       onClick={() => removeSeason(idx)}
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#F2F2F2] text-[24px] font-regular opacity-30 leading-none"
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#F2F2F2] ty-glyph-24 opacity-30"
                       aria-label="Удалить сезон"
                     >
                       ×
@@ -252,7 +252,7 @@ export default function EditSeriesPage() {
               type="button"
               onClick={addSeason}
               disabled={!canAddSeason || submitting}
-              className="h-11 w-full rounded-full bg-[#F2F2F2] text-[14px] font-medium disabled:opacity-40"
+              className="h-11 w-full rounded-full bg-[#F2F2F2] ty-body-14-medium disabled:opacity-40"
             >
               Добавить сезон
             </button>
@@ -285,11 +285,11 @@ export default function EditSeriesPage() {
             </Button>
           </div>
 
-          {formError && <div className="mt-2 text-[12px] text-red-500">{formError}</div>}
+          {formError && <div className="mt-2 ty-caption-12-semibold text-red-500">{formError}</div>}
 
           <button
             type="button"
-            className="mt-2 text-[12px] text-black/40"
+            className="mt-2 ty-caption-12-semibold text-black/40"
             onClick={() => {
               if (!confirmLeave()) return;
               hapticImpact("light");
