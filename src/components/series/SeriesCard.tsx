@@ -78,7 +78,7 @@ export function SeriesCard({
               ) : null}
             </div>
 
-            <div className="ty-body-16-semibold min-w-0 truncate">
+            <div className="ty-body-16-medium min-w-0 truncate">
               {title}
             </div>
           </div>
