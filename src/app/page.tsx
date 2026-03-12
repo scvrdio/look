@@ -11,7 +11,7 @@ import { SeriesFolderCard } from "@/components/series/SeriesFolderCard";
 import { SeriesFolderPanel } from "@/components/series/SeriesFolderPanel";
 import { SeriesCard } from "../components/series/SeriesCard";
 import { SeriesSheet } from "../components/series/SeriesSheet";
-import { SearchCircleFill } from "@/icons";
+import { Search } from "@/icons";
 import { hapticImpact } from "@/lib/haptics";
 
 import type { EpisodeRow, SeasonRow, SeriesRow } from "@/types/bootstrap";
@@ -33,6 +33,20 @@ export default function HomePage() {
   const [nowWatchingRenderItems, setNowWatchingRenderItems] = useState<SeriesRow[]>([]);
   const [enteringNowWatchingIds, setEnteringNowWatchingIds] = useState<Set<string>>(new Set());
   const [exitingNowWatchingIds, setExitingNowWatchingIds] = useState<Set<string>>(new Set());
+  const searchPlaceholders = useMemo(
+    () => [
+      "Тед Лассо",
+      "Во все тяжкие",
+      "Игра престолов",
+      "Очень странные дела",
+      "Лучше звоните Солу",
+      "Друзья",
+      "Игра в кальмара",
+      "Наследники",
+    ],
+    []
+  );
+  const [searchHint, setSearchHint] = useState("");
   const bgPreloadRef = useRef(false);
   const bottomRadiusTimerRef = useRef<number | null>(null);
   const footerEnterRaf1Ref = useRef<number | null>(null);
@@ -239,6 +253,45 @@ export default function HomePage() {
       localStorage.setItem(SERIES_CACHE_KEY, JSON.stringify(items));
     } catch {}
   }, [items]);
+
+  useEffect(() => {
+    let phraseIndex = 0;
+    let charIndex = 0;
+    let typing = true;
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+
+    const tick = () => {
+      const full = searchPlaceholders[phraseIndex];
+      if (typing) {
+        charIndex++;
+        setSearchHint(full.slice(0, charIndex));
+        if (charIndex >= full.length) {
+          typing = false;
+          timeout = setTimeout(tick, 1000);
+          return;
+        }
+        timeout = setTimeout(tick, 125);
+        return;
+      }
+
+      charIndex--;
+      setSearchHint(full.slice(0, charIndex));
+      if (charIndex <= 0) {
+        typing = true;
+        phraseIndex = (phraseIndex + 1) % searchPlaceholders.length;
+        timeout = setTimeout(tick, 300);
+        return;
+      }
+      timeout = setTimeout(tick, 60);
+    };
+
+    setSearchHint("");
+    timeout = setTimeout(tick, 0);
+
+    return () => {
+      if (timeout) clearTimeout(timeout);
+    };
+  }, [searchPlaceholders]);
 
   useEffect(() => {
     if (searchOpen || folderOpen) return;
@@ -625,7 +678,7 @@ export default function HomePage() {
             <>
               <div
                 className={[
-                  "flex items-start justify-between gap-3 transition-all duration-500 ease-out",
+                  "transition-all duration-500 ease-out",
                   listReady ? "opacity-100 translate-y-0 blur-0" : "opacity-0 translate-y-6 blur-[8px]",
                 ].join(" ")}
               >
@@ -638,11 +691,12 @@ export default function HomePage() {
                 <button
                   type="button"
                   onClick={openSearchPanel}
-                  className="shrink-0 text-black transition-transform active:scale-95"
+                  className="relative mt-6 flex h-11 w-full items-center rounded-full bg-black/2 px-4 pr-10 text-left text-[16px] font-medium text-black/30 outline-[1px] outline-black/5 transition-transform active:scale-[0.995]"
                   aria-label="Открыть поиск"
                 >
-                  <SearchCircleFill className="h-8 w-8" />
-                  </button>
+                  {searchHint || "Найти сериал..."}
+                  <Search className="absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-black/30" />
+                </button>
               </div>
               <div
                 style={{ transitionDelay: "60ms" }}
