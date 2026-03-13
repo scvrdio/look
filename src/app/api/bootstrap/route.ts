@@ -126,7 +126,13 @@ export async function GET() {
     watchedBySeasonId.set(e.seasonId, (watchedBySeasonId.get(e.seasonId) ?? 0) + 1);
     const st = (epStats[sid] ||= { total: 0, watched: 0, last: null });
     st.watched += 1;
-    st.last = { season: e.season.number, episode: e.number };
+    if (
+      !st.last ||
+      e.season.number > st.last.season ||
+      (e.season.number === st.last.season && e.number > st.last.episode)
+    ) {
+      st.last = { season: e.season.number, episode: e.number };
+    }
   }
 
   for (const seasons of Object.values(seasonsBySeries)) {

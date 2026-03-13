@@ -13,7 +13,7 @@ import type { EpisodeRow, SeasonRow, SeriesRow } from "@/types/bootstrap";
 type InProgress = { inProgressCount: number };
 type OpenSource = "will-watch" | "completed" | "paused" | null;
 
-const SERIES_CACHE_KEY = "series_cache_v2";
+const SERIES_CACHE_KEY = "series_cache_v3";
 const LAST_MARKED_SERIES_KEY = "last_marked_series_id";
 const SERIES_SHEET_CLOSE_MS = 560;
 
