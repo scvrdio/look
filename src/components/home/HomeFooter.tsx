@@ -15,7 +15,7 @@ type HomeFooterProps = {
   onRoundedChange: (rounded: boolean) => void;
 };
 
-const FOOTER_ANIMATION_MS = 560;
+const FOOTER_ANIMATION_MS = 820;
 const FOOTER_COLLAPSED_HEIGHT = 214;
 
 export function HomeFooter({
@@ -193,10 +193,10 @@ export function HomeFooter({
   return (
     <div
       className={[
-        "w-full shrink-0 overflow-hidden transition-[max-height,opacity,transform,filter] duration-[560ms] ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[max-height,opacity,transform,filter]",
+        "w-full shrink-0 overflow-hidden transition-[max-height,opacity,transform,filter] duration-[820ms] ease-[cubic-bezier(0.16,1,0.3,1)] will-change-[max-height,opacity,transform,filter]",
         footerVisible
           ? "pointer-events-auto opacity-100 translate-y-0 blur-0"
-          : "pointer-events-none opacity-0 translate-y-4 blur-[10px]",
+          : "pointer-events-none opacity-0 translate-y-6 blur-[14px]",
       ].join(" ")}
       style={{ maxHeight: footerVisible ? `${targetHeight}px` : "0px" }}
     >
