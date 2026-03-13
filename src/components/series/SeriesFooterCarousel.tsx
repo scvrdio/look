@@ -385,6 +385,30 @@ export function SeriesFooterCarousel({
     };
   }, [inProgressItems, initialSeriesId, cardLoopCycles, centerTitlesToGlobalIndex]);
 
+  useEffect(() => {
+    const titlesNode = titlesScrollRef.current;
+    const cardsNode = scrollRef.current;
+    if (!titlesNode && !cardsNode) return;
+
+    const syncActiveTitlePosition = () => {
+      centerTitlesToGlobalIndex(activeCardGlobalIndexRef.current, "auto");
+    };
+
+    const observer = new ResizeObserver(() => {
+      syncActiveTitlePosition();
+    });
+
+    if (titlesNode) observer.observe(titlesNode);
+    if (cardsNode) observer.observe(cardsNode);
+
+    window.addEventListener("resize", syncActiveTitlePosition);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", syncActiveTitlePosition);
+    };
+  }, [centerTitlesToGlobalIndex]);
+
   function onPointerDown(event: React.PointerEvent<HTMLDivElement>) {
     if (event.pointerType === "mouse" && event.button !== 0) return;
     pointerIdRef.current = event.pointerId;
