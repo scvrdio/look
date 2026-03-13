@@ -15,6 +15,7 @@ type OpenSource = "will-watch" | "completed" | "paused" | null;
 
 const SERIES_CACHE_KEY = "series_cache_v2";
 const LAST_MARKED_SERIES_KEY = "last_marked_series_id";
+const SERIES_SHEET_CLOSE_MS = 560;
 
 export default function HomePage() {
   const { mutate: mutateGlobal, cache } = useSWRConfig();
@@ -28,6 +29,7 @@ export default function HomePage() {
   const resumeFromPausedRef = useRef(false);
   const startedFromWillWatchRef = useRef(false);
   const currentOpenSourceRef = useRef<OpenSource>(null);
+  const closeCleanupTimerRef = useRef<number | null>(null);
 
   const { data: items = [], mutate: mutateSeries } = useSWR<SeriesRow[]>(
     "/api/series",
@@ -90,12 +92,24 @@ export default function HomePage() {
   }
 
   function openSeriesSheet(seriesId: string, source: OpenSource) {
+    if (closeCleanupTimerRef.current !== null) {
+      window.clearTimeout(closeCleanupTimerRef.current);
+      closeCleanupTimerRef.current = null;
+    }
     currentOpenSourceRef.current = source;
     resumeFromPausedRef.current = false;
     startedFromWillWatchRef.current = false;
     setActiveSeriesId(seriesId);
     setSheetOpen(true);
   }
+
+  useEffect(() => {
+    return () => {
+      if (closeCleanupTimerRef.current !== null) {
+        window.clearTimeout(closeCleanupTimerRef.current);
+      }
+    };
+  }, []);
 
   function getCachedData<T>(key: string): T | undefined {
     const cached = cache.get(key) as { data?: T } | T | undefined;
@@ -276,9 +290,13 @@ export default function HomePage() {
       </div>
 
       <SeriesSheet
-        key={effectiveSeriesId}
         open={effectiveSheetOpen}
         onOpenChange={(open) => {
+          if (closeCleanupTimerRef.current !== null) {
+            window.clearTimeout(closeCleanupTimerRef.current);
+            closeCleanupTimerRef.current = null;
+          }
+
           setSheetOpen(open);
           if (open) return;
 
@@ -295,7 +313,10 @@ export default function HomePage() {
           currentOpenSourceRef.current = null;
           resumeFromPausedRef.current = false;
           startedFromWillWatchRef.current = false;
-          setActiveSeriesId(null);
+          closeCleanupTimerRef.current = window.setTimeout(() => {
+            setActiveSeriesId(null);
+            closeCleanupTimerRef.current = null;
+          }, SERIES_SHEET_CLOSE_MS);
         }}
         seriesId={effectiveSeriesId}
         title={activeSeries?.title ?? ""}

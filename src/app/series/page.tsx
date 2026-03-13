@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
 
@@ -9,10 +9,13 @@ import { SeriesSheet } from "@/components/series/SeriesSheet";
 import { fetcher } from "@/lib/fetcher";
 import type { SeriesRow } from "@/types/bootstrap";
 
+const SERIES_SHEET_CLOSE_MS = 560;
+
 export default function NowWatchingPage() {
   const router = useRouter();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [activeSeriesId, setActiveSeriesId] = useState<string | null>(null);
+  const closeCleanupTimerRef = useRef<number | null>(null);
 
   const { data: items, mutate: mutateSeries } = useSWR<SeriesRow[]>("/api/series", fetcher);
 
@@ -52,9 +55,21 @@ export default function NowWatchingPage() {
   }, [activeSeriesId, items]);
 
   function openSeriesSheet(seriesId: string) {
+    if (closeCleanupTimerRef.current !== null) {
+      window.clearTimeout(closeCleanupTimerRef.current);
+      closeCleanupTimerRef.current = null;
+    }
     setActiveSeriesId(seriesId);
     setSheetOpen(true);
   }
+
+  useEffect(() => {
+    return () => {
+      if (closeCleanupTimerRef.current !== null) {
+        window.clearTimeout(closeCleanupTimerRef.current);
+      }
+    };
+  }, []);
 
   return (
     <main className="h-dvh overflow-hidden overscroll-none bg-black">
@@ -71,7 +86,20 @@ export default function NowWatchingPage() {
 
       <SeriesSheet
         open={sheetOpen}
-        onOpenChange={setSheetOpen}
+        onOpenChange={(open) => {
+          if (closeCleanupTimerRef.current !== null) {
+            window.clearTimeout(closeCleanupTimerRef.current);
+            closeCleanupTimerRef.current = null;
+          }
+
+          setSheetOpen(open);
+          if (open) return;
+
+          closeCleanupTimerRef.current = window.setTimeout(() => {
+            setActiveSeriesId(null);
+            closeCleanupTimerRef.current = null;
+          }, SERIES_SHEET_CLOSE_MS);
+        }}
         seriesId={activeSeriesId}
         title={activeTitle}
         progressPercent={activeProgressPercent}
