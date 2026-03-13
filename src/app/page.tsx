@@ -3,77 +3,33 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import useSWR, { useSWRConfig } from "swr";
 
-import { pluralRu } from "@/lib/plural";
+import { HomeContent } from "@/components/home/HomeContent";
+import { HomeFooter } from "@/components/home/HomeFooter";
+import { SeriesSheet } from "@/components/series/SeriesSheet";
 import { fetcher } from "@/lib/fetcher";
-import { SeriesFooterCarousel } from "@/components/series/SeriesFooterCarousel";
-import { SeriesSearchPanel } from "@/components/series/SeriesSearchPanel";
-import { SeriesFolderCard } from "@/components/series/SeriesFolderCard";
-import { SeriesFolderPanel } from "@/components/series/SeriesFolderPanel";
-import { SeriesCard } from "../components/series/SeriesCard";
-import { SeriesSheet } from "../components/series/SeriesSheet";
-import { X, Search, XCircleFill } from "@/icons";
-import { hapticImpact } from "@/lib/haptics";
 
 import type { EpisodeRow, SeasonRow, SeriesRow } from "@/types/bootstrap";
-import type { SeriesSearchPanelHandle } from "@/components/series/SeriesSearchPanel";
 
 type InProgress = { inProgressCount: number };
+type OpenSource = "will-watch" | "completed" | "paused" | null;
+
+const SERIES_CACHE_KEY = "series_cache_v2";
+const LAST_MARKED_SERIES_KEY = "last_marked_series_id";
 
 export default function HomePage() {
-  const SERIES_CACHE_KEY = "series_cache_v2";
-  const LAST_MARKED_SERIES_KEY = "last_marked_series_id";
-  const FOOTER_ANIMATION_MS = 560;
-  const NOW_WATCHING_BASE_DELAY_MS = 220;
   const { mutate: mutateGlobal, cache } = useSWRConfig();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [activeSeriesId, setActiveSeriesId] = useState<string | null>(null);
-  const [listReady, setListReady] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [folderOpen, setFolderOpen] = useState<"will-watch" | "completed" | "paused" | null>(null);
-  const [bottomRounded, setBottomRounded] = useState(false);
-  const [footerEnterReady, setFooterEnterReady] = useState(false);
-  const [footerMounted, setFooterMounted] = useState(false);
+  const [pendingOpenSeriesId, setPendingOpenSeriesId] = useState<string | null>(null);
   const [initialFooterSeriesId, setInitialFooterSeriesId] = useState<string | null>(null);
-  const [nowWatchingRenderItems, setNowWatchingRenderItems] = useState<SeriesRow[]>([]);
-  const [enteringNowWatchingIds, setEnteringNowWatchingIds] = useState<Set<string>>(new Set());
-  const [exitingNowWatchingIds, setExitingNowWatchingIds] = useState<Set<string>>(new Set());
-  const searchPlaceholders = useMemo(
-    () => [
-      "Тед Лассо",
-      "Во все тяжкие",
-      "Игра престолов",
-      "Очень странные дела",
-      "Лучше звоните Солу",
-      "Друзья",
-      "Игра в кальмара",
-      "Наследники",
-    ],
-    []
-  );
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchHint, setSearchHint] = useState("");
-  const [showHomeContent, setShowHomeContent] = useState(true);
-  const [homeExitAnimating, setHomeExitAnimating] = useState(false);
-  const searchInputRef = useRef<HTMLInputElement | null>(null);
-  const searchPanelRef = useRef<SeriesSearchPanelHandle | null>(null);
-  const bgPreloadRef = useRef(false);
-  const bottomRadiusTimerRef = useRef<number | null>(null);
-  const footerEnterRaf1Ref = useRef<number | null>(null);
-  const footerEnterRaf2Ref = useRef<number | null>(null);
-  const footerUnmountTimerRef = useRef<number | null>(null);
-  const footerInnerRef = useRef<HTMLDivElement | null>(null);
-  const homeExitTimerRef = useRef<number | null>(null);
-  const nowWatchingEnterTimersRef = useRef<Map<string, number>>(new Map());
-  const nowWatchingExitTimersRef = useRef<Map<string, number>>(new Map());
-  const nowWatchingRenderIdsRef = useRef<string[]>([]);
+  const [bottomRounded, setBottomRounded] = useState(false);
+  const [footerHidden, setFooterHidden] = useState(false);
+  const [contentResetToken, setContentResetToken] = useState(0);
   const resumeFromPausedRef = useRef(false);
   const startedFromWillWatchRef = useRef(false);
-  const [footerHeight, setFooterHeight] = useState(0);
+  const currentOpenSourceRef = useRef<OpenSource>(null);
 
-  // title всегда вычисляем из items, а не храним отдельно (иначе рассинхрон/"Загрузка…")
-  const [pendingOpenSeriesId, setPendingOpenSeriesId] = useState<string | null>(null);
-
-  const { data: items, mutate: mutateSeries } = useSWR<SeriesRow[]>(
+  const { data: items = [], mutate: mutateSeries } = useSWR<SeriesRow[]>(
     "/api/series",
     fetcher
   );
@@ -82,180 +38,20 @@ export default function HomePage() {
     void mutateSeries();
   }, [mutateSeries]);
 
-  const autoOpenSeriesId = useMemo(() => {
-    if (!pendingOpenSeriesId || !items || items.length === 0) return null;
-    return items.some((s) => s.id === pendingOpenSeriesId) ? pendingOpenSeriesId : null;
-  }, [items, pendingOpenSeriesId]);
-
-  const effectiveSeriesId = activeSeriesId ?? autoOpenSeriesId;
-  const effectiveSheetOpen = sheetOpen || Boolean(autoOpenSeriesId);
-  const activeTitle = useMemo(() => {
-    if (!effectiveSeriesId) return "";
-    return (items ?? []).find((s) => s.id === effectiveSeriesId)?.title ?? "";
-  }, [items, effectiveSeriesId]);
-  const activeProgressPercent = useMemo(() => {
-    if (!effectiveSeriesId) return 0;
-    return (items ?? []).find((s) => s.id === effectiveSeriesId)?.progress?.percent ?? 0;
-  }, [items, effectiveSeriesId]);
-  const activePaused = useMemo(() => {
-    if (!effectiveSeriesId) return false;
-    return Boolean((items ?? []).find((s) => s.id === effectiveSeriesId)?.paused);
-  }, [items, effectiveSeriesId]);
-  const preferredSeasonNumber = useMemo(() => {
-    if (!effectiveSeriesId) return null;
-    return (items ?? []).find((s) => s.id === effectiveSeriesId)?.progress?.last?.season ?? null;
-  }, [items, effectiveSeriesId]);
-  const preferredEpisodeNumber = useMemo(() => {
-    if (!effectiveSeriesId) return null;
-    return (items ?? []).find((s) => s.id === effectiveSeriesId)?.progress?.last?.episode ?? null;
-  }, [items, effectiveSeriesId]);
-  const willWatchItems = useMemo(
-    () =>
-      (items ?? []).filter((series) => {
-        const percent = series.progress?.percent ?? 0;
-        const last = series.progress?.last;
-        return percent < 100 && last == null && !series.paused;
-      }),
-    [items]
-  );
-  const nowWatchingItems = useMemo(
-    () =>
-      (items ?? []).filter((series) => {
-        const percent = series.progress?.percent ?? 0;
-        const last = series.progress?.last;
-        return percent < 100 && last != null && !series.paused;
-      }),
-    [items]
-  );
-  const willWatchPosters = useMemo(
-    () =>
-      willWatchItems.map((series) => ({
-        id: series.id,
-        title: series.title,
-        posterUrl: series.posterUrl,
-      })),
-    [willWatchItems]
-  );
-  const completedItems = useMemo(
-    () => (items ?? []).filter((series) => (series.progress?.percent ?? 0) >= 100),
-    [items]
-  );
-  const completedPosters = useMemo(
-    () =>
-      completedItems.map((series) => ({
-        id: series.id,
-        title: series.title,
-        posterUrl: series.posterUrl,
-      })),
-    [completedItems]
-  );
-  const activeFolderTitle = folderOpen === "completed" ? "Просмотрено" : "Буду смотреть";
-  const activeFolderItems = folderOpen === "completed" ? completedItems : willWatchItems;
-
-  const pausedItems = useMemo(
-    () => (items ?? []).filter((series) => Boolean(series.paused) && (series.progress?.percent ?? 0) < 100),
-    [items]
-  );
-  const hasPausedItems = pausedItems.length > 0;
-  const resolvedFolderTitle = folderOpen === "paused" ? "На паузе" : activeFolderTitle;
-  const resolvedFolderItems = folderOpen === "paused" ? pausedItems : activeFolderItems;
-
-  useEffect(() => {
-    nowWatchingRenderIdsRef.current = nowWatchingRenderItems.map((s) => s.id);
-  }, [nowWatchingRenderItems]);
-
-  useEffect(() => {
-    const EXIT_MS = 500;
-    const nextIds = new Set(nowWatchingItems.map((s) => s.id));
-    const currentRenderIds = nowWatchingRenderIdsRef.current;
-
-    for (const id of nowWatchingItems.map((s) => s.id)) {
-      const enterTimer = nowWatchingEnterTimersRef.current.get(id);
-      if (enterTimer) {
-        window.clearTimeout(enterTimer);
-        nowWatchingEnterTimersRef.current.delete(id);
-      }
-      const timer = nowWatchingExitTimersRef.current.get(id);
-      if (!timer) continue;
-      window.clearTimeout(timer);
-      nowWatchingExitTimersRef.current.delete(id);
-      setExitingNowWatchingIds((prev) => {
-        if (!prev.has(id)) return prev;
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
-    }
-
-    for (const id of currentRenderIds) {
-      if (nextIds.has(id)) continue;
-      if (nowWatchingExitTimersRef.current.has(id)) continue;
-
-      setExitingNowWatchingIds((prev) => {
-        const next = new Set(prev);
-        next.add(id);
-        return next;
-      });
-
-      const timer = window.setTimeout(() => {
-        nowWatchingExitTimersRef.current.delete(id);
-        setExitingNowWatchingIds((prev) => {
-          if (!prev.has(id)) return prev;
-          const next = new Set(prev);
-          next.delete(id);
-          return next;
-        });
-        setNowWatchingRenderItems((prev) => prev.filter((item) => item.id !== id));
-      }, EXIT_MS);
-
-      nowWatchingExitTimersRef.current.set(id, timer);
-    }
-
-    const addedIds: string[] = [];
-    setNowWatchingRenderItems((prev) => {
-      const byId = new Map(nowWatchingItems.map((s) => [s.id, s]));
-      const prevIds = new Set(prev.map((s) => s.id));
-      const merged = prev.map((s) => byId.get(s.id) ?? s);
-      for (const s of nowWatchingItems) {
-        if (!prevIds.has(s.id)) {
-          merged.push(s);
-          addedIds.push(s.id);
-        }
-      }
-      return merged;
-    });
-
-    if (addedIds.length > 0) {
-      setEnteringNowWatchingIds((prev) => {
-        const next = new Set(prev);
-        for (const id of addedIds) next.add(id);
-        return next;
-      });
-      for (const id of addedIds) {
-        const timer = window.setTimeout(() => {
-          nowWatchingEnterTimersRef.current.delete(id);
-          setEnteringNowWatchingIds((prev) => {
-            if (!prev.has(id)) return prev;
-            const next = new Set(prev);
-            next.delete(id);
-            return next;
-          });
-        }, 40);
-        nowWatchingEnterTimersRef.current.set(id, timer);
-      }
-    }
-  }, [nowWatchingItems]);
-
   useEffect(() => {
     try {
-      const id = sessionStorage.getItem("openSeriesId");
+      const seriesId = sessionStorage.getItem("openSeriesId");
       sessionStorage.removeItem("openSeriesId");
-      if (id) setPendingOpenSeriesId(id);
+      if (seriesId) {
+        setPendingOpenSeriesId(seriesId);
+      }
     } catch {}
 
     try {
-      const id = localStorage.getItem(LAST_MARKED_SERIES_KEY);
-      if (id) setInitialFooterSeriesId(id);
+      const seriesId = localStorage.getItem(LAST_MARKED_SERIES_KEY);
+      if (seriesId) {
+        setInitialFooterSeriesId(seriesId);
+      }
     } catch {}
 
     try {
@@ -268,266 +64,24 @@ export default function HomePage() {
   }, [mutateGlobal]);
 
   useEffect(() => {
-    if (!items) return;
     try {
       localStorage.setItem(SERIES_CACHE_KEY, JSON.stringify(items));
     } catch {}
   }, [items]);
 
-  useEffect(() => {
-    if (searchQuery.trim().length > 0) return;
+  const autoOpenSeriesId = useMemo(() => {
+    if (!pendingOpenSeriesId) return null;
+    return items.some((series) => series.id === pendingOpenSeriesId)
+      ? pendingOpenSeriesId
+      : null;
+  }, [items, pendingOpenSeriesId]);
 
-    let phraseIndex = 0;
-    let charIndex = 0;
-    let typing = true;
-    let timeout: ReturnType<typeof setTimeout> | null = null;
-
-    const tick = () => {
-      const full = searchPlaceholders[phraseIndex];
-      if (typing) {
-        charIndex++;
-        setSearchHint(full.slice(0, charIndex));
-        if (charIndex >= full.length) {
-          typing = false;
-          timeout = setTimeout(tick, 1000);
-          return;
-        }
-        timeout = setTimeout(tick, 125);
-        return;
-      }
-
-      charIndex--;
-      setSearchHint(full.slice(0, charIndex));
-      if (charIndex <= 0) {
-        typing = true;
-        phraseIndex = (phraseIndex + 1) % searchPlaceholders.length;
-        timeout = setTimeout(tick, 300);
-        return;
-      }
-      timeout = setTimeout(tick, 60);
-    };
-
-    setSearchHint("");
-    timeout = setTimeout(tick, 0);
-
-    return () => {
-      if (timeout) clearTimeout(timeout);
-    };
-  }, [searchQuery, searchPlaceholders]);
-
-  useEffect(() => {
-    if (!searchOpen) return;
-    searchPanelRef.current?.setQuery(searchQuery);
-  }, [searchOpen, searchQuery]);
-
-  useEffect(() => {
-    if (searchOpen || folderOpen) return;
-
-    let raf2 = 0;
-    const raf1 = window.requestAnimationFrame(() => {
-      raf2 = window.requestAnimationFrame(() => {
-        setListReady(true);
-      });
-    });
-
-    return () => {
-      window.cancelAnimationFrame(raf1);
-      if (raf2) window.cancelAnimationFrame(raf2);
-    };
-  }, [searchOpen, folderOpen, items?.length]);
-
-  useEffect(() => {
-    if (!listReady) return;
-    if (!items || items.length === 0) return;
-    if (bgPreloadRef.current) return;
-    bgPreloadRef.current = true;
-
-    let cancelled = false;
-    const candidates = items.filter((s) => (s.progress?.percent ?? 0) < 100);
-    const CONCURRENCY = 2;
-    let idx = 0;
-
-    async function preloadSeries(seriesId: string) {
-      const seasonsKey = `/api/series/${seriesId}/seasons`;
-      let seasons: SeasonRow[] | null = null;
-
-      const cachedSeasons = cache.get(seasonsKey) as { data?: SeasonRow[] } | undefined;
-      if (Array.isArray(cachedSeasons?.data)) {
-        seasons = cachedSeasons.data;
-      } else {
-        seasons = await fetcher<SeasonRow[]>(seasonsKey);
-        await mutateGlobal(seasonsKey, seasons, { revalidate: false });
-      }
-
-      for (const season of seasons ?? []) {
-        if (cancelled) return;
-        const episodesKey = `/api/seasons/${season.id}/episodes`;
-        const cachedEpisodes = cache.get(episodesKey) as { data?: EpisodeRow[] } | undefined;
-        if (Array.isArray(cachedEpisodes?.data)) continue;
-
-        const episodes = await fetcher<EpisodeRow[]>(episodesKey);
-        await mutateGlobal(episodesKey, episodes, { revalidate: false });
-      }
-    }
-
-    async function worker() {
-      while (!cancelled && idx < candidates.length) {
-        const current = candidates[idx++];
-        try {
-          await preloadSeries(current.id);
-        } catch {}
-      }
-    }
-
-    void Promise.all(Array.from({ length: CONCURRENCY }, worker));
-
-    return () => {
-      cancelled = true;
-    };
-  }, [listReady, items, mutateGlobal, cache]);
-
-  const hasFooterItems = nowWatchingRenderItems.length > 0;
-  const footerShown = hasFooterItems && !searchOpen && !folderOpen;
-  const headerSearchHasValue = searchQuery.trim().length > 0;
-
-  useEffect(() => {
-    if (footerEnterRaf1Ref.current !== null) {
-      window.cancelAnimationFrame(footerEnterRaf1Ref.current);
-      footerEnterRaf1Ref.current = null;
-    }
-    if (footerEnterRaf2Ref.current !== null) {
-      window.cancelAnimationFrame(footerEnterRaf2Ref.current);
-      footerEnterRaf2Ref.current = null;
-    }
-
-    if (!footerShown) {
-      setFooterEnterReady(false);
-      return;
-    }
-
-    setFooterEnterReady(false);
-    footerEnterRaf1Ref.current = window.requestAnimationFrame(() => {
-      footerEnterRaf2Ref.current = window.requestAnimationFrame(() => {
-        setFooterEnterReady(true);
-        footerEnterRaf1Ref.current = null;
-        footerEnterRaf2Ref.current = null;
-      });
-    });
-
-    return () => {
-      if (footerEnterRaf1Ref.current !== null) {
-        window.cancelAnimationFrame(footerEnterRaf1Ref.current);
-        footerEnterRaf1Ref.current = null;
-      }
-      if (footerEnterRaf2Ref.current !== null) {
-        window.cancelAnimationFrame(footerEnterRaf2Ref.current);
-        footerEnterRaf2Ref.current = null;
-      }
-    };
-  }, [footerShown]);
-
-  useEffect(() => {
-    if (footerUnmountTimerRef.current !== null) {
-      window.clearTimeout(footerUnmountTimerRef.current);
-      footerUnmountTimerRef.current = null;
-    }
-
-    if (footerShown) {
-      setFooterMounted(true);
-      return;
-    }
-
-    if (!hasFooterItems) {
-      setFooterMounted(false);
-      return;
-    }
-
-    const unmountDelayMs = Math.max(0, FOOTER_ANIMATION_MS - 80);
-    footerUnmountTimerRef.current = window.setTimeout(() => {
-      setFooterMounted(false);
-      footerUnmountTimerRef.current = null;
-    }, unmountDelayMs);
-
-    return () => {
-      if (footerUnmountTimerRef.current !== null) {
-        window.clearTimeout(footerUnmountTimerRef.current);
-        footerUnmountTimerRef.current = null;
-      }
-    };
-  }, [footerShown, hasFooterItems, FOOTER_ANIMATION_MS]);
-
-  useEffect(() => {
-    const node = footerInnerRef.current;
-    if (!node) return;
-
-    const measure = () => {
-      setFooterHeight(node.scrollHeight);
-    };
-
-    measure();
-
-    const observer = new ResizeObserver(() => {
-      measure();
-    });
-    observer.observe(node);
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [hasFooterItems, items, footerShown]);
-
-  useEffect(() => {
-    if (bottomRadiusTimerRef.current !== null) {
-      window.clearTimeout(bottomRadiusTimerRef.current);
-      bottomRadiusTimerRef.current = null;
-    }
-
-    if (footerEnterReady) {
-      setBottomRounded(true);
-      return;
-    }
-
-    if (!hasFooterItems) {
-      setBottomRounded(false);
-      return;
-    }
-
-    const roundNearHiddenMs = Math.max(0, FOOTER_ANIMATION_MS - 80);
-    bottomRadiusTimerRef.current = window.setTimeout(() => {
-      setBottomRounded(false);
-      bottomRadiusTimerRef.current = null;
-    }, roundNearHiddenMs);
-  }, [footerEnterReady, hasFooterItems, FOOTER_ANIMATION_MS]);
-
-  useEffect(() => {
-    const nowWatchingEnterTimers = nowWatchingEnterTimersRef.current;
-    const nowWatchingExitTimers = nowWatchingExitTimersRef.current;
-    return () => {
-      if (homeExitTimerRef.current !== null) {
-        window.clearTimeout(homeExitTimerRef.current);
-      }
-      if (bottomRadiusTimerRef.current !== null) {
-        window.clearTimeout(bottomRadiusTimerRef.current);
-      }
-      if (footerEnterRaf1Ref.current !== null) {
-        window.cancelAnimationFrame(footerEnterRaf1Ref.current);
-      }
-      if (footerEnterRaf2Ref.current !== null) {
-        window.cancelAnimationFrame(footerEnterRaf2Ref.current);
-      }
-      if (footerUnmountTimerRef.current !== null) {
-        window.clearTimeout(footerUnmountTimerRef.current);
-      }
-      for (const timer of nowWatchingEnterTimers.values()) {
-        window.clearTimeout(timer);
-      }
-      nowWatchingEnterTimers.clear();
-      for (const timer of nowWatchingExitTimers.values()) {
-        window.clearTimeout(timer);
-      }
-      nowWatchingExitTimers.clear();
-    };
-  }, []);
+  const effectiveSeriesId = activeSeriesId ?? autoOpenSeriesId;
+  const effectiveSheetOpen = sheetOpen || Boolean(autoOpenSeriesId);
+  const activeSeries = useMemo(
+    () => items.find((series) => series.id === effectiveSeriesId) ?? null,
+    [items, effectiveSeriesId]
+  );
 
   function rememberLastMarkedSeries(seriesId: string) {
     try {
@@ -535,78 +89,8 @@ export default function HomePage() {
     } catch {}
   }
 
-  function openSearchPanel() {
-    if (homeExitTimerRef.current !== null) {
-      window.clearTimeout(homeExitTimerRef.current);
-      homeExitTimerRef.current = null;
-    }
-
-    if (!searchOpen) {
-      hapticImpact("light");
-    }
-    setFolderOpen(null);
-    setSearchOpen(true);
-    if (showHomeContent) {
-      setHomeExitAnimating(true);
-      homeExitTimerRef.current = window.setTimeout(() => {
-        setShowHomeContent(false);
-        setHomeExitAnimating(false);
-        homeExitTimerRef.current = null;
-      }, 220);
-    }
-  }
-
-  function closeSearchPanel() {
-    if (homeExitTimerRef.current !== null) {
-      window.clearTimeout(homeExitTimerRef.current);
-      homeExitTimerRef.current = null;
-    }
-    setListReady(false);
-    setSearchOpen(false);
-    setHomeExitAnimating(false);
-    setShowHomeContent(true);
-    searchInputRef.current?.blur();
-  }
-
-  function handleSearchInputChange(value: string) {
-    if (!searchOpen) {
-      openSearchPanel();
-    }
-    setSearchQuery(value);
-    searchPanelRef.current?.setQuery(value);
-  }
-
-  function clearSearchInput() {
-    hapticImpact("light");
-    setSearchQuery("");
-    searchPanelRef.current?.clear();
-    searchInputRef.current?.focus({ preventScroll: true });
-  }
-
-  function submitSearchFromHeader() {
-    if (!searchOpen) {
-      openSearchPanel();
-      requestAnimationFrame(() => {
-        searchPanelRef.current?.search(searchQuery);
-      });
-      return;
-    }
-    searchPanelRef.current?.search(searchQuery);
-  }
-
-  function openFolder(kind: "will-watch" | "completed" | "paused") {
-    hapticImpact("light");
-    setListReady(false);
-    setSearchOpen(false);
-    setFolderOpen(kind);
-  }
-
-  function closeFolder() {
-    setListReady(false);
-    setFolderOpen(null);
-  }
-
-  function openSeriesSheet(seriesId: string) {
+  function openSeriesSheet(seriesId: string, source: OpenSource) {
+    currentOpenSourceRef.current = source;
     resumeFromPausedRef.current = false;
     startedFromWillWatchRef.current = false;
     setActiveSeriesId(seriesId);
@@ -631,7 +115,7 @@ export default function HomePage() {
     }
 
     const ordered = [...seasons].sort((a, b) => a.number - b.number);
-    const seasonIndex = ordered.findIndex((s) => s.number === prevLast.season);
+    const seasonIndex = ordered.findIndex((season) => season.number === prevLast.season);
     if (seasonIndex === -1) {
       return { season: prevLast.season, episode: prevLast.episode + 1 };
     }
@@ -654,7 +138,6 @@ export default function HomePage() {
     let optimisticNextPercent = 0;
     let hasOptimisticUpdate = false;
 
-    // Optimistic UI first: user sees the new progress immediately.
     await mutateSeries(
       (current) =>
         (current ?? []).map((series) => {
@@ -739,15 +222,15 @@ export default function HomePage() {
           { revalidate: false }
         );
 
-        const res = await fetch(`/api/episodes/${nextEpisode.id}`, {
+        const response = await fetch(`/api/episodes/${nextEpisode.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
           body: JSON.stringify({ watched: true }),
         });
 
-        if (!res.ok) {
-          throw new Error(`PATCH /api/episodes/${nextEpisode.id} failed with ${res.status}`);
+        if (!response.ok) {
+          throw new Error(`PATCH /api/episodes/${nextEpisode.id} failed with ${response.status}`);
         }
 
         void mutateSeries();
@@ -758,11 +241,7 @@ export default function HomePage() {
       void mutateSeries();
       void mutateGlobal("/api/series/in-progress-count");
     } catch {
-      // Rollback to server state if request failed.
-      await Promise.all([
-        mutateSeries(),
-        mutateGlobal("/api/series/in-progress-count"),
-      ]);
+      await Promise.all([mutateSeries(), mutateGlobal("/api/series/in-progress-count")]);
     }
   }
 
@@ -772,267 +251,58 @@ export default function HomePage() {
         <div
           className={[
             "min-h-0 flex flex-1 flex-col overflow-y-auto overflow-x-visible overscroll-y-contain no-scrollbar bg-white px-4 pt-[calc(var(--tg-content-safe-top,0px)+64px)]",
-            searchOpen
+            footerHidden
               ? "transition-none"
               : "transition-[border-bottom-left-radius,border-bottom-right-radius] duration-[560ms] ease-[cubic-bezier(0.4,0,0.2,1)]",
             bottomRounded ? "rounded-b-[32px]" : "rounded-b-none",
           ].join(" ")}
         >
-          {folderOpen ? (
-            <SeriesFolderPanel
-              title={resolvedFolderTitle}
-              items={resolvedFolderItems}
-              onBack={closeFolder}
-              onOpenSeries={openSeriesSheet}
-            />
-          ) : (
-            <>
-              <div
-                className="transition-all duration-500 ease-out opacity-100 translate-y-0 blur-0"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="relative h-[34px] min-w-0 flex-1">
-                    <h1
-                      className={[
-                        "absolute inset-0 pl-1 ty-h1-display text-black transition-opacity duration-200 ease-out",
-                        searchOpen ? "opacity-0" : "opacity-100",
-                      ].join(" ")}
-                    >
-                      Библиотека
-                    </h1>
-                    <h1
-                      className={[
-                        "absolute inset-0 pl-1 ty-h1-display text-black transition-opacity duration-200 ease-out",
-                        searchOpen ? "opacity-100" : "opacity-0",
-                      ].join(" ")}
-                    >
-                      Поиск
-                    </h1>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={closeSearchPanel}
-                    disabled={!searchOpen}
-                    className={[
-                      "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/70 text-black backdrop-blur-[6px] transition-all duration-250 ease-out active:scale-95",
-                      searchOpen
-                        ? "opacity-100 scale-100 blur-0"
-                        : "pointer-events-none opacity-0 scale-90 blur-[6px]",
-                    ].join(" ")}
-                    aria-label="Закрыть поиск"
-                  >
-                    <XCircleFill className="h-8 w-8" />
-                  </button>
-                </div>
-
-                <form
-                  className="relative mt-6"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    submitSearchFromHeader();
-                    searchInputRef.current?.blur();
-                  }}
-                >
-                  <input
-                    ref={searchInputRef}
-                    value={searchQuery}
-                    type="text"
-                    onFocus={openSearchPanel}
-                    onChange={(e) => handleSearchInputChange(e.target.value)}
-                    inputMode="text"
-                    enterKeyHint="search"
-                    placeholder={searchHint}
-                    className="h-11 w-full rounded-full bg-black/2 px-4 pr-10 ty-body-16-medium outline-[1px] outline-black/5 placeholder:text-black/30"
-                  />
-                  <button
-                    type="button"
-                    onPointerDown={(e) => {
-                      if (!headerSearchHasValue) return;
-                      e.preventDefault();
-                    }}
-                    onClick={() => {
-                      if (!headerSearchHasValue) return;
-                      clearSearchInput();
-                    }}
-                    className="absolute right-1 top-1/2 inline-flex h-8 w-8 pr-1 -translate-y-1/2 items-center justify-center rounded-full"
-                    aria-label={headerSearchHasValue ? "Очистить поиск" : "Иконка поиска"}
-                    disabled={!headerSearchHasValue}
-                  >
-                    {headerSearchHasValue ? (
-                      <X className="h-5 w-5 text-black/30" />
-                    ) : (
-                      <Search className="h-6 w-6 text-black/30" />
-                    )}
-                  </button>
-                </form>
-              </div>
-              {showHomeContent ? (
-                <div
-                  className={[
-                    "transition-[opacity,filter] duration-200 ease-out",
-                    searchOpen && homeExitAnimating ? "pointer-events-none opacity-0 blur-[8px]" : "opacity-100 blur-0",
-                  ].join(" ")}
-                >
-                  <div
-                    style={{ transitionDelay: "60ms" }}
-                    className={[
-                      "mt-4 flex gap-2 transition-all duration-500 ease-out",
-                      listReady ? "opacity-100 translate-y-0 blur-0" : "opacity-0 translate-y-6 blur-[8px]",
-                    ].join(" ")}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <SeriesFolderCard
-                        title="Буду смотреть"
-                        count={willWatchItems.length}
-                        posters={willWatchPosters}
-                        onClick={() => openFolder("will-watch")}
-                      />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <SeriesFolderCard
-                        title="Просмотрено"
-                        count={completedItems.length}
-                        posters={completedPosters}
-                        onClick={() => openFolder("completed")}
-                      />
-                    </div>
-                  </div>
-                  <div
-                    style={{ transitionDelay: "120ms" }}
-                    className={[
-                      "mt-8 flex items-center justify-between gap-3 pl-1 transition-all duration-500 ease-out",
-                      listReady ? "opacity-100 translate-y-0 blur-0" : "opacity-0 translate-y-6 blur-[8px]",
-                    ].join(" ")}
-                  >
-                    <h2 className="ty-h2 text">
-                      Смотрю сейчас
-                    </h2>
-                    {hasPausedItems ? (
-                      <button
-                        type="button"
-                        onClick={() => openFolder("paused")}
-                        className="inline-flex h-8 shrink-0 items-center rounded-[8px] bg-[#F2F2F2] px-3 ty-caption-13-medium transition active:scale-[0.99]"
-                      >
-                        На паузе
-                      </button>
-                    ) : null}
-                  </div>
-                  <div className="mt-4 pb-3">
-                    {nowWatchingRenderItems.map((s, i) => {
-                      const rightTop = `S${s.progress?.last?.season ?? 1} E${s.progress?.last?.episode ?? 0}`;
-                      const isEntering = enteringNowWatchingIds.has(s.id);
-                      const isExiting = exitingNowWatchingIds.has(s.id);
-                      const itemDelayMs = isEntering || isExiting ? 0 : NOW_WATCHING_BASE_DELAY_MS + i * 80;
-
-                      const rightBottom = `${s.progress?.percent ?? 0}%`;
-                      const completed = (s.progress?.percent ?? 0) === 100;
-
-                      return (
-                        <div
-                          key={s.id}
-                          style={{ transitionDelay: `${itemDelayMs}ms` }}
-                          className={[
-                            "overflow-hidden transition-[max-height,margin,opacity,transform,filter] duration-500 ease-out",
-                            isExiting
-                              ? "max-h-0 mb-0 opacity-0 -translate-y-2 blur-[6px] pointer-events-none"
-                              : isEntering
-                                ? "max-h-0 mb-0 opacity-0 translate-y-2 blur-[6px] pointer-events-none"
-                                : listReady
-                                  ? "max-h-[140px] mb-2 opacity-100 translate-y-0 blur-0"
-                                  : "max-h-[140px] mb-2 opacity-0 translate-y-12 blur-[8px]",
-                          ].join(" ")}
-                        >
-                          <SeriesCard
-                            id={s.id}
-                            title={s.title}
-                            posterUrl={s.posterUrl ?? undefined}
-                            progressPercent={s.progress?.percent ?? 0}
-                            subtitle={`${s.seasonsCount} ${pluralRu(
-                              s.seasonsCount,
-                              "сезон",
-                              "сезона",
-                              "сезонов"
-                            )}, ${s.episodesCount} ${pluralRu(
-                              s.episodesCount,
-                              "серия",
-                              "серии",
-                              "серий"
-                            )}`}
-                            rightTop={rightTop}
-                            rightBottom={rightBottom}
-                            onClick={() => {
-                              if (isExiting) return;
-                              hapticImpact("light");
-                              openSeriesSheet(s.id);
-                            }}
-                            completed={completed}
-                          />
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : null}
-              {searchOpen && !showHomeContent ? (
-                <SeriesSearchPanel
-                  ref={searchPanelRef}
-                  hideHeader
-                  items={items ?? []}
-                  onBack={closeSearchPanel}
-                  onOpenSeries={openSeriesSheet}
-                  onAddedSeries={() => {}}
-                />
-              ) : null}
-            </>
-          )}
+          <HomeContent
+            items={items}
+            resetToken={contentResetToken}
+            onFooterHiddenChange={setFooterHidden}
+            onOpenSeries={openSeriesSheet}
+          />
         </div>
 
-        {hasFooterItems && (footerShown || footerMounted) ? (
-          <div
-            className={[
-              "w-full shrink-0 overflow-hidden transition-[max-height,opacity] duration-[560ms] ease-[cubic-bezier(0.4,0,0.2,1)]",
-              footerEnterReady ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none",
-            ].join(" ")}
-            style={{ maxHeight: footerEnterReady ? `${footerHeight}px` : "0px" }}
-          >
-            <div ref={footerInnerRef}>
-              <SeriesFooterCarousel
-                items={nowWatchingItems}
-                initialSeriesId={initialFooterSeriesId}
-                onOpenSeries={(seriesId) => {
-                  hapticImpact("light");
-                  openSeriesSheet(seriesId);
-                }}
-                onAddEpisode={(seriesId) => addEpisodeToProgress(seriesId)}
-              />
-            </div>
-          </div>
-        ) : null}
+        <HomeFooter
+          hidden={footerHidden}
+          initialSeriesId={initialFooterSeriesId}
+          items={items}
+          onAddEpisode={addEpisodeToProgress}
+          onOpenSeries={openSeriesSheet}
+          onRoundedChange={setBottomRounded}
+        />
       </div>
 
       <SeriesSheet
         key={effectiveSeriesId}
         open={effectiveSheetOpen}
-        onOpenChange={async (open) => {
+        onOpenChange={(open) => {
           setSheetOpen(open);
-          if (!open) {
-            setPendingOpenSeriesId(null);
-            const shouldGoHomeFromPaused = folderOpen === "paused" && resumeFromPausedRef.current;
-            const shouldGoHomeFromWillWatch = folderOpen === "will-watch" && startedFromWillWatchRef.current;
-            if (shouldGoHomeFromPaused || shouldGoHomeFromWillWatch) {
-              setListReady(false);
-              setFolderOpen(null);
-            }
-            resumeFromPausedRef.current = false;
-            startedFromWillWatchRef.current = false;
+          if (open) return;
+
+          setPendingOpenSeriesId(null);
+
+          const shouldResetContent =
+            (currentOpenSourceRef.current === "paused" && resumeFromPausedRef.current) ||
+            (currentOpenSourceRef.current === "will-watch" && startedFromWillWatchRef.current);
+
+          if (shouldResetContent) {
+            setContentResetToken((prev) => prev + 1);
           }
+
+          currentOpenSourceRef.current = null;
+          resumeFromPausedRef.current = false;
+          startedFromWillWatchRef.current = false;
+          setActiveSeriesId(null);
         }}
         seriesId={effectiveSeriesId}
-        title={activeTitle}
-        progressPercent={activeProgressPercent}
-        paused={activePaused}
-        preferredSeasonNumber={preferredSeasonNumber}
-        preferredEpisodeNumber={preferredEpisodeNumber}
+        title={activeSeries?.title ?? ""}
+        progressPercent={activeSeries?.progress?.percent ?? 0}
+        paused={Boolean(activeSeries?.paused)}
+        preferredSeasonNumber={activeSeries?.progress?.last?.season ?? null}
+        preferredEpisodeNumber={activeSeries?.progress?.last?.episode ?? null}
         onResumedFromPause={() => {
           resumeFromPausedRef.current = true;
         }}
