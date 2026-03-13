@@ -567,7 +567,7 @@ export function SeriesFooterCarousel({
                         <div className="ty-body-14 text-white/60 break-words whitespace-normal">
                           {season ? (
                             <>
-                              S<span className="ty-numeric">{season}</span>,{" "}
+                              <span className="ty-numeric">{season}</span> Сезон,{" "}
                             </>
                           ) : null}
                           <span className="ty-numeric">{episodesCount}</span>{" "}

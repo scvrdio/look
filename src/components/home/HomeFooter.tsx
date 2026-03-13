@@ -15,7 +15,7 @@ type HomeFooterProps = {
   onRoundedChange: (rounded: boolean) => void;
 };
 
-const FOOTER_ANIMATION_MS = 820;
+const FOOTER_ANIMATION_MS = 980;
 const FOOTER_COLLAPSED_HEIGHT = 214;
 
 export function HomeFooter({
@@ -87,14 +87,6 @@ export function HomeFooter({
       mountTimerRef.current = window.setTimeout(() => {
         setFooterMounted(true);
         mountTimerRef.current = null;
-
-        enterRaf1Ref.current = window.requestAnimationFrame(() => {
-          enterRaf2Ref.current = window.requestAnimationFrame(() => {
-            setFooterVisible(true);
-            enterRaf1Ref.current = null;
-            enterRaf2Ref.current = null;
-          });
-        });
       }, 0);
 
       return () => {
@@ -145,6 +137,31 @@ export function HomeFooter({
   }, [footerShown, hasFooterItems]);
 
   useEffect(() => {
+    if (!footerShown || !footerMounted) return;
+    if (footerVisible) return;
+    if (footerHeight <= 0) return;
+
+    enterRaf1Ref.current = window.requestAnimationFrame(() => {
+      enterRaf2Ref.current = window.requestAnimationFrame(() => {
+        setFooterVisible(true);
+        enterRaf1Ref.current = null;
+        enterRaf2Ref.current = null;
+      });
+    });
+
+    return () => {
+      if (enterRaf1Ref.current !== null) {
+        window.cancelAnimationFrame(enterRaf1Ref.current);
+        enterRaf1Ref.current = null;
+      }
+      if (enterRaf2Ref.current !== null) {
+        window.cancelAnimationFrame(enterRaf2Ref.current);
+        enterRaf2Ref.current = null;
+      }
+    };
+  }, [footerShown, footerMounted, footerVisible, footerHeight]);
+
+  useEffect(() => {
     if (radiusTimerRef.current !== null) {
       window.clearTimeout(radiusTimerRef.current);
       radiusTimerRef.current = null;
@@ -193,7 +210,7 @@ export function HomeFooter({
   return (
     <div
       className={[
-        "w-full shrink-0 overflow-hidden transition-[max-height,opacity,transform,filter] duration-[820ms] ease-[cubic-bezier(0.16,1,0.3,1)] will-change-[max-height,opacity,transform,filter]",
+        "w-full shrink-0 overflow-hidden transition-[max-height,opacity,transform,filter] duration-[980ms] ease-[cubic-bezier(0.2,0.9,0.2,1)] will-change-[max-height,opacity,transform,filter]",
         footerVisible
           ? "pointer-events-auto opacity-100 translate-y-0 blur-0"
           : "pointer-events-none opacity-0 translate-y-6 blur-[14px]",
@@ -211,5 +228,3 @@ export function HomeFooter({
     </div>
   );
 }
-
-
