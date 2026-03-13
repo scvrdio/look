@@ -39,12 +39,11 @@ export function HomeFooter({
   const footerShown = footerItems.length > 0 && !hidden;
 
   useEffect(() => {
-    if (!footerShown) return;
-    onRoundedChange(true);
+    onRoundedChange(footerShown);
   }, [footerShown, onRoundedChange]);
 
   return (
-    <AnimatePresence initial={false} onExitComplete={() => onRoundedChange(false)}>
+    <AnimatePresence initial={false}>
       {footerShown ? (
         <motion.div
           key="home-footer"

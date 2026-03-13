@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { motion } from "framer-motion";
 import useSWR, { useSWRConfig } from "swr";
 
 import { HomeContent } from "@/components/home/HomeContent";
@@ -16,6 +17,10 @@ type OpenSource = "will-watch" | "completed" | "paused" | null;
 const SERIES_CACHE_KEY = "series_cache_v3";
 const LAST_MARKED_SERIES_KEY = "last_marked_series_id";
 const SERIES_SHEET_CLOSE_MS = 560;
+const CONTENT_RADIUS_TRANSITION = {
+  duration: 0.56,
+  ease: [0.22, 1, 0.36, 1] as const,
+};
 
 export default function HomePage() {
   const { mutate: mutateGlobal, cache } = useSWRConfig();
@@ -262,14 +267,13 @@ export default function HomePage() {
   return (
     <main className="h-dvh overflow-hidden overscroll-none bg-black">
       <div className="mx-auto flex h-dvh w-full max-w-[420px] flex-col overflow-hidden bg-black">
-        <div
-          className={[
-            "min-h-0 flex flex-1 flex-col overflow-y-auto overflow-x-visible overscroll-y-contain no-scrollbar bg-white px-4 pt-[calc(var(--tg-content-safe-top,0px)+64px)]",
-            footerHidden
-              ? "transition-none"
-              : "transition-[border-bottom-left-radius,border-bottom-right-radius] duration-[560ms] ease-[cubic-bezier(0.4,0,0.2,1)]",
-            bottomRounded ? "rounded-b-[32px]" : "rounded-b-none",
-          ].join(" ")}
+        <motion.div
+          className="min-h-0 flex flex-1 flex-col overflow-y-auto overflow-x-visible overscroll-y-contain no-scrollbar bg-white px-4 pt-[calc(var(--tg-content-safe-top,0px)+64px)]"
+          animate={{
+            borderBottomLeftRadius: bottomRounded ? 32 : 0,
+            borderBottomRightRadius: bottomRounded ? 32 : 0,
+          }}
+          transition={CONTENT_RADIUS_TRANSITION}
         >
           <HomeContent
             items={items}
@@ -277,7 +281,7 @@ export default function HomePage() {
             onFooterHiddenChange={setFooterHidden}
             onOpenSeries={openSeriesSheet}
           />
-        </div>
+        </motion.div>
 
         <HomeFooter
           hidden={footerHidden}
