@@ -368,7 +368,7 @@ export function SeriesSheet({
     data: episodes,
     isValidating: validatingEpisodes,
     mutate: mutateEpisodes,
-  } = useSWR<EpisodeRow[]>(episodesKey, fetcher);
+  } = useSWR<EpisodeRow[]>(episodesKey, fetcher, { keepPreviousData: false });
 
   // UI-снапшот + запуск анимации серий
   React.useEffect(() => {
