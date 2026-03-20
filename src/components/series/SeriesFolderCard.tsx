@@ -28,7 +28,7 @@ export function SeriesFolderCard({
       </div>
 
       <div className="flex items-end justify-between">
-        <div className="ty-folder-count ty-numeric text-black">
+        <div className="ty-folder-count text-black">
           {count}
         </div>
 
@@ -55,7 +55,7 @@ export function SeriesFolderCard({
             <div
               className={[
                 "flex h-6 w-6 items-center justify-center rounded-full border-2 border-[#f2f2f2] bg-[#ffffff] text-black/50 pr-0.5",
-                "ty-caption-12-semibold ty-numeric",
+                "ty-caption-12-semibold",
                 visiblePosters.length > 0 ? "-ml-2" : "",
               ].join(" ")}
               style={{ letterSpacing: "-0.08em" }}

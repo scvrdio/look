@@ -40,6 +40,23 @@ type ToggleEpisodeResponse = {
 const SHEET_CLOSE_MS = 560;
 const EPISODE_STAGGER_MS = 40;
 
+function isVersionAtLeast(version: string | undefined, minVersion: string) {
+  if (!version) return false;
+
+  const a = version.split(".").map((x) => Number(x));
+  const b = minVersion.split(".").map((x) => Number(x));
+  const len = Math.max(a.length, b.length);
+
+  for (let i = 0; i < len; i += 1) {
+    const av = Number.isFinite(a[i]) ? a[i] : 0;
+    const bv = Number.isFinite(b[i]) ? b[i] : 0;
+    if (av > bv) return true;
+    if (av < bv) return false;
+  }
+
+  return true;
+}
+
 type SeriesSheetProps = {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -664,66 +681,84 @@ export function SeriesSheet({
   }
 
   async function confirmDeleteSeriesSystem() {
+    const fallback = () => window.confirm("Удалить сериал\n\nЭто действие нельзя отменить");
     const tg = getTelegramWebApp();
-    if (tg?.showPopup) {
-      return await new Promise<boolean>((resolve) => {
-        tg.showPopup?.(
-          {
-            title: "Удалить сериал",
-            message: "Это действие нельзя отменить",
-            buttons: [
-              { id: "cancel", type: "cancel", text: "Отмена" },
-              { id: "delete", type: "destructive", text: "Удалить" },
-            ],
-          },
-          (buttonId) => resolve(buttonId === "delete")
-        );
-      });
+    const canUsePopup = Boolean(tg?.showPopup) && isVersionAtLeast(tg?.version, "6.1");
+    if (canUsePopup && tg?.showPopup) {
+      try {
+        return await new Promise<boolean>((resolve) => {
+          tg.showPopup?.(
+            {
+              title: "Удалить сериал",
+              message: "Это действие нельзя отменить",
+              buttons: [
+                { id: "cancel", type: "cancel", text: "Отмена" },
+                { id: "delete", type: "destructive", text: "Удалить" },
+              ],
+            },
+            (buttonId) => resolve(buttonId === "delete")
+          );
+        });
+      } catch {
+        return fallback();
+      }
     }
 
-    return window.confirm("Удалить сериал\n\nЭто действие нельзя отменить");
+    return fallback();
   }
 
   async function confirmPauseSeriesSystem() {
+    const fallback = () => window.confirm("Поставить на паузу?\n\nСериал будет перемещён в архив");
     const tg = getTelegramWebApp();
-    if (tg?.showPopup) {
-      return await new Promise<boolean>((resolve) => {
-        tg.showPopup?.(
-          {
-            title: "Поставить на паузу",
-            message: "Сериал будет перемещён в архив",
-            buttons: [
-              { id: "cancel", type: "cancel", text: "Отмена" },
-              { id: "pause", type: "ok", text: "Пауза" },
-            ],
-          },
-          (buttonId) => resolve(buttonId === "pause")
-        );
-      });
+    const canUsePopup = Boolean(tg?.showPopup) && isVersionAtLeast(tg?.version, "6.1");
+    if (canUsePopup && tg?.showPopup) {
+      try {
+        return await new Promise<boolean>((resolve) => {
+          tg.showPopup?.(
+            {
+              title: "Поставить на паузу",
+              message: "Сериал будет перемещён в архив",
+              buttons: [
+                { id: "cancel", type: "cancel", text: "Отмена" },
+                { id: "pause", type: "ok", text: "Пауза" },
+              ],
+            },
+            (buttonId) => resolve(buttonId === "pause")
+          );
+        });
+      } catch {
+        return fallback();
+      }
     }
 
-    return window.confirm("Поставить на паузу?\n\nСериал будет перемещён в архив");
+    return fallback();
   }
 
   async function confirmCompleteSeriesSystem() {
+    const fallback = () => window.confirm("Завершить сериал?\n\nОтметим сериал как завершённый");
     const tg = getTelegramWebApp();
-    if (tg?.showPopup) {
-      return await new Promise<boolean>((resolve) => {
-        tg.showPopup?.(
-          {
-            title: "Завершить сериал",
-            message: "Отметим сериал как завершённый",
-            buttons: [
-              { id: "cancel", type: "cancel", text: "Отмена" },
-              { id: "complete", type: "ok", text: "Завершить" },
-            ],
-          },
-          (buttonId) => resolve(buttonId === "complete")
-        );
-      });
+    const canUsePopup = Boolean(tg?.showPopup) && isVersionAtLeast(tg?.version, "6.1");
+    if (canUsePopup && tg?.showPopup) {
+      try {
+        return await new Promise<boolean>((resolve) => {
+          tg.showPopup?.(
+            {
+              title: "Завершить сериал",
+              message: "Отметим сериал как завершённый",
+              buttons: [
+                { id: "cancel", type: "cancel", text: "Отмена" },
+                { id: "complete", type: "ok", text: "Завершить" },
+              ],
+            },
+            (buttonId) => resolve(buttonId === "complete")
+          );
+        });
+      } catch {
+        return fallback();
+      }
     }
 
-    return window.confirm("Завершить сериал?\n\nОтметим сериал как завершённый");
+    return fallback();
   }
 
   return (
