@@ -51,9 +51,11 @@ export function TgBoot() {
 
     const forceFullscreen = () => {
       try {
-        tg.expand?.();
-        if (shouldForceFullscreen && isVersionAtLeast(tg.version, "8.0")) {
-          tg.requestFullscreen?.();
+        if (shouldForceFullscreen) {
+          tg.expand?.();
+          if (isVersionAtLeast(tg.version, "8.0")) {
+            tg.requestFullscreen?.();
+          }
         }
         tg.disableVerticalSwipes?.();
       } catch {}
