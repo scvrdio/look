@@ -47,7 +47,8 @@ export function TgBoot() {
     const tg = getTelegramWebApp();
     if (!tg) return;
 
-    const shouldForceFullscreen = !isDesktopTelegramPlatform(tg.platform);
+    const isDesktop = isDesktopTelegramPlatform(tg.platform);
+    const shouldForceFullscreen = !isDesktop;
 
     const forceFullscreen = () => {
       try {
@@ -70,8 +71,13 @@ export function TgBoot() {
 
     const apply = () => {
       // Если Telegram не отдаёт — будет 0, это ок.
-      setCssInsets("tg-safe", tg.safeAreaInset);
-      setCssInsets("tg-content-safe", tg.contentSafeAreaInset);
+      if (isDesktop) {
+        setCssInsets("tg-safe", null);
+        setCssInsets("tg-content-safe", null);
+      } else {
+        setCssInsets("tg-safe", tg.safeAreaInset);
+        setCssInsets("tg-content-safe", tg.contentSafeAreaInset);
+      }
       forceFullscreen();
     };
 
