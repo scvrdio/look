@@ -204,6 +204,12 @@ input[type="search"]::-ms-reveal {
   font-variation-settings: "wdth" 90, "wght" 400, "opsz" 16;
 }
 
+.ty-numeric-folder {
+  font-family: var(--font-numeric);
+  font-variant-numeric: proportional-nums lining-nums;
+  font-feature-settings: "pnum" 1, "lnum" 1;
+}
+
 .ty-h1-display {
   font-size: 32px;
   line-height: 0.92;
@@ -345,4 +351,3 @@ input[type="search"]::-ms-reveal {
   font-variation-settings: "wdth" 75, "wght" 700, "opsz" 16;
   letter-spacing: 0.02em;
 }
-

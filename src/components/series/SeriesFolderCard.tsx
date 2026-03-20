@@ -27,12 +27,12 @@ export function SeriesFolderCard({
         {title}
       </div>
 
-      <div className="flex items-end justify-between">
-        <div className="ty-folder-count text-black">
+      <div className="relative mt-2 flex-1">
+        <div className="absolute bottom-0 left-0 ty-folder-count ty-numeric-folder text-black">
           {count}
         </div>
 
-        <div className="flex items-center">
+        <div className="absolute bottom-0 right-0 z-10 flex items-center">
           {visiblePosters.map((item, index) => (
             <div
               key={item.id}
@@ -55,7 +55,7 @@ export function SeriesFolderCard({
             <div
               className={[
                 "flex h-6 w-6 items-center justify-center rounded-full border-2 border-[#f2f2f2] bg-[#ffffff] text-black/50 pr-0.5",
-                "ty-caption-12-semibold",
+                "ty-caption-12-semibold ty-numeric-folder",
                 visiblePosters.length > 0 ? "-ml-2" : "",
               ].join(" ")}
               style={{ letterSpacing: "-0.08em" }}
