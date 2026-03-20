@@ -56,6 +56,8 @@ export function TgBoot() {
           if (isVersionAtLeast(tg.version, "8.0")) {
             tg.requestFullscreen?.();
           }
+        } else if (tg.isFullscreen && isVersionAtLeast(tg.version, "8.0")) {
+          tg.exitFullscreen?.();
         }
         tg.disableVerticalSwipes?.();
       } catch {}

@@ -39,6 +39,7 @@ export type TelegramWebApp = {
   ready?: () => void;
   expand?: () => void;
   requestFullscreen?: () => void;
+  exitFullscreen?: () => void;
   disableVerticalSwipes?: () => void;
   isExpanded?: boolean;
   isFullscreen?: boolean;
