@@ -548,7 +548,7 @@ export function HomeContent({
           <div
             style={{ transitionDelay: "60ms" }}
             className={[
-              "mt-4 flex gap-2 transition-all duration-500 ease-out",
+              "mt-8 flex gap-2 transition-all duration-500 ease-out",
               listReady ? "opacity-100 translate-y-0 blur-0" : "opacity-0 translate-y-6 blur-[8px]",
             ].join(" ")}
           >

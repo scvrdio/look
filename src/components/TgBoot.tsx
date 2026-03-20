@@ -35,15 +35,24 @@ function setCssInsets(name: string, insets?: Partial<Insets> | null) {
   root.style.setProperty(`--${name}-right`, `${right}px`);
 }
 
+function isDesktopTelegramPlatform(platform?: string) {
+  const value = platform?.toLowerCase();
+  if (!value) return false;
+
+  return ["tdesktop", "macos", "windows", "linux", "web", "weba", "webk"].includes(value);
+}
+
 export function TgBoot() {
   useEffect(() => {
     const tg = getTelegramWebApp();
     if (!tg) return;
 
+    const shouldForceFullscreen = !isDesktopTelegramPlatform(tg.platform);
+
     const forceFullscreen = () => {
       try {
         tg.expand?.();
-        if (isVersionAtLeast(tg.version, "8.0")) {
+        if (shouldForceFullscreen && isVersionAtLeast(tg.version, "8.0")) {
           tg.requestFullscreen?.();
         }
         tg.disableVerticalSwipes?.();

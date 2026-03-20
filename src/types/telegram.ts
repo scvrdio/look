@@ -17,6 +17,7 @@ export type TelegramPopupParams = {
 
 export type TelegramWebApp = {
   version?: string;
+  platform?: string;
   initData?: string;
   initDataUnsafe?: {
     user?: {
