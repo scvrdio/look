@@ -268,7 +268,7 @@ export default function HomePage() {
     <main className="h-dvh overflow-hidden overscroll-none bg-black">
       <div className="mx-auto flex h-dvh w-full max-w-[420px] flex-col overflow-hidden bg-black">
         <motion.div
-          className="min-h-0 flex flex-1 flex-col overflow-y-auto overflow-x-visible overscroll-y-contain no-scrollbar bg-white px-4 pt-[calc(var(--tg-content-safe-top,0px)+64px)]"
+          className="min-h-0 flex flex-1 flex-col overflow-y-auto overflow-x-visible overscroll-y-contain no-scrollbar bg-white px-4 pt-[calc(var(--tg-content-safe-top,0px)+var(--tg-top-offset-base,32px))]"
           animate={{
             borderBottomLeftRadius: bottomRounded ? 32 : 0,
             borderBottomRightRadius: bottomRounded ? 32 : 0,

@@ -37,15 +37,22 @@ function setCssInsets(name: string, insets?: Partial<Insets> | null) {
 
 function isDesktopTelegramPlatform(platform?: string) {
   const value = platform?.toLowerCase();
-  if (!value) return false;
+  if (!value) return true;
 
-  return ["tdesktop", "macos", "windows", "linux", "web", "weba", "webk"].includes(value);
+  return !["android", "ios"].includes(value);
 }
 
 export function TgBoot() {
   useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty("--tg-top-offset-base", "16px");
+
     const tg = getTelegramWebApp();
-    if (!tg) return;
+    if (!tg) {
+      setCssInsets("tg-safe", null);
+      setCssInsets("tg-content-safe", null);
+      return;
+    }
 
     const isDesktop = isDesktopTelegramPlatform(tg.platform);
     const shouldForceFullscreen = !isDesktop;
@@ -74,9 +81,11 @@ export function TgBoot() {
       if (isDesktop) {
         setCssInsets("tg-safe", null);
         setCssInsets("tg-content-safe", null);
+        root.style.setProperty("--tg-top-offset-base", "16px");
       } else {
         setCssInsets("tg-safe", tg.safeAreaInset);
         setCssInsets("tg-content-safe", tg.contentSafeAreaInset);
+        root.style.setProperty("--tg-top-offset-base", "64px");
       }
       forceFullscreen();
     };

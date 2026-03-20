@@ -23,6 +23,7 @@
 :root {
   --tg-viewport-height: 100vh;
   --tg-viewport-stable-height: 100vh;
+  --tg-top-offset-base: 32px;
   --tg-content-safe-top: 0px;
   --tg-content-safe-bottom: 0px;
 }

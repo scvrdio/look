@@ -453,7 +453,7 @@ export default function AddPage() {
 
   return (
     <main className="min-h-dvh bg-white">
-      <div className="mx-auto max-w-[420px] px-4 pt-[calc(var(--tg-content-safe-top,0px)+64px)] pb-28">
+      <div className="mx-auto max-w-[420px] px-4 pt-[calc(var(--tg-content-safe-top,0px)+var(--tg-top-offset-base,32px))] pb-28">
         {/* Header */}
         <div
           className={[
