@@ -1,5 +1,5 @@
-export type Movie = { id: number; name: string; year: number | null; posterUrl: string | null };
-type Document = { id: number; name?: string; alternativeName?: string; year?: number; type?: string; isSeries?: boolean; poster?: { url?: string; previewUrl?: string } };
+export type Movie = { id: number; name: string; year: number | null; posterUrl: string | null; genres?: string[] };
+type Document = { id: number; name?: string; alternativeName?: string; year?: number; type?: string; isSeries?: boolean; poster?: { url?: string; previewUrl?: string }; genres?: { name?: string }[] };
 
 export const demoMovies: Movie[] = [
   { id: 535341, name: "1+1", year: 2011, posterUrl: null },
@@ -20,7 +20,7 @@ function toMovie(doc: Document): Movie | null {
   if (!Number.isSafeInteger(doc.id) || doc.id <= 0 || doc.isSeries || !["movie", "cartoon", "animated-movie"].includes(doc.type ?? "")) return null;
   const name = (doc.name || doc.alternativeName || "").trim();
   if (!name) return null;
-  return { id: doc.id, name, year: doc.year ?? null, posterUrl: doc.poster?.url ?? doc.poster?.previewUrl ?? null };
+  return { id: doc.id, name, year: doc.year ?? null, posterUrl: doc.poster?.url ?? doc.poster?.previewUrl ?? null, genres: (doc.genres ?? []).map(g => g.name).filter((g): g is string => Boolean(g)) };
 }
 
 export async function searchMovies(query: string): Promise<Movie[]> {

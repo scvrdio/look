@@ -408,7 +408,7 @@ export const SeriesSearchPanel = forwardRef<SeriesSearchPanelHandle, SeriesSearc
         return true;
       });
 
-      setResults([...dbMapped, ...catFiltered]);
+      setResults([...dbMapped.map(item => ({ ...item, genres: catItems.find(hit => hit.id === item.id)?.genres ?? item.genres })), ...catFiltered]);
       setStep("results");
     } catch {
       hapticNotify("error");
@@ -561,6 +561,9 @@ export const SeriesSearchPanel = forwardRef<SeriesSearchPanelHandle, SeriesSearc
 
                         {countsLine ? (
                           <div className="mt-1 ty-body-14 leading-[18px] text-black/50">{countsLine}</div>
+                        ) : null}
+                        {item.type === "movie" && item.genres?.length ? (
+                          <div className="mt-1 truncate ty-body-14 leading-[18px] text-black/50">{item.genres.join(" · ")}</div>
                         ) : null}
                       </div>
 

@@ -437,7 +437,7 @@ export default function AddPage() {
       });
 
       // 3) склейка: сначала БД (кнопка "Открыть"), потом каталог ("Добавить")
-      setResults([...dbMapped, ...catFiltered]);
+      setResults([...dbMapped.map(item => ({ ...item, genres: catItems.find(hit => hit.id === item.id)?.genres ?? item.genres })), ...catFiltered]);
       setStep("results");
     } catch {
       hapticNotify("error");
@@ -582,6 +582,9 @@ export default function AddPage() {
 
                           {countsLine ? (
                             <div className="ty-body-14 leading-[18px] text-black/50 mt-1">{countsLine}</div>
+                          ) : null}
+                          {item.type === "movie" && item.genres?.length ? (
+                            <div className="mt-1 truncate ty-body-14 leading-[18px] text-black/50">{item.genres.join(" · ")}</div>
                           ) : null}
                         </div>
 
