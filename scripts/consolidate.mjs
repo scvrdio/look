@@ -12,6 +12,8 @@ const origin = 'https://look-notify.vercel.app';
 function api(path, method = 'GET', body) {
   const args = ['dlx','vercel@59.23.1','api',path+(path.includes('?')?'&':'?')+'teamId='+team,'--raw','--method',method];
   if (body) args.push('--input','-');
+  // Deletion is used only by remove-setup-env for the two keys this helper created.
+  if (method === 'DELETE') args.push('--dangerously-skip-permissions');
   const r = spawnSync(pnpm,args,{env:{...process.env,PATH:nodeDir+':'+process.env.PATH},input:body?JSON.stringify(body):undefined,encoding:'utf8',timeout:60000,maxBuffer:10*1024*1024});
   if (r.status !== 0) throw new Error(`Vercel ${method} ${path.split('?')[0]} failed`);
   const result = r.stdout.trim() ? JSON.parse(r.stdout) : {};
@@ -63,6 +65,7 @@ try {
   else if (mode === 'connect') await request('/api/telegram/setup','TELEGRAM_SETUP_SECRET',{});
   else if (mode === 'verify-webhook') await request('/api/telegram','TELEGRAM_WEBHOOK_SECRET',{});
   else if (mode === 'test-start') await request('/api/telegram','TELEGRAM_WEBHOOK_SECRET',{message:{chat:{id:367592308,type:'private'},text:'/start'}});
+  else if (mode === 'test-subscriptions') await request('/api/telegram','TELEGRAM_WEBHOOK_SECRET',{message:{chat:{id:367592308,type:'private'},text:'/subscriptions'}});
   else if (mode === 'remove-setup-env') {
     const envs=api('/v9/projects/'+app+'/env').envs;
     for(const e of envs.filter(e=>['TELEGRAM_SETUP_SECRET','TELEGRAM_SETUP_EXPIRES'].includes(e.key))) api('/v9/projects/'+app+'/env/'+e.id,'DELETE');
