@@ -86,28 +86,40 @@ try {
     if(!library.ok)throw new Error('Library request failed: '+library.status);
     const d=await library.json();
     console.log(JSON.stringify({origin,loginStatus:login.status,libraryStatus:library.status,count:d.series.length,titles:d.series.map(s=>s.title)}));
-    if(d.series.length!==9)throw new Error('Expected nine preserved subscriptions');
+    const expected=['44458','45562','47549','60383','73023','41469','86738','44778','75605'];
+    const actual=new Set(d.series.map(s=>String(s.id)));
+    if(expected.some(id=>!actual.has(id)))throw new Error('An original subscription is missing');
   } else if(mode==='dry-run') {
     const keys=JSON.parse(fs.readFileSync(statePath,'utf8'));
     const r=await fetch(origin+'/api/check?dryRun=1',{headers:{Authorization:'Bearer '+keys.CRON_SECRET},signal:AbortSignal.timeout(120000)});
     if(!r.ok)throw new Error('Dry run failed: '+r.status);
     const d=await r.json(); console.log(JSON.stringify(d));
-    if(d.checked!==9||d.failed!==0||d.sent!==0)throw new Error('Unexpected notification result');
-  } else if(mode==='connect') {
+    if(d.checked<9||d.failed!==0||d.sent!==0)throw new Error('Unexpected notification result');
+  } else if(mode==='connect'||mode==='connection') {
     const token=await verifiedToken();
-    const keys=JSON.parse(fs.readFileSync(statePath,'utf8'));
-    await telegram(token,'setWebhook',{url:origin+'/api/telegram',secret_token:keys.TELEGRAM_WEBHOOK_SECRET,allowed_updates:['message','callback_query']});
-    const menu_button={type:'web_app',text:'Look!',web_app:{url:origin}};
-    await telegram(token,'setChatMenuButton',{menu_button});
-    await telegram(token,'setChatMenuButton',{chat_id:367592308,menu_button});
+    if(mode==='connect') {
+      const keys=JSON.parse(fs.readFileSync(statePath,'utf8'));
+      await telegram(token,'setWebhook',{url:origin+'/api/telegram',secret_token:keys.TELEGRAM_WEBHOOK_SECRET,allowed_updates:['message','callback_query']});
+      const menu_button={type:'web_app',text:'Look!',web_app:{url:origin}};
+      await telegram(token,'setChatMenuButton',{menu_button});
+      await telegram(token,'setChatMenuButton',{chat_id:367592308,menu_button});
+    }
     const w=await telegram(token,'getWebhookInfo');
     const menu=await telegram(token,'getChatMenuButton',{chat_id:367592308});
-    console.log(JSON.stringify({webhook:w.url,pending:w.pending_update_count,userMenu:menu.web_app?.url}));
-    if(w.url!==origin+'/api/telegram'||menu.web_app?.url!==origin)throw new Error('Cutover mismatch');
+    const defaultMenu=await telegram(token,'getChatMenuButton');
+    console.log(JSON.stringify({webhook:w.url,pending:w.pending_update_count,userMenu:menu.web_app?.url,defaultMenu:defaultMenu.web_app?.url}));
+    if(w.url!==origin+'/api/telegram'||menu.web_app?.url?.replace(/\/$/,'')!==origin||defaultMenu.web_app?.url?.replace(/\/$/,'')!==origin)throw new Error('Cutover mismatch');
   } else if(mode==='test-menu') {
     const keys=JSON.parse(fs.readFileSync(statePath,'utf8'));
     const r=await fetch(origin+'/api/telegram',{method:'POST',headers:{'Content-Type':'application/json','x-telegram-bot-api-secret-token':keys.TELEGRAM_WEBHOOK_SECRET},body:JSON.stringify({message:{chat:{id:367592308,type:'private'},text:'/start'}}),signal:AbortSignal.timeout(20000)});
     console.log(JSON.stringify({menuTestStatus:r.status}));if(!r.ok)throw new Error('Menu test failed');
+  } else if(mode==='redeploy') {
+    const id=process.argv[3];
+    if(!/^dpl_[a-zA-Z0-9]+$/.test(id??''))throw new Error('Invalid deployment');
+    const source=api('/v13/deployments/'+id);
+    if(source.projectId!==target||source.readyState!=='READY')throw new Error('Expected ready original Look deployment');
+    const d=api('/v13/deployments','POST',{name:'look',project:target,deploymentId:id,target:'production'});
+    console.log(JSON.stringify({id:d.id,url:d.url,state:d.readyState,target:d.target,commit:d.meta?.githubCommitSha}));
   } else if(mode==='deployments') {
     const d=api('/v6/deployments?projectId='+target+'&limit=4');
     console.log(JSON.stringify(d.deployments.map(x=>({id:x.uid,url:x.url,state:x.state,commit:x.meta?.githubCommitSha,target:x.target}))));

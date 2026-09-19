@@ -1,30 +1,32 @@
 # Оригинальный Look + бот
 
-## Возврат в исходный проект (в процессе)
+## Текущая рабочая конфигурация
 
-Цель текущего переноса — исходный репозиторий `scvrdio/look`, Vercel-проект
+Перенос завершён: исходный репозиторий `scvrdio/look`, Vercel-проект
 `look` (`prj_1fVYqaZ3M1RIxGfsJY99aGa8IaAo`) и адрес
 `https://look-green.vercel.app`. Это не переименование `look-notify`.
-Пока перенос не проверен, рабочий webhook и расписание остаются на `look-notify`.
+Webhook: `https://look-green.vercel.app/api/telegram`. Общее меню и личное меню
+владельца тоже открывают look-green. Расписание Look включено; расписания
+look-notify и scvrdio выключены. Эти старые проекты оставлены только для отката.
 Не удалять Supabase `aarbxzaofhpreyrqqyso`: обе версии используют те же подписки.
 `MINI_APP_URL` задаёт адрес кнопок; по умолчанию теперь исходный look-green.
-Для исходного проекта требуется заново задать закрытые серверные ключи,
-которые Vercel не позволяет прочитать из Secret-переменных другого проекта.
+Серверные ключи заданы в Production исходного проекта. Не удалять Supabase.
 
 Код `9763b27` уже опубликован в `scvrdio/look/main` и на look-green:
-production `dpl_AchEGJoNv6rBGigpNoHRUKzDztjP`, READY.
-Проверка входа через Telegram прошла, но чтение библиотеки вернуло 502:
-`Supabase request failed: 401`; проверка subscriptions вернула 0 вместо 9.
-Добавленный ключ требует замены на серверный Secret/service_role того же Supabase.
-Webhook и меню НЕ переключены, рабочее расписание остаётся в look-notify.
-Новое расписание проекта look временно отключено до проверки доступа к базе.
-Не удалять look-notify до полного завершения перехода.
+production `dpl_3HDMivEq9h2bPvjGhHp5JvJmm3Ag`, READY.
+После исправления ключа проверены HTTP 200 входа и библиотеки: все девять
+исходных сериалов сохранены; с новым «Привет, Андрей!» всего десять.
+Dry-run уведомлений: checked=10, failed=0, sent=0, pending=1.
+Тест /start отправил меню. Неавторизованные series/check/telegram возвращают 401.
+Ошибок в логах проверенного деплоя не обнаружено. Фактический следующий запуск
+по расписанию и открытие обеих кнопок на телефоне отдельно не наблюдались.
 
 Локальная привязка `.vercel/project.json` и Git remote `origin` уже указывают
 на исходный look. Старый remote сохранён под именем `notify-archive`.
-Проверки и переключение: `scripts/restore-original.mjs` (readiness, verify,
-dry-run, connect, test-menu). Секреты перехода временно лежат в игнорируемом
-`.local-data/original-cutover.json` с правами 0600; удалить после завершения.
+Проверки: `scripts/restore-original.mjs` (readiness, verify, connection).
+Одноразовые dry-run/connect/test-menu требуют секретов перехода; временный
+`.local-data/original-cutover.json` после проверки удалён. Не запускать configure
+повторно без намерения заменить секрет webhook и перенастроить Telegram.
 
 Ниже — состояние предыдущего этапа, до возврата в исходный проект.
 
