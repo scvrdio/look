@@ -60,7 +60,7 @@ test('start supplies the original three actions',async()=>{
   const {bot,calls}=fixture();
   await bot.handleUpdate({message:{chat:{id:123,type:'private'},text:'/start'}});
   const rows=calls[0].body.reply_markup.inline_keyboard;
-  assert.equal(rows[0][0].web_app.url,'https://look-notify.vercel.app');
+  assert.equal(rows[0][0].web_app.url,'https://look-green.vercel.app');
   assert.equal(rows[1][0].callback_data,'subscriptions');
   assert.equal(rows[1][1].callback_data,'check_now');
 });

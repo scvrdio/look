@@ -26,7 +26,7 @@ export async function telegram<T>(method: string, payload: Record<string, unknow
 }
 
 const escape = (s: string) => s.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]!);
-const origin = "https://look-notify.vercel.app";
+const origin = process.env.MINI_APP_URL || "https://look-green.vercel.app";
 export const mainMenu = () => ({ inline_keyboard: [
   [{ text: "Открыть приложение", web_app: { url: origin } }],
   [{ text: "Подписки", callback_data: "subscriptions" }, { text: "Проверить серии", callback_data: "check_now" }],
