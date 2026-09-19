@@ -85,6 +85,8 @@ test('movie routes require login, validate input and reject another account’s 
   const route = load('src/app/api/[...path]/route.ts', {
     '@/server_auth/getCurrentChatId': { getCurrentChatId: async () => account },
     '@/lib/look-catalog': {},
+    '@/lib/kinopoisk': load('src/lib/kinopoisk.ts'),
+    '@/lib/kinopoisk-server': {},
     '@/lib/subscriptions': { isDemoMode: () => false },
     '@/lib/movie-catalog': { getMovie: async id => ({ id, name: 'Film', year: null, posterUrl: null }) },
     '@/lib/look-store': {

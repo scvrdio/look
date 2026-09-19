@@ -895,6 +895,9 @@ function SeriesEpisodesSheet({
           {/* Footer actions */}
           <div className="absolute bottom-[calc(var(--tg-content-safe-bottom,0px)+24px)] left-1/2 z-40 -translate-x-1/2">
             <SeriesSheetFooterActions
+              seriesId={seriesId}
+              title={title}
+              open={open}
               paused={paused}
               onDelete={() => {
                 void (async () => {

@@ -4,6 +4,8 @@ import { bootstrap, catalogSearch, catalogShow, episodeKey } from "@/lib/look-ca
 import { addShow, libraryState, removeShow, setPaused, setWatched, listMovies, saveMovie, updateMovie } from "@/lib/look-store";
 import { demoMovies, getMovie } from "@/lib/movie-catalog";
 import { isDemoMode } from "@/lib/subscriptions";
+import { kinopoiskPage } from "@/lib/kinopoisk";
+import { resolveSeriesKinopoisk } from "@/lib/kinopoisk-server";
 
 export const runtime = "nodejs";
 type Context = { params: Promise<{ path: string[] }> };
@@ -48,6 +50,7 @@ async function handle(request: Request, context: Context) {
       const id = Number(path[1].slice(6));
       const movie = (await listMovies(chatId)).find(m => m.id === id);
       if (!movie) return json({ error: "Not found" }, 404);
+      if (method === "GET" && path[2] === "kinopoisk" && path.length === 3) return json(kinopoiskPage(id, "movie"));
       if (method === "DELETE" && path.length === 2) { await updateMovie(chatId, id, "delete"); return json({ ok: true }); }
       if (method === "PATCH" && path.length === 2) {
         const body = await request.json();
@@ -66,6 +69,11 @@ async function handle(request: Request, context: Context) {
     if (!state.subscriptions.includes(showId)) return json({ error: "Not found" },404);
     if (method === "DELETE" && path[0] === "series" && path.length === 2) { await removeShow(chatId, showId); return json({ ok: true }); }
     const show = await catalogShow(showId);
+    if (method === "GET" && path[0] === "series" && path[2] === "kinopoisk" && path.length === 3) {
+      // Verified mappings for offline preview fixtures only; production uses IMDb.
+      const demoId = isDemoMode() ? ({ 169: 655800, 82: 464963 } as Record<number, number>)[showId] : null;
+      return json(demoId ? kinopoiskPage(demoId, "series") : await resolveSeriesKinopoisk(show));
+    }
     if (method === "PATCH" && path[0] === "episodes" && parts.length === 3) {
       const episode = show.episodes.find(e => e.season === parts[1] && e.number === parts[2]);
       if (!episode) return json({ error: "Not found" },404);

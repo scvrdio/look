@@ -37,6 +37,7 @@ export type TelegramWebApp = {
     right?: number;
   };
   ready?: () => void;
+  openLink?: (url: string) => void;
   expand?: () => void;
   requestFullscreen?: () => void;
   exitFullscreen?: () => void;

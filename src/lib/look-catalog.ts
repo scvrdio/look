@@ -4,7 +4,7 @@ import { libraryState, listMovies } from "./look-store";
 import { demoMovies, searchMovies } from "./movie-catalog";
 
 export type CatalogEpisode = { id: number; season: number; number: number | null; name: string; airdate: string | null };
-export type CatalogShow = { id: number; name: string; premiered: string | null; image: { medium: string } | null; genres: string[]; episodes: CatalogEpisode[] };
+export type CatalogShow = { id: number; name: string; premiered: string | null; image: { medium: string } | null; genres: string[]; episodes: CatalogEpisode[]; externals?: { imdb?: string | null } };
 const fixtures: CatalogShow[] = [
   { id: 169, name: "Black Mirror", premiered: "2011-12-04", image: null, genres: ["Drama"], episodes: [
     { id: 1, season: 1, number: 1, name: "The National Anthem", airdate: "2011-12-04" },
