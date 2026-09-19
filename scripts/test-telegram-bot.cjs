@@ -6,7 +6,7 @@ const vm = require('node:vm');
 function load(file, mocks, context = {}) {
   const module = { exports: {} };
   const code = ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true } }).outputText;
-  vm.runInNewContext(code, { module, exports: module.exports, require: n => mocks[n] ?? require(n), process: { env: { TELEGRAM_BOT_TOKEN: 'test-token' } }, Buffer, Response, AbortSignal, URL, console, ...context });
+  vm.runInNewContext(code, { module, exports: module.exports, require: n => mocks[n] ?? require(n), process: { env: { TELEGRAM_BOT_TOKEN: 'test-token' } }, Buffer, Response, Request, AbortSignal, URL, console, ...context });
   return module.exports;
 }
 function fixture(failSend = false) {
@@ -75,4 +75,27 @@ test('subscriptions are escaped and use the same storage',async()=>{
   await bot.handleUpdate({message:{chat:{id:123,type:'private'},text:'/subscriptions'}});
   assert.match(calls[0].body.text,/A &amp; B/);
   assert.equal(calls[0].body.reply_markup.inline_keyboard[0][0].callback_data,'status:1');
+});
+
+test('webhook authentication and malformed payloads fail closed',async()=>{
+  const { bot } = fixture(); let handled = 0;
+  const route = load('src/app/api/telegram/route.ts', {'@/lib/telegram-bot':{...bot,handleUpdate:async()=>handled++}}, {process:{env:{TELEGRAM_WEBHOOK_SECRET:'webhook-secret'}}});
+  const request = (body, secret) => new Request('https://example.test/api/telegram',{method:'POST',headers:secret?{'x-telegram-bot-api-secret-token':secret}:{},body});
+  assert.equal((await route.POST(request('{}'))).status,401);
+  assert.equal((await route.POST(request('{}','wrong'))).status,401);
+  assert.equal((await route.POST(request('bad','webhook-secret'))).status,400);
+  assert.equal((await route.POST(request('null','webhook-secret'))).status,400);
+  assert.equal((await route.POST(request('{}','webhook-secret'))).status,200);
+  assert.equal(handled,1);
+});
+
+test('cron rejects missing config and never runs without the secret',async()=>{
+  const {bot} = fixture(); let called=0;
+  const mocks={'@/lib/telegram-bot':{...bot,allSubscriptions:async()=>[],checkSubscriptions:async(items,dryRun)=>{called++;return {checked:items.length,failed:0,dryRun};}}};
+  const empty=load('src/app/api/check/route.ts',mocks,{process:{env:{}}});
+  assert.equal((await empty.GET(new Request('https://example.test/api/check'))).status,401);
+  const route=load('src/app/api/check/route.ts',mocks,{process:{env:{CRON_SECRET:'cron-secret'}}});
+  assert.equal((await route.GET(new Request('https://example.test/api/check'))).status,401);
+  const r=await route.GET(new Request('https://example.test/api/check?dryRun=1',{headers:{Authorization:'Bearer cron-secret'}}));
+  assert.equal(r.status,200);assert.equal((await r.json()).dryRun,true);assert.equal(called,1);
 });
