@@ -67,11 +67,11 @@ export function PoiskKinoSearch(props: {
     setAddingId(id);
 
     try {
-      const res = await fetch("/api/series/import/tvmaze", {
+      const res = await fetch(id < 0 ? "/api/movies/import" : "/api/series/import/tvmaze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ id }),
+        body: JSON.stringify({ id: Math.abs(id) }),
       });
 
       if (!res.ok) {

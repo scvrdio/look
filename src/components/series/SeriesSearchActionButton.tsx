@@ -41,8 +41,8 @@ export function SeriesSearchActionButton({
       onClick={onClick}
       disabled={effectiveDisabled}
       className={cn(
-        "relative inline-flex h-8 items-center rounded-[8px] bg-[#F2F2F2] px-3 ty-caption-13-medium transition-[gap,transform] active:scale-[0.99] disabled:opacity-40",
-        isAddLike ? (isLoading ? "gap-0" : "gap-2") : "gap-2",
+        "relative inline-flex h-8 items-center rounded-[8px] bg-black/5 pl-[10px] pr-3 text-[12px] font-medium leading-4 transition-[gap,transform] active:scale-[0.99] disabled:opacity-40",
+        isAddLike ? (isLoading ? "gap-0" : "gap-1.5") : "gap-1.5",
         className
       )}
     >
@@ -68,8 +68,9 @@ export function SeriesSearchActionButton({
       ) : null}
 
       <span className="relative inline-grid items-center">
-        <span className="invisible">{reserveLabel}</span>
+        <span aria-hidden className="invisible">{reserveLabel}</span>
         <span
+          aria-hidden={isLoading}
           className={cn(
             "pointer-events-none absolute inset-0 transition-[opacity,filter] duration-300 ease-out",
             isLoading ? "opacity-0 blur-[4px]" : "opacity-100 blur-0"
@@ -79,6 +80,7 @@ export function SeriesSearchActionButton({
         </span>
         {isAddLike ? (
           <span
+            aria-hidden={!isLoading}
             className={cn(
               "pointer-events-none absolute inset-0 transition-[opacity,filter] duration-300 ease-out",
               isLoading

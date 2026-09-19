@@ -138,7 +138,7 @@ export const SeriesSearchPanel = forwardRef<SeriesSearchPanelHandle, SeriesSearc
   const existingBySourceId = useMemo(() => {
     const map = new Map<number, string>();
     for (const series of items ?? []) {
-      if (series.source !== "tvmaze" || typeof series.sourceId !== "number") continue;
+      if (typeof series.sourceId !== "number") continue;
       map.set(series.sourceId, series.id);
     }
     return map;
@@ -276,11 +276,11 @@ export const SeriesSearchPanel = forwardRef<SeriesSearchPanelHandle, SeriesSearc
     setError(null);
 
     try {
-      const res = await fetch("/api/series/import/tvmaze", {
+      const res = await fetch(id < 0 ? "/api/movies/import" : "/api/series/import/tvmaze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ id }),
+        body: JSON.stringify({ id: Math.abs(id) }),
       });
 
       if (!res.ok) {
@@ -389,6 +389,7 @@ export const SeriesSearchPanel = forwardRef<SeriesSearchPanelHandle, SeriesSearc
       let catItems: Item[] = [];
       if (resCat.ok) {
         const dataCat = await resCat.json().catch(() => null);
+        if (dataCat?.warning) setError(dataCat.warning);
         catItems = Array.isArray(dataCat?.items) ? dataCat.items : [];
       } else {
         setError(await readErrorMessage(resCat));
@@ -397,7 +398,7 @@ export const SeriesSearchPanel = forwardRef<SeriesSearchPanelHandle, SeriesSearc
       const dbSourceIds = new Set<number>(
         dbMapped
           .map((x) => x.id)
-          .filter((x) => typeof x === "number" && x > 0)
+          .filter((x) => typeof x === "number" && x !== 0)
       );
 
       const catFiltered = catItems.filter((it) => {
@@ -500,7 +501,7 @@ export const SeriesSearchPanel = forwardRef<SeriesSearchPanelHandle, SeriesSearc
       ) : null}
 
       {step === "results" ? (
-        <div className={`${hideHeader ? "mt-4" : "mt-6"} space-y-3 pb-4`}>
+        <div className={`${hideHeader ? "mt-4" : "mt-6"} space-y-6 pb-4`}>
           {showSearchLoader ? (
             <div
               className={[
@@ -531,7 +532,7 @@ export const SeriesSearchPanel = forwardRef<SeriesSearchPanelHandle, SeriesSearc
                     ? "in-list"
                     : "add";
               const typeLabel = metaTypeLabel(item.type);
-              const countsLine = metaCountsLine(item.seasonsCount, item.episodesCount);
+              const countsLine = isSeriesType(item.type) ? metaCountsLine(item.seasonsCount, item.episodesCount) : null;
               const key = fromDb ? (item._localSeriesId as string) : String(item.id);
 
               return (
@@ -555,13 +556,8 @@ export const SeriesSearchPanel = forwardRef<SeriesSearchPanelHandle, SeriesSearc
                         <div className="truncate ty-body-16-medium leading-[20px]">{item.name}</div>
 
                         <div className="mt-1 ty-body-14 leading-[18px] text-black/50">
-                          {item.year ?? ""}
-                          {typeLabel ? ` · ${typeLabel}` : ""}
+                          {[item.year, typeLabel].filter(value => value != null && value !== "").join(" · ")}
                         </div>
-
-                        {item.genres?.length ? (
-                          <div className="mt-1 ty-body-14 text-black/50">{item.genres.join(" · ")}</div>
-                        ) : null}
 
                         {countsLine ? (
                           <div className="mt-1 ty-body-14 leading-[18px] text-black/50">{countsLine}</div>

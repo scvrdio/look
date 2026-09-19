@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { getCurrentChatId } from "@/server_auth/getCurrentChatId";
 import { bootstrap, catalogSearch, catalogShow, episodeKey } from "@/lib/look-catalog";
-import { addShow, libraryState, removeShow, setPaused, setWatched } from "@/lib/look-store";
+import { addShow, libraryState, removeShow, setPaused, setWatched, listMovies, saveMovie, updateMovie } from "@/lib/look-store";
+import { demoMovies, getMovie } from "@/lib/movie-catalog";
+import { isDemoMode } from "@/lib/subscriptions";
 
 export const runtime = "nodejs";
 type Context = { params: Promise<{ path: string[] }> };
@@ -16,7 +18,18 @@ async function handle(request: Request, context: Context) {
   const url = new URL(request.url);
   try {
     if (method === "GET" && route === "me") return json({ id: chatId, telegramId: chatId });
-    if (method === "GET" && route === "catalog/search") return json(await catalogSearch((url.searchParams.get("query") ?? "").slice(0,120)));
+    if (method === "GET" && route === "catalog/search") {
+      const requestedLimit = Number(url.searchParams.get("limit") ?? 20);
+      const limit = Number.isFinite(requestedLimit) ? Math.max(1, Math.min(50, Math.trunc(requestedLimit))) : 20;
+      return json(await catalogSearch((url.searchParams.get("query") ?? "").slice(0,120), url.searchParams.get("includeMovies") !== "0", limit));
+    }
+    if (method === "POST" && route === "movies/import") {
+      const body = await request.json();
+      if (!Number.isSafeInteger(body.id) || body.id <= 0) return json({ error: "Invalid movie" }, 400);
+      const movie = (isDemoMode() && demoMovies.find(m => m.id === body.id)) || await getMovie(body.id);
+      await saveMovie(chatId, movie);
+      return json({ series: { id: `movie:${movie.id}` } }, 201);
+    }
     if (method === "POST" && route === "series/import/tvmaze") {
       const body = await request.json();
       if (!Number.isSafeInteger(body.id) || body.id <= 0) return json({ error: "Invalid show" },400);
@@ -30,6 +43,21 @@ async function handle(request: Request, context: Context) {
       if (route === "series/in-progress-count") return json({ inProgressCount: data.series.filter(s => s.progress.percent > 0 && s.progress.percent < 100 && !s.paused).length });
       if (route === "series/search") return json({ items: data.series.filter(s => s.title.toLowerCase().includes((url.searchParams.get("q") ?? "").toLowerCase())) });
       return json(data);
+    }
+    if (path[0] === "series" && /^movie:[1-9]\d*$/.test(path[1] ?? "")) {
+      const id = Number(path[1].slice(6));
+      const movie = (await listMovies(chatId)).find(m => m.id === id);
+      if (!movie) return json({ error: "Not found" }, 404);
+      if (method === "DELETE" && path.length === 2) { await updateMovie(chatId, id, "delete"); return json({ ok: true }); }
+      if (method === "PATCH" && path.length === 2) {
+        const body = await request.json();
+        if (typeof body.completed !== "boolean") return json({ error: "Invalid update" }, 400);
+        await updateMovie(chatId, id, body.completed);
+        return json({ ok: true });
+      }
+      if (method === "GET" && path[2] === "poster") return json({ posterUrl: movie.posterUrl });
+      if (method === "GET" && path[2] === "seasons") return json([]);
+      return json({ error: "Not found" }, 404);
     }
     const parts = (path[1] ?? "").split(":").map(Number);
     const showId = parts[0];

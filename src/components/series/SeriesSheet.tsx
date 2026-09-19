@@ -18,6 +18,7 @@ import loadingAnimation from "../../../public/lottie.json";
 import { XCircleFill } from "@/icons";
 import { hapticImpact } from "@/lib/haptics";
 import type { SeriesRow } from "@/types/bootstrap";
+import { MovieSheet } from "./MovieSheet";
 
 type SeasonRow = {
   id: string;
@@ -71,7 +72,11 @@ type SeriesSheetProps = {
   onProgressStarted?: () => void;
 };
 
-export function SeriesSheet({
+export function SeriesSheet(props: SeriesSheetProps) {
+  return props.seriesId?.startsWith("movie:") ? <MovieSheet key={props.seriesId} {...props} /> : <SeriesEpisodesSheet {...props} />;
+}
+
+function SeriesEpisodesSheet({
   open,
   onOpenChange,
   seriesId,

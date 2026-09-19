@@ -1,4 +1,6 @@
 export type SeriesRow = {
+    kind?: "tv-series" | "movie";
+    year?: number | null;
     id: string;
     title: string;
     posterUrl: string | null;

@@ -46,7 +46,8 @@ export function SeriesCard({
   const radius = 8.5;
   const circumference = 2 * Math.PI * radius;
   const dashOffset = circumference * (1 - normalizedPercent / 100);
-  const seasonEpisodeMatch = rightTop.match(/S\s*(\d+)\s*E\s*(\d+)/i);
+  const isMovie = id.startsWith("movie:");
+  const seasonEpisodeMatch = isMovie ? null : rightTop.match(/S\s*(\d+)\s*E\s*(\d+)/i);
   const seasonNumber = seasonEpisodeMatch?.[1]?.padStart(2, "0");
   const episodeNumber = seasonEpisodeMatch?.[2]?.padStart(2, "0");
   return (
@@ -113,7 +114,7 @@ export function SeriesCard({
                 />
               </svg>
             </div>
-            <span className="ty-meta text-black/60 truncate">{subtitle}</span>
+            <span className="ty-meta text-black/60 truncate">{isMovie ? `Фильм · ${completed ? "Просмотрен" : "Буду смотреть"}` : subtitle}</span>
           </div>
         </div>
 
@@ -130,7 +131,7 @@ export function SeriesCard({
               </span>
             </div>
           ) : (
-            <div className="ty-stat-28 ty-numeric text-black">{rightTop}</div>
+            <div className="ty-stat-28 ty-numeric text-black">{isMovie ? `${normalizedPercent}%` : rightTop}</div>
           )}
           <span className="sr-only">{rightBottom}</span>
         </div>

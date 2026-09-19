@@ -142,7 +142,7 @@ export default function AddPage() {
   const existingBySourceId = useMemo(() => {
     const map = new Map<number, string>();
     for (const series of mySeries ?? []) {
-      if (series.source !== "tvmaze" || typeof series.sourceId !== "number") continue;
+      if (typeof series.sourceId !== "number") continue;
       map.set(series.sourceId, series.id);
     }
     return map;
@@ -294,11 +294,11 @@ export default function AddPage() {
     setError(null);
 
     try {
-      const res = await fetch("/api/series/import/tvmaze", {
+      const res = await fetch(id < 0 ? "/api/movies/import" : "/api/series/import/tvmaze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ id }),
+        body: JSON.stringify({ id: Math.abs(id) }),
       });
 
       if (!res.ok) {
@@ -411,6 +411,7 @@ export default function AddPage() {
       let catItems: Item[] = [];
       if (resCat.ok) {
         const dataCat = await resCat.json().catch(() => null);
+        if (dataCat?.warning) setError(dataCat.warning);
         const rawCatItems = Array.isArray(dataCat?.items) ? dataCat.items : [];
         catItems = rawCatItems;
       } else {
@@ -424,7 +425,7 @@ export default function AddPage() {
       const dbSourceIds = new Set<number>(
         dbMapped
           .map((x) => x.id)
-          .filter((x) => typeof x === "number" && x > 0)
+          .filter((x) => typeof x === "number" && x !== 0)
       );
 
       const catFiltered = catItems.filter((it) => {
@@ -520,7 +521,7 @@ export default function AddPage() {
 
         {/* Results */}
         {step === "results" && (
-          <div className="mt-6 space-y-3">
+          <div className="mt-6 space-y-6">
             {showSearchLoader ? (
               <div
                 className={[
@@ -551,7 +552,7 @@ export default function AddPage() {
                       : "add";
 
                 const typeLabel = metaTypeLabel(item.type);
-                const countsLine = metaCountsLine(item.seasonsCount, item.episodesCount);
+                const countsLine = isSeriesType(item.type) ? metaCountsLine(item.seasonsCount, item.episodesCount) : null;
 
                 const key = fromDb ? (item._localSeriesId as string) : String(item.id);
 
@@ -576,16 +577,8 @@ export default function AddPage() {
                           <div className="ty-body-16-medium leading-[20px] truncate">{item.name}</div>
 
                           <div className="ty-body-14 leading-[18px] text-black/50 mt-1">
-                            {item.year ?? ""}
-                            {typeLabel ? ` · ${typeLabel}` : ""}
+                            {[item.year, typeLabel].filter(value => value != null && value !== "").join(" · ")}
                           </div>
-
-                          {item.genres?.length ? (
-                            <div className="ty-body-14 text-black/50 mt-1">
-                              {item.genres.join(" · ")}
-                            </div>
-                          ) : null}
-
 
                           {countsLine ? (
                             <div className="ty-body-14 leading-[18px] text-black/50 mt-1">{countsLine}</div>
