@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  images: {
+    remotePatterns: [{ protocol: "https", hostname: "static.tvmaze.com" }],
+  },
   webpack(config) {
     const fileLoaderRule = config.module.rules.find(
       (rule: { test?: RegExp; issuer?: RegExp }) =>

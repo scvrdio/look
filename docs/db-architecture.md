@@ -52,3 +52,7 @@ LEFT JOIN "Episode" e ON e."id" = ue."episodeId"
 LEFT JOIN "User" u ON u."id" = ue."userId"
 WHERE e."id" IS NULL OR u."id" IS NULL;
 ```
+# Архивная документация
+
+Эта схема относится к исходному Prisma-бэкенду. В текущей ветке она не используется.
+Актуальная настройка: [SETUP.md](../SETUP.md).

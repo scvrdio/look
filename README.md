@@ -1,4 +1,8 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+Инструкции для текущей ветки оригинального Look с новым бэкендом: [SETUP.md](SETUP.md).
+Локальный запуск: `pnpm install --frozen-lockfile`, затем `pnpm dev`. Docker и Prisma не нужны.
+Без настроек Supabase открывается локальная демоверсия, не Telegram-аккаунт.
+
+Ниже — справочная информация исходного Next.js-проекта.
 
 ## Getting Started
 

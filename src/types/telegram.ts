@@ -66,3 +66,16 @@ export function getTelegramWebApp(): TelegramWebApp | undefined {
   if (typeof window === "undefined") return undefined;
   return (window as TelegramWindow).Telegram?.WebApp;
 }
+
+export function getTelegramInitData(): string {
+  if (typeof window === "undefined") return "";
+
+  const sdkValue = getTelegramWebApp()?.initData?.trim();
+  if (sdkValue) return sdkValue;
+
+  // Telegram also puts the signed payload into the launch URL. Reading it
+  // directly keeps authentication reliable while the SDK script is loading.
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  const query = new URLSearchParams(window.location.search);
+  return (hash.get("tgWebAppData") ?? query.get("tgWebAppData") ?? "").trim();
+}

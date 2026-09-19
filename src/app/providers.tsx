@@ -1,159 +1,116 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { SWRConfig, useSWRConfig } from "swr";
 import { fetcher } from "@/lib/fetcher";
-import type { BootstrapResponse } from "@/types/bootstrap";
-import { getTelegramWebApp } from "@/types/telegram";
+import { getTelegramInitData } from "@/types/telegram";
 
-function sleep(ms: number) {
-  return new Promise((r) => setTimeout(r, ms));
-}
+type TelegramAuthStatus = "checking" | "authenticated" | "unavailable" | "failed";
 
-async function waitForTelegramInitData(timeoutMs = 1500): Promise<string | null> {
-  const started = Date.now();
-  while (Date.now() - started < timeoutMs) {
-    const tg = getTelegramWebApp();
-    const initData: string | undefined = tg?.initData;
-    if (initData && initData.length > 0) return initData;
-    await sleep(50);
-  }
-  return null;
-}
+type TelegramAuthValue = {
+  status: TelegramAuthStatus;
+  retry: () => void;
+};
 
-async function telegramAuthIfNeeded() {
-  const initData = await waitForTelegramInitData(2000);
-  if (!initData) return;
+const TelegramAuthContext = createContext<TelegramAuthValue>({
+  status: "checking",
+  retry: () => {},
+});
 
-  const r = await fetch("/api/auth/telegram", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify({ initData }),
-  });
+const INIT_DATA_RETRIES_MS = [0, 60, 160, 320, 650, 1100, 1800, 3000, 5000, 8000];
 
-  if (!r.ok) {
-    const t = await r.text().catch(() => "");
-    throw new Error(`Telegram auth failed: ${r.status} ${t}`);
-  }
-}
+function TelegramAuthGate({ children }: { children: React.ReactNode }) {
+  const runId = useRef(0);
+  const [status, setStatus] = useState<TelegramAuthStatus>("checking");
+  const { mutate } = useSWRConfig();
 
-function isUnauthorizedError(error: unknown): boolean {
-  if (!(error instanceof Error)) return false;
-  const message = error.message.toLowerCase();
-  return message.includes("401") || message.includes("unauthorized");
-}
+  const authenticate = useCallback(async () => {
+    const currentRun = ++runId.current;
+    setStatus("checking");
+    const finish = () => {
+      // The original cache predates multi-account Telegram authentication.
+      try {
+        localStorage.removeItem("series_cache_v3");
+        localStorage.removeItem("last_marked_series_id");
+      } catch { /* Storage can be unavailable inside a webview. */ }
+      setStatus("authenticated");
+    };
 
-async function fetchBootstrapWithAuthRetry(): Promise<BootstrapResponse> {
-  try {
-    return await fetcher<BootstrapResponse>("/api/bootstrap");
-  } catch (error) {
-    if (!isUnauthorizedError(error)) throw error;
-    await telegramAuthIfNeeded();
-    return fetcher<BootstrapResponse>("/api/bootstrap");
-  }
-}
+    const existingSession = await fetch("/api/auth/telegram", {
+      credentials: "include",
+      cache: "no-store",
+    }).catch(() => null);
+    if (currentRun !== runId.current) return;
+    const session = existingSession?.ok ? await existingSession.json().catch(() => null) : null;
+    if (session?.demo) {
+      finish();
+      return;
+    }
 
-function BootGate({ children }: { children: React.ReactNode }) {
-  const { mutate: mutateGlobal } = useSWRConfig();
-  const showBootDebug = process.env.NODE_ENV !== "production";
+    for (let index = 0; index < INIT_DATA_RETRIES_MS.length; index += 1) {
+      const delay = INIT_DATA_RETRIES_MS[index] - (INIT_DATA_RETRIES_MS[index - 1] ?? 0);
+      if (delay > 0) await new Promise((resolve) => window.setTimeout(resolve, delay));
+      if (currentRun !== runId.current) return;
 
-  const [error, setError] = useState<string | null>(null);
+      const initData = getTelegramInitData();
+      if (!initData) continue;
 
-  const didBootRef = useRef(false);
+      const response = await fetch("/api/auth/telegram", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ initData }),
+      }).catch(() => null);
+
+      if (currentRun !== runId.current) return;
+      if (!response?.ok) {
+        setStatus("failed");
+        return;
+      }
+
+      await mutate(() => true, undefined, { revalidate: false });
+      finish();
+      await mutate("/api/series");
+      return;
+    }
+
+    if (currentRun === runId.current) {
+      if (session?.authenticated) finish();
+      else setStatus("unavailable");
+    }
+  }, [mutate]);
 
   useEffect(() => {
-    if (didBootRef.current) return;
-    didBootRef.current = true;
-
-    let cancelled = false;
-
-    (async () => {
-      try {
-        setError(null);
-        // если уже делали boot в этой сессии — не повторяем
-        try {
-          if (sessionStorage.getItem("boot_done") === "1") {
-            return;
-          }
-        } catch {}
-
-        // 1) bootstrap immediately; fallback to Telegram auth only on 401.
-        const bootstrap = await fetchBootstrapWithAuthRetry();
-        if (cancelled) return;
-
-        await mutateGlobal("/api/series", bootstrap.series, { revalidate: false });
-
-        const inProgressCount = bootstrap.series.filter((s) => {
-          const p = s.progress?.percent ?? 0;
-          return p > 0 && p < 100;
-        }).length;
-        await mutateGlobal("/api/series/in-progress-count", { inProgressCount }, { revalidate: false });
-
-        const nonCompletedSeriesIds = new Set(
-          bootstrap.series
-            .filter((s) => (s.progress?.percent ?? 0) < 100)
-            .map((s) => s.id)
-        );
-        const nonCompletedSeasonIds = new Set<string>();
-
-        for (const [seriesId, seasons] of Object.entries(bootstrap.seasonsBySeries ?? {})) {
-          await mutateGlobal(`/api/series/${seriesId}/seasons`, seasons, { revalidate: false });
-          if (nonCompletedSeriesIds.has(seriesId)) {
-            for (const season of seasons) nonCompletedSeasonIds.add(season.id);
-          }
-        }
-
-        for (const [seasonId, episodes] of Object.entries(bootstrap.episodesBySeason ?? {})) {
-          if (!nonCompletedSeasonIds.has(seasonId)) continue;
-
-          await mutateGlobal(`/api/seasons/${seasonId}/episodes`, episodes, { revalidate: false });
-        }
-
-        if (cancelled) return;
-
-        try {
-          sessionStorage.setItem("boot_done", "1");
-        } catch {}
-
-      } catch (e: unknown) {
-        if (cancelled) return;
-        const message = e instanceof Error ? e.message : "Boot failed";
-        setError(message);
-      }
-    })();
-
+    const timer = window.setTimeout(() => void authenticate(), 0);
     return () => {
-      cancelled = true;
+      window.clearTimeout(timer);
+      runId.current += 1;
     };
-  }, [mutateGlobal]);
+  }, [authenticate]);
+
+  const retry = useCallback(() => void authenticate(), [authenticate]);
+  const value = useMemo(() => ({ status, retry }), [status, retry]);
 
   return (
-    <>
-      {showBootDebug && error ? (
-        <div className="fixed top-2 left-1/2 -translate-x-1/2 z-50 rounded-xl border border-black/10 bg-white px-3 py-2 text-xs text-black/60 shadow-sm">
-          Boot: {error}
-        </div>
-      ) : null}
-      {children}
-    </>
+    <TelegramAuthContext.Provider value={value}>
+      {status === "authenticated" ? children : (
+        <main className="mx-auto min-h-dvh max-w-[420px] bg-white px-5 pt-16">
+          <p className="ty-body-16-medium">{status === "checking" ? "Подключаю библиотеку…" : "Не удалось войти через Telegram"}</p>
+          {status !== "checking" ? <button onClick={retry} className="mt-4 rounded-full bg-black px-5 py-3 text-white">Повторить вход</button> : null}
+        </main>
+      )}
+    </TelegramAuthContext.Provider>
   );
+}
+
+export function useTelegramAuth() {
+  return useContext(TelegramAuthContext);
 }
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <SWRConfig
-      value={{
-        fetcher,
-        revalidateOnFocus: false,
-        revalidateOnReconnect: false,
-        keepPreviousData: true,
-        dedupingInterval: 10_000,
-      }}
-    >
-      <BootGate>{children}</BootGate>
+    <SWRConfig value={{ fetcher, revalidateOnFocus: false, revalidateOnReconnect: false, dedupingInterval: 10_000 }}>
+      <TelegramAuthGate>{children}</TelegramAuthGate>
     </SWRConfig>
   );
 }
-
-

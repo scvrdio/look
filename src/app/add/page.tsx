@@ -142,7 +142,7 @@ export default function AddPage() {
   const existingBySourceId = useMemo(() => {
     const map = new Map<number, string>();
     for (const series of mySeries ?? []) {
-      if (series.source !== "poiskkino" || typeof series.sourceId !== "number") continue;
+      if (series.source !== "tvmaze" || typeof series.sourceId !== "number") continue;
       map.set(series.sourceId, series.id);
     }
     return map;
@@ -294,7 +294,7 @@ export default function AddPage() {
     setError(null);
 
     try {
-      const res = await fetch("/api/series/import/poiskkino", {
+      const res = await fetch("/api/series/import/tvmaze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -379,7 +379,7 @@ export default function AddPage() {
       // 1) параллельно: БД + каталог
       const [resDb, resCat] = await Promise.all([
         fetch(`/api/series/search?q=${encodeURIComponent(q)}`, { cache: "no-store" }),
-        fetch(`/api/poiskkino/search?query=${encodeURIComponent(q)}&limit=10&includeMovies=1`, { cache: "no-store" }),
+        fetch(`/api/catalog/search?query=${encodeURIComponent(q)}&limit=10&includeMovies=1`, { cache: "no-store" }),
       ]);
 
       // --- DB
@@ -638,4 +638,3 @@ export default function AddPage() {
     </main>
   );
 }
-

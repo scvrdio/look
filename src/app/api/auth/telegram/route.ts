@@ -1,113 +1,73 @@
-import { NextResponse } from "next/server";
 import crypto from "crypto";
-import { prisma } from "@/lib/db";
+import { NextResponse } from "next/server";
+import { createChatSession } from "@/server_auth/chatSession";
+import { getCurrentChatId } from "@/server_auth/getCurrentChatId";
+import { isDemoMode } from "@/lib/subscriptions";
 
-type TelegramUserPayload = {
-    id?: string | number;
-};
+type TelegramUserPayload = { id?: string | number };
+type Verification =
+  | { ok: true; telegramId: string }
+  | { ok: false; reason: string };
 
-function verifyTelegramInitData(initData: string, botToken: string) {
-    const params = new URLSearchParams(initData);
+function verifyTelegramInitData(initData: string, botToken: string): Verification {
+  const params = new URLSearchParams(initData);
+  const hash = params.get("hash");
+  if (!hash) return { ok: false as const, reason: "missing hash" };
 
-    const hash = params.get("hash");
-    if (!hash) return { ok: false as const, reason: "missing hash" };
+  const data: Record<string, string> = {};
+  params.forEach((value, key) => {
+    if (key !== "hash") data[key] = value;
+  });
 
-    // соберём объект без hash
-    const data: Record<string, string> = {};
-    params.forEach((value, key) => {
-        if (key !== "hash") data[key] = value;
-    });
+  const authDate = Number(data.auth_date);
+  if (!Number.isFinite(authDate)) return { ok: false as const, reason: "bad auth_date" };
+  if (authDate > Math.floor(Date.now() / 1000) + 60 || Math.floor(Date.now() / 1000) - authDate > 60 * 60 * 24) {
+    return { ok: false as const, reason: "initData expired" };
+  }
 
-    const authDateStr = data["auth_date"]; // или params.get("auth_date") — смотря как у тебя собрано
-    if (!authDateStr) return { ok: false as const, reason: "missing auth_date" };
+  const dataCheckString = Object.keys(data).sort().map((key) => `${key}=${data[key]}`).join("\n");
+  const secretKey = crypto.createHmac("sha256", "WebAppData").update(botToken.trim()).digest();
+  const computedHash = crypto.createHmac("sha256", secretKey).update(dataCheckString).digest("hex");
+  const expected = Buffer.from(computedHash);
+  const received = Buffer.from(hash);
+  if (expected.length !== received.length || !crypto.timingSafeEqual(expected, received)) {
+    return { ok: false as const, reason: "hash mismatch" };
+  }
 
-    const authDate = Number(authDateStr);
-    if (!Number.isFinite(authDate)) return { ok: false as const, reason: "bad auth_date" };
-
-    const now = Math.floor(Date.now() / 1000);
-    const MAX_AGE_SECONDS = 60 * 60 * 24; // 24 часа
-
-    if (now - authDate > MAX_AGE_SECONDS) {
-        return { ok: false as const, reason: "initData expired" };
-    }
-
-
-    const dataCheckString = Object.keys(data)
-        .sort()
-        .map((k) => `${k}=${data[k]}`)
-        .join("\n");
-
-    const secretKey = crypto
-        .createHmac("sha256", "WebAppData")
-        .update(botToken.trim())
-        .digest();
-
-    const computedHash = crypto
-        .createHmac("sha256", secretKey)
-        .update(dataCheckString)
-        .digest("hex");
-
-    if (computedHash !== hash) {
-        return { ok: false as const, reason: "hash mismatch" };
-    }
-
-    const userRaw = data["user"];
-    if (!userRaw) return { ok: false as const, reason: "missing user" };
-
-    let user: TelegramUserPayload;
-    try {
-        user = JSON.parse(userRaw) as TelegramUserPayload;
-    } catch {
-        return { ok: false as const, reason: "bad user json" };
-    }
-
-    const telegramId = user?.id;
-    if (!telegramId) return { ok: false as const, reason: "missing telegram id" };
-
-    return { ok: true as const, telegramId: BigInt(telegramId) };
+  try {
+    const user = JSON.parse(data.user ?? "{}") as TelegramUserPayload;
+    if (!Number.isSafeInteger(user.id) || Number(user.id) <= 0) return { ok: false as const, reason: "invalid telegram id" };
+    return { ok: true as const, telegramId: String(user.id) };
+  } catch {
+    return { ok: false as const, reason: "bad user json" };
+  }
 }
 
+export async function GET() {
+  const chatId = await getCurrentChatId();
+  if (!chatId) return NextResponse.json({ authenticated: false }, { status: 401 });
+  return NextResponse.json({ authenticated: true, demo: isDemoMode() });
+}
 
-export async function POST(req: Request) {
-    const { initData } = (await req.json().catch(() => ({}))) as {
-        initData?: string;
-    };
+export async function POST(request: Request) {
+  const { initData } = (await request.json().catch(() => ({}))) as { initData?: string };
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
 
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
-    if (!botToken) {
-        return NextResponse.json(
-            { error: "TELEGRAM_BOT_TOKEN is not set" },
-            { status: 500 }
-        );
-    }
+  if (!botToken) {
+    return NextResponse.json({ error: "Telegram auth is not configured" }, { status: 500 });
+  }
+  if (!initData || typeof initData !== "string") return NextResponse.json({ error: "initData is required" }, { status: 400 });
 
-    if (!initData || typeof initData !== "string") {
-        return NextResponse.json({ error: "initData is required" }, { status: 400 });
-    }
+  const verification = verifyTelegramInitData(initData, botToken);
+  if (!verification.ok) return NextResponse.json({ error: "unauthorized", reason: verification.reason }, { status: 401 });
 
-    const v = verifyTelegramInitData(initData, botToken);
-    if (!v.ok) {
-        return NextResponse.json({ error: "unauthorized", reason: v.reason }, { status: 401 });
-    }
-
-    const user = await prisma.user.upsert({
-        where: { telegramId: v.telegramId },
-        update: {},
-        create: { telegramId: v.telegramId },
-        select: { id: true },
-    });
-
-    const res = NextResponse.json({ ok: true });
-    const isHttps = req.url.startsWith("https://");
-
-    // httpOnly cookie с внутренним userId
-    res.cookies.set("uid", user.id, {
-        httpOnly: true,
-        secure: isHttps,
-        sameSite: isHttps ? "none" : "lax",
-        path: "/",
-        maxAge: 60 * 60 * 24 * 30, // 30 дней
-    });
-
-    return res;
+  const response = NextResponse.json({ ok: true });
+  response.cookies.set("tg_chat_id", createChatSession(verification.telegramId), {
+    httpOnly: true,
+    secure: new URL(request.url).protocol === "https:",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 30,
+  });
+  return response;
 }

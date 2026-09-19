@@ -3,7 +3,7 @@
 import * as React from "react";
 import useSWR from "swr";
 import { useSWRConfig } from "swr";
-import * as Dialog from "@radix-ui/react-dialog";
+import { Dialog } from "radix-ui";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import Lottie from "lottie-react";
 

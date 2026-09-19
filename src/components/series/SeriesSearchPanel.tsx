@@ -138,7 +138,7 @@ export const SeriesSearchPanel = forwardRef<SeriesSearchPanelHandle, SeriesSearc
   const existingBySourceId = useMemo(() => {
     const map = new Map<number, string>();
     for (const series of items ?? []) {
-      if (series.source !== "poiskkino" || typeof series.sourceId !== "number") continue;
+      if (series.source !== "tvmaze" || typeof series.sourceId !== "number") continue;
       map.set(series.sourceId, series.id);
     }
     return map;
@@ -276,7 +276,7 @@ export const SeriesSearchPanel = forwardRef<SeriesSearchPanelHandle, SeriesSearc
     setError(null);
 
     try {
-      const res = await fetch("/api/series/import/poiskkino", {
+      const res = await fetch("/api/series/import/tvmaze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -363,7 +363,7 @@ export const SeriesSearchPanel = forwardRef<SeriesSearchPanelHandle, SeriesSearc
     try {
       const [resDb, resCat] = await Promise.all([
         fetch(`/api/series/search?q=${encodeURIComponent(q)}`, { cache: "no-store" }),
-        fetch(`/api/poiskkino/search?query=${encodeURIComponent(q)}&limit=10&includeMovies=1`, { cache: "no-store" }),
+        fetch(`/api/catalog/search?query=${encodeURIComponent(q)}&limit=10&includeMovies=1`, { cache: "no-store" }),
       ]);
 
       let dbMapped: Item[] = [];

@@ -47,7 +47,7 @@ export function PoiskKinoSearch(props: {
   const key = useMemo(() => {
     const q = query.trim();
     if (q.length < 2) return null;
-    return `/api/poiskkino/search?query=${encodeURIComponent(q)}&limit=20&includeMovies=1`;
+    return `/api/catalog/search?query=${encodeURIComponent(q)}&limit=20&includeMovies=1`;
   }, [query]);
 
   const { data, isLoading } = useSWR<SearchResponse>(key, fetcher, {
@@ -67,7 +67,7 @@ export function PoiskKinoSearch(props: {
     setAddingId(id);
 
     try {
-      const res = await fetch("/api/series/import/poiskkino", {
+      const res = await fetch("/api/series/import/tvmaze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
