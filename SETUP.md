@@ -11,6 +11,21 @@
 Для исходного проекта требуется заново задать закрытые серверные ключи,
 которые Vercel не позволяет прочитать из Secret-переменных другого проекта.
 
+Код `9763b27` уже опубликован в `scvrdio/look/main` и на look-green:
+production `dpl_AchEGJoNv6rBGigpNoHRUKzDztjP`, READY.
+Проверка входа через Telegram прошла, но чтение библиотеки вернуло 502:
+`Supabase request failed: 401`; проверка subscriptions вернула 0 вместо 9.
+Добавленный ключ требует замены на серверный Secret/service_role того же Supabase.
+Webhook и меню НЕ переключены, рабочее расписание остаётся в look-notify.
+Новое расписание проекта look временно отключено до проверки доступа к базе.
+Не удалять look-notify до полного завершения перехода.
+
+Локальная привязка `.vercel/project.json` и Git remote `origin` уже указывают
+на исходный look. Старый remote сохранён под именем `notify-archive`.
+Проверки и переключение: `scripts/restore-original.mjs` (readiness, verify,
+dry-run, connect, test-menu). Секреты перехода временно лежат в игнорируемом
+`.local-data/original-cutover.json` с правами 0600; удалить после завершения.
+
 Ниже — состояние предыдущего этапа, до возврата в исходный проект.
 
 Ветка `codex/look-original-backend` основана на оригинальном `look-main`.
