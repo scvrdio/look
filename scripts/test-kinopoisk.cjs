@@ -10,19 +10,21 @@ function load(file, mocks = {}, context = {}) {
   return module.exports;
 }
 const links = load('src/lib/kinopoisk.ts');
-test('Kinopoisk button preserves native link navigation, including inside Telegram', () => {
+test('Kinopoisk button uses same-frame Universal Links only for exact links in iOS Telegram', () => {
   const module = { exports: {} };
   const code = ts.transpileModule(fs.readFileSync('src/components/series/KinopoiskButton.tsx', 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true },
   }).outputText;
   let haptics = 0;
+  let telegram = { initData: 'signed', platform: 'ios' };
+  let resolvedLink = links.kinopoiskPage(4786341, 'series');
   const mocks = {
     'react/jsx-runtime': { jsx: (type, props) => ({ type, props }) },
-    'swr': () => ({ data: links.kinopoiskPage(4786341, 'series'), isLoading: false }),
+    'swr': () => ({ data: resolvedLink, isLoading: false }),
     '@/lib/fetcher': { fetcher: () => {} },
     '@/lib/kinopoisk': links,
     '@/lib/haptics': { hapticImpact: () => haptics++ },
-    '@/types/telegram': { getTelegramWebApp: () => ({ initData: 'signed', openLink: () => assert.fail('Must not force browser navigation') }) },
+    '@/types/telegram': { getTelegramWebApp: () => ({ ...telegram, openLink: () => assert.fail('Must not force browser navigation') }) },
   };
   vm.runInNewContext(code, { module, exports: module.exports, require: name => mocks[name] ?? require(name) });
   for (const [seriesId, url] of [
@@ -34,9 +36,24 @@ test('Kinopoisk button preserves native link navigation, including inside Telegr
     assert.equal(button.props.href, url);
     assert.equal(button.props.target, '_blank');
     assert.equal(button.props.rel, 'noopener noreferrer');
-    button.props.onClick({ preventDefault: () => assert.fail('Native navigation must remain enabled') });
+    const anchor = { target: button.props.target };
+    button.props.onClick({ currentTarget: anchor, preventDefault: () => assert.fail('Native navigation must remain enabled') });
+    assert.equal(anchor.target, '_self');
   }
   assert.equal(haptics, 2);
+  for (const context of [{ initData: 'signed', platform: 'android' }, { initData: 'signed', platform: 'tdesktop' }, { initData: '', platform: 'ios' }]) {
+    telegram = context;
+    const button = module.exports.KinopoiskButton({ seriesId: 'movie:447301', title: 'Title' });
+    const anchor = { target: '_self' };
+    button.props.onClick({ currentTarget: anchor });
+    assert.equal(anchor.target, '_blank');
+  }
+  telegram = { initData: 'signed', platform: 'ios' };
+  resolvedLink = links.kinopoiskSearch('Unknown');
+  const fallback = module.exports.KinopoiskButton({ seriesId: '169', title: 'Unknown' });
+  const anchor = { target: '_self' };
+  fallback.props.onClick({ currentTarget: anchor });
+  assert.equal(anchor.target, '_blank');
 });
 test('film and series URLs use Kinopoisk IDs and encode fallback queries', () => {
   assert.equal(links.kinopoiskPage(447301, 'movie').url, 'https://www.kinopoisk.ru/film/447301/');
