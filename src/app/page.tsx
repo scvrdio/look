@@ -36,14 +36,10 @@ export default function HomePage() {
   const currentOpenSourceRef = useRef<OpenSource>(null);
   const closeCleanupTimerRef = useRef<number | null>(null);
 
-  const { data: items = [], error: libraryError, isLoading, mutate: mutateSeries } = useSWR<SeriesRow[]>(
+  const { data: items = [], error: libraryError, mutate: mutateSeries } = useSWR<SeriesRow[]>(
     "/api/series",
     fetcher
   );
-
-  useEffect(() => {
-    void mutateSeries();
-  }, [mutateSeries]);
 
   useEffect(() => {
     try {
@@ -278,7 +274,7 @@ export default function HomePage() {
           {libraryError ? <div role="alert" className="mb-4 rounded-2xl bg-black/5 p-4">
             <p>Не удалось загрузить подписки.</p>
             <button className="mt-2 underline" onClick={() => void mutateSeries()}>Повторить загрузку</button>
-          </div> : isLoading ? <p role="status" className="mb-4">Загружаю подписки…</p> : null}
+          </div> : null}
           <HomeContent
             items={items}
             resetToken={contentResetToken}

@@ -1,7 +1,11 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { SWRConfig, useSWRConfig } from "swr";
+import useSWR, { SWRConfig, useSWRConfig } from "swr";
+import Lottie from "lottie-react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import loadingAnimation from "../../public/lottie.json";
+import type { SeriesRow } from "@/types/bootstrap";
 import { fetcher } from "@/lib/fetcher";
 import { getTelegramInitData } from "@/types/telegram";
 
@@ -23,6 +27,13 @@ function TelegramAuthGate({ children }: { children: React.ReactNode }) {
   const runId = useRef(0);
   const [status, setStatus] = useState<TelegramAuthStatus>("checking");
   const { mutate } = useSWRConfig();
+  const reducedMotion = useReducedMotion();
+  const { data: library, error: libraryError } = useSWR<SeriesRow[]>(
+    status === "authenticated" ? "/api/series" : null,
+    fetcher
+  );
+  const loading = status === "checking" ||
+    (status === "authenticated" && library === undefined && !libraryError);
 
   const authenticate = useCallback(async () => {
     const currentRun = ++runId.current;
@@ -70,7 +81,6 @@ function TelegramAuthGate({ children }: { children: React.ReactNode }) {
 
       await mutate(() => true, undefined, { revalidate: false });
       finish();
-      await mutate("/api/series");
       return;
     }
 
@@ -93,12 +103,27 @@ function TelegramAuthGate({ children }: { children: React.ReactNode }) {
 
   return (
     <TelegramAuthContext.Provider value={value}>
-      {status === "authenticated" ? children : (
+      {status === "authenticated" && !loading ? children : !loading ? (
         <main className="mx-auto min-h-dvh max-w-[420px] bg-white px-5 pt-16">
-          <p className="ty-body-16-medium">{status === "checking" ? "Подключаю библиотеку…" : "Не удалось войти через Telegram"}</p>
-          {status !== "checking" ? <button onClick={retry} className="mt-4 rounded-full bg-black px-5 py-3 text-white">Повторить вход</button> : null}
+          <p role="alert" className="ty-body-16-medium">Не удалось войти через Telegram</p>
+          <button onClick={retry} className="mt-4 rounded-full bg-black px-5 py-3 text-white">Повторить вход</button>
         </main>
-      )}
+      ) : null}
+      <AnimatePresence>
+        {loading ? <motion.div
+          key="startup-loader"
+          role="status"
+          aria-label="Загрузка приложения"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-white"
+          initial={false}
+          exit={{ opacity: 0 }}
+          transition={{ duration: reducedMotion ? 0 : 0.24 }}
+        >
+          <div className="h-24 w-24" aria-hidden="true">
+            <Lottie animationData={loadingAnimation} loop={!reducedMotion} autoplay={!reducedMotion} />
+          </div>
+        </motion.div> : null}
+      </AnimatePresence>
     </TelegramAuthContext.Provider>
   );
 }

@@ -3,7 +3,6 @@
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { kinopoiskPage, kinopoiskSearch, type KinopoiskLink } from "@/lib/kinopoisk";
-import { getTelegramWebApp } from "@/types/telegram";
 import { hapticImpact } from "@/lib/haptics";
 
 export function KinopoiskButton({ seriesId, title, active = true }: { seriesId: string; title: string; active?: boolean }) {
@@ -18,10 +17,10 @@ export function KinopoiskButton({ seriesId, title, active = true }: { seriesId: 
     href={link.url} target="_blank" rel="noopener noreferrer"
     aria-label={label} title={label} aria-busy={isLoading}
     className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-transform active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
-    onClick={event => {
+    onClick={() => {
       hapticImpact("light");
-      const telegram = getTelegramWebApp();
-      if (telegram?.initData && telegram.openLink) { event.preventDefault(); telegram.openLink(link.url); }
+      // Preserve native anchor navigation: Telegram.openLink forces the external
+      // browser path on iOS instead of letting the client handle this app link.
     }}
   >
     <img src="/kinopoisk.svg" alt="" width={44} height={44} className="h-11 w-11" />
